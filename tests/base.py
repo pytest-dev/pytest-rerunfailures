@@ -3,6 +3,9 @@ import time, os
 
 class BaseTest(object):
 
+    # nondestructive unless marked otherwise
+    pytestmark = pytestmark = [pytest.mark.nondestructive]
+
     def failing_method(self):
         raise Exception("OMG! failing method!")
 

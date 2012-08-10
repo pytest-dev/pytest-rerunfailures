@@ -17,9 +17,11 @@ def pytest_addoption(parser):
 def check_options(config):
     val = config.getvalue
     if not val("collectonly"):
-        if val("reruns"):
-            if config.option.usepdb:  # a core option
-                raise pytest.UsageError("--pdb incompatible with --reruns.")
+        if config.option.reruns != 0:
+            if val("looponfail"):  # https://github.com/klrmn/pytest-rerunfailures/issues/1
+                raise pytest.UsageError("--reruns incompatible with --looponfail.")
+            elif config.option.usepdb:   # a core option
+                raise pytest.UsageError("--reruns incompatible with --pdb")
 
 def pytest_configure(config):
     """extending https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/main.py#cl-61"""
