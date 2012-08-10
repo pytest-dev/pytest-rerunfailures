@@ -1,4 +1,4 @@
-import sys, time
+import sys, time, os
 import py, pytest
 
 ############################## the plugin #############################
@@ -51,46 +51,44 @@ def pytest_runtest_protocol(item, nextitem):
     reports = None
     log = False
     while i < reruns:  # ensure at least one run of each item
-        reports = []
+        i += 1
         setup_rep = call_and_report(item, "setup")
-        reports = [setup_rep]
+        call_rep = None
         teardown_rep = None
 
         if setup_rep.passed:
-            # print "setup passed %s" % i
             call_rep = call_and_report(item, "call")
-            reports.append(call_rep)
             if call_rep.passed:
-                # print "test call passed %s" % i
                 teardown_rep = call_and_report(item, "teardown",
                     nextitem=nextitem)
-                reports.append(teardown_rep)
                 break  # passing case, break the loop
             else:  # test call failed
-                # print "test call failed %s" % i
                 teardown_rep = call_and_report(item, "teardown",
                     nextitem=item)
-                reports.append(teardown_rep)
         else:  # setup failed
-            print "setup failed %s" % i
             teardown_rep = call_and_report(item, "teardown", nextitem=None)
 
-        i += 1
 
-    # runtestprotocol returns reports, but
+    # publish reports only from the last run
+    publish_reports(item, setup_rep, call_rep, teardown_rep)
+
     # pytest_runtest_protocol returns True
     return True
 
-################## methods copied to make other methods work #################
+def publish_reports(item, setup_rep, call_rep, teardown_rep):
+    item.ihook.pytest_runtest_logreport(report=setup_rep)
+    if call_rep:
+        item.ihook.pytest_runtest_logreport(report=call_rep)
+    item.ihook.pytest_runtest_logreport(report=teardown_rep)
 
-def call_and_report(item, when, log=True, **kwds):
-    """ Copied from https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-96 """
+def call_and_report(item, when, **kwds):
+    """ Modified from https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-96 """
     call = call_runtest_hook(item, when, **kwds)
     hook = item.ihook
     report = hook.pytest_runtest_makereport(item=item, call=call)
-    if log:
-        hook.pytest_runtest_logreport(report=report)
     return report
+
+################## methods copied to make other methods work #################
 
 def call_runtest_hook(item, when, **kwds):
     """ Copied from https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-104 """
@@ -123,3 +121,8 @@ class CallInfo:
         else:
             status = "result: %r" % (self.result,)
         return "<CallInfo when=%r %s>" % (self.when, status)
+
+############ for the tests ###############
+
+def pytest_unconfigure(config):
+    os.popen('rm -f test_*.res')
