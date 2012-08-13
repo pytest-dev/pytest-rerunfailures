@@ -22,14 +22,6 @@ def check_options(config):
             elif config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
-def pytest_configure(config):
-    """extending https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/main.py#cl-61"""
-    py.test.config = config # compatibiltiy
-    if config.option.exitfirst:
-        config.option.maxfail = 1
-
-    check_options(config)
-
 def pytest_runtest_protocol(item, nextitem):
     """
     A mishmash of
@@ -44,13 +36,17 @@ def pytest_runtest_protocol(item, nextitem):
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
     """
+
+    # while this doesn't need to be run with every item, it will fail on the first 
+    # item if necessary
+    check_options(item.session.config)
+
     item.ihook.pytest_runtest_logstart(
         nodeid=item.nodeid, location=item.location,
     )
+
     reruns = item.session.config.option.reruns
     i = -1
-    reports = None
-    log = False
     while i < reruns:  # ensure at least one run of each item
         i += 1
         setup_rep = call_and_report(item, "setup")
