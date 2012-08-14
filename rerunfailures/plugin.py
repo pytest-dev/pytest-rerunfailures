@@ -17,7 +17,7 @@ def check_options(config):
     val = config.getvalue
     if not val("collectonly"):
         if config.option.reruns != 0:
-            elif config.option.usepdb:   # a core option
+            if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
 def pytest_runtest_protocol(item, nextitem):
