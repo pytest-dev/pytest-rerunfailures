@@ -14,4 +14,13 @@ Notes:
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
 
-    The tests for this plugin may not be run with the pytest-mozwebqa plugin installed.
+Compatibility:
+==============
+
+    While this plugin is compatible with pytest-mozwebqa, the tests for this plugin may not be run with the pytest-mozwebqa plugin installed.
+
+    This plugin is *not* compatible with pytest-xdist's --looponfail flag.
+
+Continuous Integration
+----------------------
+[![Build Status](https://secure.travis-ci.org/klrmn/pytest-rerunfailures.png?branch=master)](http://travis-ci.org/klrmn/pytest-rerunfailures)

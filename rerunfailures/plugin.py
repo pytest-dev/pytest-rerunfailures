@@ -17,8 +17,6 @@ def check_options(config):
     val = config.getvalue
     if not val("collectonly"):
         if config.option.reruns != 0:
-            if val("looponfail"):  # https://github.com/klrmn/pytest-rerunfailures/issues/1
-                raise pytest.UsageError("--reruns incompatible with --looponfail.")
             elif config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
