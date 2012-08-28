@@ -7,6 +7,7 @@ setup(name='pytest-rerunfailures',
       author_email='lklrmn@gmail.com',
       url='https://github.com/klrmn/pytest-rerunfailures',
       install_requires=['pytest>=2.2.3'],
+      py_modules=['rerunfailures.plugin']
       entry_points={'pytest11': ['pytest_rerunfailures = rerunfailures.plugin']},
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest qa',
