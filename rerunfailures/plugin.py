@@ -89,7 +89,7 @@ def call_and_report(item, when, **kwds):
 
 def pytest_terminal_summary(terminalreporter):
     config = terminalreporter.config
-    if not flakey_tests or config.option.quiet:
+    if not flakey_tests or config.option.quiet or config.option.reruns == 0:
         return
 
     tw = terminalreporter._tw

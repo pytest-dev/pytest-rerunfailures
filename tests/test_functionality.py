@@ -232,3 +232,13 @@ class TestFunctionality(object):
         assert expected in result.outlines
         expected = "test_flakey_test_report_verbose.py::test_flaky_test: FAILED"
         assert expected in result.outlines
+
+    def test_no_flakey_test_report_if_no_reruns(self, testdir):
+        test_file = testdir.makepyfile(self.flakey_test)
+
+        result = testdir.runpytest()
+        print result.outlines
+        expected = "----------------------------- 2 failed tests rerun -----------------------------"
+        assert not expected in result.outlines
+        expected = "test_no_flakey_test_report_if_no_reruns.py::test_flaky_test: FAILED"
+        assert not expected in result.outlines
