@@ -201,3 +201,34 @@ class TestFunctionality(object):
         # strange outocmes for failures in teardown
         assert len(failed) == 1
         assert len(passed) == 1
+
+    # flakey test reporting
+    def test_flakey_test_report_quiet(self, testdir):
+        test_file = testdir.makepyfile(self.flakey_test)
+
+        result = testdir.runpytest('--reruns=2', '-q')
+        print result.outlines
+        expected = "----------------------------- 2 failed tests rerun -----------------------------"
+        assert not expected in result.outlines
+        expected = "test_flakey_test_report_quiet.py::test_flaky_test: FAILED"
+        assert not expected in result.outlines
+
+    def test_flakey_test_report_normal(self, testdir):
+        test_file = testdir.makepyfile(self.flakey_test)
+
+        result = testdir.runpytest('--reruns=2')
+        print result.outlines
+        expected = "----------------------------- 2 failed tests rerun -----------------------------"
+        assert expected in result.outlines
+        expected = "test_flakey_test_report_normal.py::test_flaky_test: FAILED"
+        assert not expected in result.outlines
+
+    def test_flakey_test_report_verbose(self, testdir):
+        test_file = testdir.makepyfile(self.flakey_test)
+
+        result = testdir.runpytest('--reruns=2', '--verbose')
+        print result.outlines
+        expected = "----------------------------- 2 failed tests rerun -----------------------------"
+        assert expected in result.outlines
+        expected = "test_flakey_test_report_verbose.py::test_flaky_test: FAILED"
+        assert expected in result.outlines

@@ -20,6 +20,8 @@ def check_options(config):
             if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
+flakey_tests = []
+
 def pytest_runtest_protocol(item, nextitem):
     """
     A mishmash of
@@ -58,9 +60,11 @@ def pytest_runtest_protocol(item, nextitem):
                     nextitem=nextitem)
                 break  # passing case, break the loop
             else:  # test call failed
+                flakey_tests.append(call_rep)
                 teardown_rep = call_and_report(item, "teardown",
                     nextitem=item)
         else:  # setup failed
+            flakey_tests.append(setup_rep)
             teardown_rep = call_and_report(item, "teardown", nextitem=None)
 
 
@@ -82,6 +86,18 @@ def call_and_report(item, when, **kwds):
     hook = item.ihook
     report = hook.pytest_runtest_makereport(item=item, call=call)
     return report
+
+def pytest_terminal_summary(terminalreporter):
+    config = terminalreporter.config
+    if not flakey_tests or config.option.quiet:
+        return
+
+    tw = terminalreporter._tw
+    tw.sep('-', '%s failed tests rerun' % len(flakey_tests))
+
+    if config.option.verbose > 0:
+        for test in flakey_tests:
+            tw.line('%s: %s' % (test.nodeid, test.outcome.upper()))
 
 ################## methods copied to make other methods work #################
 
