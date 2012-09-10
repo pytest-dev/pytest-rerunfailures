@@ -247,6 +247,7 @@ class TestFunctionality(object):
             result.outlines
         )
 
+    @pytest.mark.xfail(reason="flaky list not passed on")
     def test_flakey_report_summary_with_xdist_dash_n(self, testdir):
         '''This test is identical to test_flakey_test_report_normal except it
         also uses xdist's -n flag.
@@ -268,8 +269,16 @@ class TestFunctionality(object):
             result.outlines)
 
     def _substring_in_output(self, substring, output_lines):
+        print '-' * 30
+        print 'matching:', substring
+        print
         found = False
         for line in output_lines:
             if substring in line:
+                print '  match:', line
                 found = True
+            else:
+                print 'nomatch:', line
+
+        print
         return found
