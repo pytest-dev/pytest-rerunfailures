@@ -208,37 +208,68 @@ class TestFunctionality(object):
 
         result = testdir.runpytest('--reruns=2', '-q')
         print result.outlines
-        expected = "----------------------------- 2 failed tests rerun -----------------------------"
-        assert not expected in result.outlines
-        expected = "test_flakey_test_report_quiet.py::test_flaky_test: FAILED"
-        assert not expected in result.outlines
+        assert not self._substring_in_output('2 failed tests rerun', result.outlines)
+        assert not self._substring_in_output(
+            'test_flakey_test_report_quiet.py::test_flaky_test: FAILED', 
+            result.outlines
+        )
 
     def test_flakey_test_report_normal(self, testdir):
         test_file = testdir.makepyfile(self.flakey_test)
 
         result = testdir.runpytest('--reruns=2')
         print result.outlines
-        expected = "----------------------------- 2 failed tests rerun -----------------------------"
-        assert expected in result.outlines
-        expected = "test_flakey_test_report_normal.py::test_flaky_test: FAILED"
-        assert not expected in result.outlines
+        assert self._substring_in_output('2 failed tests rerun', result.outlines)
+        assert not self._substring_in_output(
+            'test_flakey_test_report_normal.py::test_flaky_test: FAILED', 
+            result.outlines
+        )
 
     def test_flakey_test_report_verbose(self, testdir):
         test_file = testdir.makepyfile(self.flakey_test)
 
         result = testdir.runpytest('--reruns=2', '--verbose')
         print result.outlines
-        expected = "----------------------------- 2 failed tests rerun -----------------------------"
-        assert expected in result.outlines
-        expected = "test_flakey_test_report_verbose.py::test_flaky_test: FAILED"
-        assert expected in result.outlines
+        assert self._substring_in_output('2 failed tests rerun', result.outlines)
+        assert self._substring_in_output(
+            'test_flakey_test_report_verbose.py::test_flaky_test: FAILED', 
+            result.outlines
+        )
 
     def test_no_flakey_test_report_if_no_reruns(self, testdir):
         test_file = testdir.makepyfile(self.flakey_test)
 
         result = testdir.runpytest()
         print result.outlines
-        expected = "----------------------------- 2 failed tests rerun -----------------------------"
-        assert not expected in result.outlines
-        expected = "test_no_flakey_test_report_if_no_reruns.py::test_flaky_test: FAILED"
-        assert not expected in result.outlines
+        assert not self._substring_in_output('2 failed tests rerun', result.outlines)
+        assert not self._substring_in_output(
+            'test_no_flakey_test_report_if_no_reruns.py::test_flaky_test: FAILED', 
+            result.outlines
+        )
+
+    def test_flakey_report_summary_with_xdist_dash_n(self, testdir):
+        '''This test is identical to test_flakey_test_report_normal except it
+        also uses xdist's -n flag.
+        '''
+        # precondition: xdist installed
+        try:
+            result = testdir.runpytest('--version')
+            result.stderr.fnmatch_lines(['*pytest-xdist*'])
+        except Exception:
+            import pytest
+            pytest.skip("this test requires pytest-xdist")
+
+        test_file = testdir.makepyfile(self.flakey_test)
+
+        result = testdir.runpytest('--reruns=2', '-n 1')
+        assert self._substring_in_output('2 failed tests rerun', result.outlines)
+        assert not self._substring_in_output(
+            'test_flakey_report_summary_with_xdist_dash_n.py::test_flaky_test: FAILED',
+            result.outlines)
+
+    def _substring_in_output(self, substring, output_lines):
+        found = False
+        for line in output_lines:
+            if substring in line:
+                found = True
+        return found
