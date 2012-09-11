@@ -22,8 +22,6 @@ def check_options(config):
             if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
-flakey_tests = []
-
 def pytest_runtest_protocol(item, nextitem):
     """
     Note: when teardown fails, two reports are generated for the case, one for the test
@@ -47,30 +45,56 @@ def pytest_runtest_protocol(item, nextitem):
 
     for i in range(reruns+1):  # ensure at least one run of each item
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
-        #XXX: xfail?
-        failures = [ x for x in reports if not x.passed]
-        if failures:
-            #XXX: local node state not passed on
-            flakey_tests.extend(failures)
-        else:
+        # break if setup and call pass
+        if reports[0].passed and reports[1].passed:
             break
-   
+
+        # break if test marked xfail
+        evalxfail = getattr(item, '_evalxfail', None)
+        if evalxfail:
+            break
+
     for report in reports:
-        if i > 0:
-            report.flakey = i
+        if report.when in ("call"):
+            if i > 0:
+                report.rerun = i
         item.ihook.pytest_runtest_logreport(report=report)
+
     # pytest_runtest_protocol returns True
     return True
 
+def pytest_report_teststatus(report):
+    """ adapted from
+    https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-170
+    """
+    if report.when in ("call"):
+        if hasattr(report, "rerun") and report.rerun > 0:
+            if report.outcome == "failed":
+                return "failed", "F", "failed"
+            if report.outcome == "passed":
+                return "rerun", "R", "rerun"
+
 def pytest_terminal_summary(terminalreporter):
-    config = terminalreporter.config
-    if not flakey_tests or config.option.quiet or config.option.reruns == 0:
+    """ adapted from
+    https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-179
+    """
+    tr = terminalreporter
+    if not tr.reportchars:
         return
 
-    tw = terminalreporter._tw
-    tw.sep('-', '%s failed tests rerun' % len(flakey_tests))
+    lines = []
+    for char in tr.reportchars:
+        if char in "rR":
+            show_rerun(terminalreporter, lines)
 
-    if config.option.verbose > 0:
-        for test in flakey_tests:
-            tw.line('%s: %s' % (test.nodeid, test.outcome.upper()))
+    if lines:
+        tr._tw.sep("=", "rerun test summary info")
+        for line in lines:
+            tr._tw.line(line)
 
+def show_rerun(terminalreporter, lines):
+    rerun = terminalreporter.stats.get("rerun")
+    if rerun:
+        for rep in rerun:
+            pos = rep.nodeid
+            lines.append("RERUN %s" % (pos,))
