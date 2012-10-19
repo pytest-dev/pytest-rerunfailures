@@ -1,6 +1,8 @@
 import sys, time
 import py, pytest
 
+from _pytest.runner import runtestprotocol
+
 # command line options
 def pytest_addoption(parser):
     group = parser.getgroup("rerunfailures", "re-run failing tests to eliminate flakey failures")
@@ -20,14 +22,8 @@ def check_options(config):
             if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
-flakey_tests = []
-
 def pytest_runtest_protocol(item, nextitem):
     """
-    A mishmash of
-    https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-57
-    https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-64
-
     Note: when teardown fails, two reports are generated for the case, one for the test
     case and the other for the teardown error.
 
@@ -36,7 +32,9 @@ def pytest_runtest_protocol(item, nextitem):
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
     """
-
+    reruns = item.session.config.option.reruns
+    if reruns == 0:
+        return
     # while this doesn't need to be run with every item, it will fail on the first 
     # item if necessary
     check_options(item.session.config)
@@ -45,91 +43,58 @@ def pytest_runtest_protocol(item, nextitem):
         nodeid=item.nodeid, location=item.location,
     )
 
-    reruns = item.session.config.option.reruns
-    i = -1
-    while i < reruns:  # ensure at least one run of each item
-        i += 1
-        setup_rep = call_and_report(item, "setup")
-        call_rep = None
-        teardown_rep = None
+    for i in range(reruns+1):  # ensure at least one run of each item
+        reports = runtestprotocol(item, nextitem=nextitem, log=False)
+        # break if setup and call pass
+        if reports[0].passed and reports[1].passed:
+            break
 
-        if setup_rep.passed:
-            call_rep = call_and_report(item, "call")
-            if call_rep.passed:
-                teardown_rep = call_and_report(item, "teardown",
-                    nextitem=nextitem)
-                break  # passing case, break the loop
-            else:  # test call failed
-                flakey_tests.append(call_rep)
-                teardown_rep = call_and_report(item, "teardown",
-                    nextitem=item)
-        else:  # setup failed
-            flakey_tests.append(setup_rep)
-            teardown_rep = call_and_report(item, "teardown", nextitem=None)
+        # break if test marked xfail
+        evalxfail = getattr(item, '_evalxfail', None)
+        if evalxfail:
+            break
 
-
-    # publish reports only from the last run
-    publish_reports(item, setup_rep, call_rep, teardown_rep)
+    for report in reports:
+        if report.when in ("call"):
+            if i > 0:
+                report.rerun = i
+        item.ihook.pytest_runtest_logreport(report=report)
 
     # pytest_runtest_protocol returns True
     return True
 
-def publish_reports(item, setup_rep, call_rep, teardown_rep):
-    item.ihook.pytest_runtest_logreport(report=setup_rep)
-    if call_rep:
-        item.ihook.pytest_runtest_logreport(report=call_rep)
-    item.ihook.pytest_runtest_logreport(report=teardown_rep)
-
-def call_and_report(item, when, **kwds):
-    """ Modified from https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-96 """
-    call = call_runtest_hook(item, when, **kwds)
-    hook = item.ihook
-    report = hook.pytest_runtest_makereport(item=item, call=call)
-    return report
+def pytest_report_teststatus(report):
+    """ adapted from
+    https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-170
+    """
+    if report.when in ("call"):
+        if hasattr(report, "rerun") and report.rerun > 0:
+            if report.outcome == "failed":
+                return "failed", "F", "failed"
+            if report.outcome == "passed":
+                return "rerun", "R", "rerun"
 
 def pytest_terminal_summary(terminalreporter):
-    config = terminalreporter.config
-    if not flakey_tests or config.option.quiet or config.option.reruns == 0:
+    """ adapted from
+    https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-179
+    """
+    tr = terminalreporter
+    if not tr.reportchars:
         return
 
-    tw = terminalreporter._tw
-    tw.sep('-', '%s failed tests rerun' % len(flakey_tests))
+    lines = []
+    for char in tr.reportchars:
+        if char in "rR":
+            show_rerun(terminalreporter, lines)
 
-    if config.option.verbose > 0:
-        for test in flakey_tests:
-            tw.line('%s: %s' % (test.nodeid, test.outcome.upper()))
+    if lines:
+        tr._tw.sep("=", "rerun test summary info")
+        for line in lines:
+            tr._tw.line(line)
 
-################## methods copied to make other methods work #################
-
-def call_runtest_hook(item, when, **kwds):
-    """ Copied from https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-104 """
-    hookname = "pytest_runtest_" + when
-    ihook = getattr(item.ihook, hookname)
-    return CallInfo(lambda: ihook(item=item, **kwds), when=when)
-
-class CallInfo:
-    """ Copied from https://bitbucket.org/hpk42/pytest/src/fa6a843aa98b/_pytest/runner.py#cl-109 """
-    #: None or ExceptionInfo object.
-    excinfo = None
-    def __init__(self, func, when):
-        #: context of invocation: one of "setup", "call",
-        #: "teardown", "memocollect"
-        self.when = when
-        self.start = time.time()
-        try:
-            try:
-                self.result = func()
-            except KeyboardInterrupt:
-                raise
-            except:
-                self.excinfo = py.code.ExceptionInfo()
-        finally:
-            self.stop = time.time()
-
-    def __repr__(self):
-        if self.excinfo:
-            status = "exception: %s" % str(self.excinfo.value)
-        else:
-            status = "result: %r" % (self.result,)
-        return "<CallInfo when=%r %s>" % (self.when, status)
-
+def show_rerun(terminalreporter, lines):
+    rerun = terminalreporter.stats.get("rerun")
+    if rerun:
+        for rep in rerun:
+            pos = rep.nodeid
+            lines.append("RERUN %s" % (pos,))
