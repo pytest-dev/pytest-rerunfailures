@@ -5,27 +5,20 @@ class TestFunctionality(object):
 
     pass_the_third_time = """
                 import os
-                filename = "test.res"
-                state = None
-                try:
-                    fileh = open(filename, 'r')
-                    state = fileh.read()
-                    fileh.close()
-                except IOError:
-                    state = ''
+                import py
+                path = py.path.local(__file__).dirpath().ensure('test.res')
+                state = path.read()
+
+                print path, state
 
                 if state == '':
-                    fileh = open(filename, 'w')
-                    fileh.write('fail')
-                    fileh.flush()
+                    path.write('fail')
                     raise Exception("Failing the first time")
                 elif state == 'fail':
-                    fileh = open(filename, 'w')
-                    fileh.write('pass')
-                    fileh.flush()
+                    path.write('pass')
                     raise Exception("Failing the second time")
                 elif state == 'pass':
-                    os.popen('rm -f %s' % filename)  # delete the file
+                    path.remove() # delete the file
                     return  # pass the method
                 else:
                     raise Exception("unexpected data in file %s: %s" % (filename, state))
@@ -79,6 +72,8 @@ class TestFunctionality(object):
 
         reprec = testdir.inline_run('--reruns=2', test_file)
         passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 0
+        assert len(skipped) == 0
         assert len(passed) == 1
 
     def test_can_pass_with_reruns_disabled(self, testdir):
@@ -86,6 +81,8 @@ class TestFunctionality(object):
 
         reprec = testdir.inline_run(test_file)
         passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 0
+        assert len(skipped) == 0
         assert len(passed) == 1
 
     # setup
@@ -163,91 +160,104 @@ class TestFunctionality(object):
         assert out == 'Exception: OMG! failing test!'
 
     # teardown
-    def test_fails_with_flakey_teardown_if_rerun_not_used(self, testdir):
-        test_file = testdir.makepyfile(self.passing_test)
-        conftest_file = testdir.makeconftest(self.flakey_teardown_conftest)
 
-        reprec = testdir.inline_run(test_file)
-        passed, skipped, failed = reprec.listoutcomes()
-        assert len(failed) == 1
-        out = failed[0].longrepr.reprcrash.message
-        assert out == 'Exception: Failing the first time'
+    ### Tests are no longer re-run if their teardown fails, but their setup and call pass
 
-    def test_fails_with_flakey_teardown_if_rerun_only_once(self, testdir):
-        test_file = testdir.makepyfile(self.passing_test)
-        conftest_file = testdir.makeconftest(self.flakey_teardown_conftest)
+    # reporting using -r R
+    def variety_of_tests(self, testdir):
+        tests = testdir.makepyfile("""
+            import pytest
 
-        reprec = testdir.inline_run('--reruns=1', test_file)
-        passed, skipped, failed = reprec.listoutcomes()
-        assert len(failed) == 1
-        out = failed[0].longrepr.reprcrash.message
-        assert out == 'Exception: Failing the first time'
+            @pytest.mark.nondestructive
+            def test_fake_pass():
+                pass
 
-    def test_passes_with_flakey_teardown_if_rerun_two_times(self, testdir):
-        test_file = testdir.makepyfile(self.passing_test)
-        conftest_file = testdir.makeconftest(self.flakey_teardown_conftest)
+            @pytest.mark.nondestructive
+            def test_fake_fail():
+                raise Exception, "OMG! fake test failure!"
 
-        reprec = testdir.inline_run('--reruns=2', test_file)
-        passed, skipped, failed = reprec.listoutcomes()
-        assert len(passed) == 1
+            @pytest.mark.nondestructive
+            @pytest.mark.xfail(reason="this will fail")
+            def test_xfail():
+                raise Exception("OMG! failing test!")
 
-    def test_fails_with_failing_teardown_if_rerun_three_times(self, testdir):
-        test_file = testdir.makepyfile(self.passing_test)
-        conftest_file = testdir.makeconftest(self.failing_teardown_conftest)
+            @pytest.mark.xfail(reason="this will pass")
+            @pytest.mark.nondestructive
+            def test_xpass():
+                pass
 
-        reprec = testdir.inline_run('--reruns=3', test_file)
-        passed, skipped, failed = reprec.listoutcomes()
-
-        # strange outocmes for failures in teardown
-        assert len(failed) == 1
-        assert len(passed) == 1
+            @pytest.mark.nondestructive
+            def test_flaky_test():
+            """ + self.pass_the_third_time
+        )
 
     # flakey test reporting
-    def test_flakey_test_report_quiet(self, testdir):
-        test_file = testdir.makepyfile(self.flakey_test)
-
-        result = testdir.runpytest('--reruns=2', '-q')
-        print result.outlines
-        assert not self._substring_in_output('2 failed tests rerun', result.outlines)
-        assert not self._substring_in_output(
-            'test_flakey_test_report_quiet.py::test_flaky_test: FAILED', 
-            result.outlines
-        )
-
-    def test_flakey_test_report_normal(self, testdir):
-        test_file = testdir.makepyfile(self.flakey_test)
+    def test_report_off_with_reruns(self, testdir):
+        test_file = self.variety_of_tests(testdir)
 
         result = testdir.runpytest('--reruns=2')
-        print result.outlines
-        assert self._substring_in_output('2 failed tests rerun', result.outlines)
-        assert not self._substring_in_output(
-            'test_flakey_test_report_normal.py::test_flaky_test: FAILED', 
-            result.outlines
-        )
 
-    def test_flakey_test_report_verbose(self, testdir):
-        test_file = testdir.makepyfile(self.flakey_test)
+        assert self._substring_in_output('.FxXR', result.outlines)
 
-        result = testdir.runpytest('--reruns=2', '--verbose')
-        print result.outlines
-        assert self._substring_in_output('2 failed tests rerun', result.outlines)
-        assert self._substring_in_output(
-            'test_flakey_test_report_verbose.py::test_flaky_test: FAILED', 
-            result.outlines
-        )
+        assert self._substring_in_output('1 passed', result.outlines)
 
-    def test_no_flakey_test_report_if_no_reruns(self, testdir):
-        test_file = testdir.makepyfile(self.flakey_test)
+        assert self._substring_in_output('1 failed', result.outlines)
+        assert not self._substring_in_output('FAIL test_report_off_with_reruns.py::test_fake_fail', result.outlines)
 
-        result = testdir.runpytest()
-        print result.outlines
-        assert not self._substring_in_output('2 failed tests rerun', result.outlines)
-        assert not self._substring_in_output(
-            'test_no_flakey_test_report_if_no_reruns.py::test_flaky_test: FAILED', 
-            result.outlines
-        )
+        assert self._substring_in_output('1 xpassed', result.outlines)
+        assert not self._substring_in_output('XPASS test_report_off_with_reruns.py::test_xpass', result.outlines)
 
-    def test_flakey_report_summary_with_xdist_dash_n(self, testdir):
+        assert self._substring_in_output('1 xfailed', result.outlines)
+        assert not self._substring_in_output('XFAIL test_report_off_with_reruns.py::test_xfail', result.outlines)
+
+        assert not self._substring_in_output('RERUN test_report_off_with_reruns.py::test_flaky_test', result.outlines)
+        assert self._substring_in_output('1 rerun', result.outlines)
+
+    def test_report_on_with_reruns(self, testdir):
+        test_file = self.variety_of_tests(testdir)
+
+        result = testdir.runpytest('--reruns=2', '-r fsxXR')
+
+        assert self._substring_in_output('.FxXR', result.outlines)
+
+        assert self._substring_in_output(' 1 passed', result.outlines)
+
+        assert self._substring_in_output('1 failed', result.outlines)
+        assert self._substring_in_output('FAIL test_report_on_with_reruns.py::test_fake_fail', result.outlines)
+
+        assert self._substring_in_output('1 xpassed', result.outlines)
+        assert self._substring_in_output('XPASS test_report_on_with_reruns.py::test_xpass', result.outlines)
+
+        assert self._substring_in_output('1 xfailed', result.outlines)
+        assert self._substring_in_output('XFAIL test_report_on_with_reruns.py::test_xfail', result.outlines)
+
+        assert self._substring_in_output('1 rerun', result.outlines)
+        assert self._substring_in_output('RERUN test_report_on_with_reruns.py::test_flaky_test', result.outlines)
+
+
+    def test_report_on_without_reruns(self, testdir):
+        test_file = self.variety_of_tests(testdir)
+
+        result = testdir.runpytest('-r fsxX')
+
+        assert self._substring_in_output('.FxXF', result.outlines)
+
+        assert self._substring_in_output(' 1 passed', result.outlines)
+
+        assert self._substring_in_output('2 failed', result.outlines)
+        assert self._substring_in_output('FAIL test_report_on_without_reruns.py::test_fake_fail', result.outlines)
+        assert self._substring_in_output('FAIL test_report_on_without_reruns.py::test_flaky_test', result.outlines)
+
+        assert self._substring_in_output('1 xpassed', result.outlines)
+        assert self._substring_in_output('XPASS test_report_on_without_reruns.py::test_xpass', result.outlines)
+
+        assert self._substring_in_output('1 xfailed', result.outlines)
+        assert self._substring_in_output('XFAIL test_report_on_without_reruns.py::test_xfail', result.outlines)
+
+        assert not self._substring_in_output('RERUN test_report_on_without_reruns.py::test_flaky_test', result.errlines)
+        assert not self._substring_in_output('1 rerun', result.outlines)
+
+    def test_report_with_xdist_dash_n(self, testdir):
         '''This test is identical to test_flakey_test_report_normal except it
         also uses xdist's -n flag.
         '''
@@ -261,15 +271,17 @@ class TestFunctionality(object):
 
         test_file = testdir.makepyfile(self.flakey_test)
 
-        result = testdir.runpytest('--reruns=2', '-n 1')
-        assert self._substring_in_output('2 failed tests rerun', result.outlines)
-        assert not self._substring_in_output(
-            'test_flakey_report_summary_with_xdist_dash_n.py::test_flaky_test: FAILED',
-            result.outlines)
+        result = testdir.runpytest('--reruns=2', '-n 1', '-r fsxXR')
+        assert self._substring_in_output('RERUN test_report_with_xdist_dash_n.py::test_flaky_test', result.outlines)
+        assert self._substring_in_output('1 rerun', result.outlines)
 
     def _substring_in_output(self, substring, output_lines):
+        print '-' * 30
         found = False
         for line in output_lines:
             if substring in line:
+                print "'%s' matched: %s" % (substring, line)
                 found = True
+        if not found:
+            print "'%s' not found in:\n\t%s" % (substring, "\n\t".join(output_lines))
         return found
