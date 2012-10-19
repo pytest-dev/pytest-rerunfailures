@@ -70,9 +70,9 @@ def pytest_report_teststatus(report):
     if report.when in ("call"):
         if hasattr(report, "rerun") and report.rerun > 0:
             if report.outcome == "failed":
-                return "failed", "F", "failed"
+                return "failed", "F", "FAILED"
             if report.outcome == "passed":
-                return "rerun", "R", "rerun"
+                return "rerun", "R", "RERUN"
 
 def pytest_terminal_summary(terminalreporter):
     """ adapted from

@@ -257,6 +257,26 @@ class TestFunctionality(object):
         assert not self._substring_in_output('RERUN test_report_on_without_reruns.py::test_flaky_test', result.errlines)
         assert not self._substring_in_output('1 rerun', result.outlines)
 
+    def test_verbose_statuses_with_reruns(self, testdir):
+        test_file = self.variety_of_tests(testdir)
+
+        result = testdir.runpytest('--reruns=2', '--verbose')
+
+        assert self._substring_in_output(' 1 passed', result.outlines)
+        assert self._substring_in_output('test_verbose_statuses_with_reruns.py:3: test_fake_pass PASSED', result.outlines)
+
+        assert self._substring_in_output('1 failed', result.outlines)
+        assert self._substring_in_output('test_verbose_statuses_with_reruns.py:7: test_fake_fail FAILED', result.outlines)
+
+        assert self._substring_in_output('1 xpassed', result.outlines)
+        assert self._substring_in_output('test_verbose_statuses_with_reruns.py:16: test_xpass XPASS', result.outlines)
+
+        assert self._substring_in_output('1 xfailed', result.outlines)
+        assert self._substring_in_output('test_verbose_statuses_with_reruns.py:11: test_xfail xfail', result.outlines)
+
+        assert self._substring_in_output('1 rerun', result.outlines)
+        assert self._substring_in_output('test_verbose_statuses_with_reruns.py:21: test_flaky_test RERUN', result.outlines)
+
     def test_report_with_xdist_dash_n(self, testdir):
         '''This test is identical to test_flakey_test_report_normal except it
         also uses xdist's -n flag.
