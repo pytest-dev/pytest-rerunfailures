@@ -1,9 +1,0 @@
-#!/Users/lklrmn/github/pytest-rerunfailures/dev-env/bin/python
-# EASY-INSTALL-ENTRY-SCRIPT: 'pytest==2.2.3','console_scripts','py.test'
-__requires__ = 'pytest==2.2.3'
-import sys
-from pkg_resources import load_entry_point
-
-sys.exit(
-   load_entry_point('pytest==2.2.3', 'console_scripts', 'py.test')()
-)
