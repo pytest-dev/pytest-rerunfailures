@@ -61,3 +61,14 @@ This plugin is also not compatible with the core --pdb flag.
 Continuous Integration
 ----------------------
 [![Build Status](https://secure.travis-ci.org/klrmn/pytest-rerunfailures.png?branch=master)](http://travis-ci.org/klrmn/pytest-rerunfailures)
+
+Running the tests:
+=================
+to test in your current environment:
+    $ python setup.py install
+    $ py.test .
+or for all of the supported environments:
+    $ (sudo) pip install tox
+    $ tox
+
+There are 3 tests which are conditional on the presence of pytest-xdist.
