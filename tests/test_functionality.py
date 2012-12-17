@@ -257,6 +257,89 @@ class TestFunctionality(object):
         assert not self._substring_in_output('RERUN test_report_on_without_reruns.py::test_flaky_test', result.errlines)
         assert not self._substring_in_output('1 rerun', result.outlines)
 
+    # xUnit setup_class() and setup_method() compatibility
+
+    failure_in_setup_method = """
+        import pytest
+
+        class TestClass():
+
+            counter = 1
+
+            def test_one(arg):
+                pass
+
+            def test_two(arg):
+                pass
+
+            def test_three(arg):
+                pass
+
+            def setup_method(self, method):
+                print 'running setup_method()'
+            """ + pass_the_third_time
+
+    failure_in_setup_class = """
+        import pytest
+
+        class TestClass():
+
+            counter = 1
+
+            def test_one(arg):
+                pass
+
+            def test_two(arg):
+                pass
+
+            def test_three(arg):
+                pass
+
+            @classmethod
+            def setup_class(self):
+                print 'running setup_class()'
+                if self.counter < 3:
+                    counter = self.counter
+                    self.counter += 1
+                    raise Exception('setup_class failure %s' % counter)
+                else:
+                    self.counter = 1 # reset counter
+                    pass
+            """
+
+    def test_setup_method_flakey_with_rerun(self, testdir):
+        test_file = testdir.makepyfile(self.failure_in_setup_method)
+        result = testdir.runpytest('--reruns=2', '-r fsxXR', '-s')
+        assert self._substring_in_output('RRR', result.outlines)
+        assert self._substring_in_output('3 rerun', result.outlines)
+        assert self._substring_in_output('RERUN test_setup_method_flakey_with_rerun.py::TestClass::()::test_one', result.outlines)
+        assert self._substring_in_output('RERUN test_setup_method_flakey_with_rerun.py::TestClass::()::test_two', result.outlines)
+
+    def test_setup_method_flakey_without_rerun(self, testdir):
+        test_file = testdir.makepyfile(self.failure_in_setup_method)
+        reprec = testdir.inline_run(test_file)
+        passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 3
+        out = failed[0].longrepr.reprcrash.message
+        assert out == 'Exception: Failing the first time'
+
+    # i haven't figured out a way to re-run setup_class
+    #
+    # def test_setup_class_flakey_with_rerun(self, testdir):
+    #     test_file = testdir.makepyfile(self.failure_in_setup_class)
+    #     result = testdir.runpytest('--reruns=2', '-r fsxXR')
+    #     assert self._substring_in_output('...', result.outlines)
+    #     assert self._substring_in_output('3 passed', result.outlines)
+
+    # def test_setup_class_flakey_without_rerun(self, testdir):
+    #     test_file = testdir.makepyfile(self.failure_in_setup_class)
+    #     reprec = testdir.inline_run('-s', test_file)
+    #     passed, skipped, failed = reprec.listoutcomes()
+    #     assert len(failed) == 3
+    #     out = failed[0].longrepr.reprcrash.message
+    #     assert out == 'Exception: Failing the first time'
+
+    # pytest-xdist compatibility
     def test_report_with_xdist_dash_n(self, testdir):
         '''This test is identical to test_flakey_test_report_normal except it
         also uses xdist's -n flag.

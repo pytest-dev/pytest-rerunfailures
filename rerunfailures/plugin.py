@@ -2,6 +2,8 @@ import sys, time
 import py, pytest
 
 from _pytest.runner import runtestprotocol
+# from _pytest.python import Class, xunitsetup
+# from _pytest.unittest import UnitTestCase
 
 # command line options
 def pytest_addoption(parser):
@@ -98,3 +100,49 @@ def show_rerun(terminalreporter, lines):
         for rep in rerun:
             pos = rep.nodeid
             lines.append("RERUN %s" % (pos,))
+
+# for interoperability with unittest's setup_class
+
+# class PythonUnitTestCase(Class):
+#     def setup(self):
+#         print 'PythonUnitTestCase.setup()'
+#         setup_class = xunitsetup(self.obj, 'setup_class')
+#         reruns = self.session.config.option.reruns
+#         if setup_class is not None:
+#             setup_class = getattr(setup_class, 'im_func', setup_class)
+#             setup_class = getattr(setup_class, '__func__', setup_class)
+#             # setup_class(self.obj)
+
+#             attempt = -1
+#             e = None
+#             print 'attempt: %s, retries: %s' % (attempt, reruns)
+#             while attempt < reruns:
+#                 try:
+#                     print 'trying setup method'
+#                     setup_class(self.obj)
+#                     return
+#                 except Exception as e:
+#                     print 'had setup failure'
+#                 finally:
+#                     attempt += 1
+#             if e:
+#                 raise e
+#             assert False, 'should have failed already'
+
+
+# def pytest_pycollect_makeitem(collector, name, obj):
+#     unittest = sys.modules.get('unittest')
+#     if unittest is None:
+#         return # nobody can have derived unittest.TestCase
+#     try:
+#         isunit = issubclass(obj, unittest.TestCase)
+#     except KeyboardInterrupt:
+#         raise
+#     except Exception:
+#         pass
+#     else:
+#         if isunit:
+#             return UnitTestCase(name, parent=collector)
+#         else:
+#             return PythonUnitTestCase(name, parent=collector)
+
