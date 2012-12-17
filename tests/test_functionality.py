@@ -234,7 +234,6 @@ class TestFunctionality(object):
         assert self._substring_in_output('1 rerun', result.outlines)
         assert self._substring_in_output('RERUN test_report_on_with_reruns.py::test_flaky_test', result.outlines)
 
-
     def test_report_on_without_reruns(self, testdir):
         test_file = self.variety_of_tests(testdir)
 
@@ -257,23 +256,70 @@ class TestFunctionality(object):
         assert not self._substring_in_output('RERUN test_report_on_without_reruns.py::test_flaky_test', result.errlines)
         assert not self._substring_in_output('1 rerun', result.outlines)
 
-    def test_report_with_xdist_dash_n(self, testdir):
-        '''This test is identical to test_flakey_test_report_normal except it
+    # pytest-xdist -n compatibility tests
+
+    def test_report_off_with_reruns_with_xdist(self, testdir):
+        '''This test is identical to test_report_off_with_reruns except it
         also uses xdist's -n flag.
         '''
         # precondition: xdist installed
+        self._pytest_xdist_installed(testdir)
+
+        test_file = self.variety_of_tests(testdir)
+
+        result = testdir.runpytest('--reruns=2', '-n 1')
+
+        assert self._substring_in_output('.FxXR', result.outlines)
+
+        assert self._substring_in_output('1 passed', result.outlines)
+
+        assert self._substring_in_output('1 failed', result.outlines)
+        assert not self._substring_in_output('FAIL test_report_off_with_reruns_with_xdist.py::test_fake_fail', result.outlines)
+
+        assert self._substring_in_output('1 xpassed', result.outlines)
+        assert not self._substring_in_output('XPASS test_report_off_with_reruns_with_xdist.py::test_xpass', result.outlines)
+
+        assert self._substring_in_output('1 xfailed', result.outlines)
+        assert not self._substring_in_output('XFAIL test_report_off_with_reruns_with_xdist.py::test_xfail', result.outlines)
+
+        assert not self._substring_in_output('RERUN test_report_off_with_reruns_with_xdist.py::test_flaky_test', result.outlines)
+        assert self._substring_in_output('1 rerun', result.outlines)
+
+    def test_report_on_with_reruns_with_xdist(self, testdir):
+        '''This test is identical to test_report_on_with_reruns except it
+        also uses xdist's -n flag.
+        '''
+        # precondition: xdist installed
+        self._pytest_xdist_installed(testdir)
+
+        test_file = self.variety_of_tests(testdir)
+
+        result = testdir.runpytest('--reruns=2', '-r fsxXR', '-n 1')
+
+        assert self._substring_in_output('.FxXR', result.outlines)
+
+        assert self._substring_in_output(' 1 passed', result.outlines)
+
+        assert self._substring_in_output('1 failed', result.outlines)
+        assert self._substring_in_output('FAIL test_report_on_with_reruns_with_xdist.py::test_fake_fail', result.outlines)
+
+        assert self._substring_in_output('1 xpassed', result.outlines)
+        assert self._substring_in_output('XPASS test_report_on_with_reruns_with_xdist.py::test_xpass', result.outlines)
+
+        assert self._substring_in_output('1 xfailed', result.outlines)
+        assert self._substring_in_output('XFAIL test_report_on_with_reruns_with_xdist.py::test_xfail', result.outlines)
+
+        assert self._substring_in_output('1 rerun', result.outlines)
+        assert self._substring_in_output('RERUN test_report_on_with_reruns_with_xdist.py::test_flaky_test', result.outlines)
+
+
+    def _pytest_xdist_installed(self, testdir):
         try:
             result = testdir.runpytest('--version')
             result.stderr.fnmatch_lines(['*pytest-xdist*'])
         except Exception:
             import pytest
             pytest.skip("this test requires pytest-xdist")
-
-        test_file = testdir.makepyfile(self.flakey_test)
-
-        result = testdir.runpytest('--reruns=2', '-n 1', '-r fsxXR')
-        assert self._substring_in_output('RERUN test_report_with_xdist_dash_n.py::test_flaky_test', result.outlines)
-        assert self._substring_in_output('1 rerun', result.outlines)
 
     def _substring_in_output(self, substring, output_lines):
         print '-' * 30
