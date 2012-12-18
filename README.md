@@ -48,6 +48,7 @@ The output should look something like this if run with '--reruns=2 -r fsxXR'
     XPASS test_report_on_with_reruns.py::test_xpass this will pass
     ====== 1 failed, 1 passed, 1 xfailed, 1 xpassed, 1 rerun in 0.04 seconds =======
 
+Note: The output will only show RERUN if the test failed and then subsequently passed. Tests that fail on all the reruns will be marked as FAILED.
 
 Compatibility:
 ==============
