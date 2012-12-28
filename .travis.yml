@@ -3,6 +3,18 @@ python:
   - "2.6"
   - "2.7"
 # command to install dependencies
-install: "python setup.py develop"
+env:
+  - PYTEST_VERSION=2.2.3
+  - PYTEST_VERSION=2.2.4
+  - PYTEST_VERSION=2.3
+  - PYTEST_VERSION=2.3.1
+  - PYTEST_VERSION=2.3.2
+  - PYTEST_VERSION=2.3.4
+  - XDIST="pip install pytest-xdist"
+  - XDIST=""
+install: 
+  - pip install -q pytest==$PYTEST_VERSION
+  - $XDIST
+  - "python setup.py install"
 # command to run tests
 script: "py.test ."
