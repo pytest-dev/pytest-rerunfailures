@@ -53,6 +53,8 @@ Note: The output will only show RERUN if the test failed and then subsequently p
 Compatibility:
 ==============
 
+This plugin may *not* be used with class, module, and package level fixtures. Only method level fixtures will be set up and torn down correctly.
+
 While this plugin is compatible with pytest-mozwebqa, the tests for this plugin may not be run with the pytest-mozwebqa plugin installed.
 
 This plugin is *not* compatible with pytest-xdist's --looponfail flag.
