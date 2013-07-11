@@ -9,7 +9,7 @@ Installation:
 
 Parameters:
 ===========
-* --reruns=N    reruns failing tests N times (default 0)
+* --reruns=N    rerun each failing test up to N times (default 0)
 * -r R          reports on which tests were rerun (optional, may be combined with sxXF)
 
 Notes:
