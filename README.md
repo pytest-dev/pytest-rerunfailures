@@ -3,9 +3,11 @@ pytest-rerunfailures
 
 A py.test plugin that re-runs failed tests up to X times to eliminate flakey failures
 
+It will only re-run tests that are marked with @pytest.mark.rerun_on_fail
+
 Installation:
 ============
-    (sudo) pip install git+https://github.com/klrmn/pytest-rerunfailures.git
+    (sudo) pip install git+https://github.com/fireflash38/pytest-rerunfailures.git
 
 Parameters:
 ===========
