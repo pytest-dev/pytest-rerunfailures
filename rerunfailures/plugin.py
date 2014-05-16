@@ -35,6 +35,14 @@ def pytest_runtest_protocol(item, nextitem):
     reruns = item.session.config.option.reruns
     if reruns == 0:
         return
+    
+    #Check for rerun marker
+    #Just register rerun_on_fail marker in pytest.ini, and this plugin will only 
+    #re-run failing test if they have been marked
+    rerun_marker = item.get_marker("rerun_on_fail")
+    if rerun_marker is None:
+        return
+    
     # while this doesn't need to be run with every item, it will fail on the first 
     # item if necessary
     check_options(item.session.config)
