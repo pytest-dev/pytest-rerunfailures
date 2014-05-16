@@ -37,9 +37,9 @@ def pytest_runtest_protocol(item, nextitem):
         return
     
     #Check for rerun marker
-    #Just register rerun_on_fail marker in pytest.ini, and this plugin will only 
+    #Just register the 'flaky' marker in pytest.ini, and this plugin will only 
     #re-run failing test if they have been marked
-    rerun_marker = item.get_marker("rerun_on_fail")
+    rerun_marker = item.get_marker("flaky")
     if rerun_marker is None:
         return
     
