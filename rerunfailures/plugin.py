@@ -12,6 +12,10 @@ def pytest_addoption(parser):
         type="int",
         default=0,
         help="number of times to re-run failed tests. defaults to 0.")
+        
+def pytest_configure(config):
+    #Add flaky marker
+    config.addinivalue_line("markers", "flaky(max_runs=1): mark test to re-run up to max_runs times")
 
 # making sure the options make sense
 # should run before / at the begining of pytest_cmdline_main
@@ -32,16 +36,23 @@ def pytest_runtest_protocol(item, nextitem):
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
     """
-    reruns = item.session.config.option.reruns
-    if reruns == 0:
-        return
     
+
     #Check for rerun marker
-    #Just register the 'flaky' marker in pytest.ini, and this plugin will only 
+    #Just register the 'flaky' marker in pytest.ini, and this plugin will only
     #re-run failing test if they have been marked
     rerun_marker = item.get_marker("flaky")
     if rerun_marker is None:
         return
+    elif len(rerun_marker.args) > 0:
+        #Check for arguments
+        reruns = rerun_marker.args[0]
+    elif "max_runs" in rerun_marker.kwargs:
+        #Check for keyword arguments
+        reruns = rerun_marker.kwargs["max_runs"]
+    else:
+        #Default to the global setting
+        reruns = item.session.config.option.reruns
     
     # while this doesn't need to be run with every item, it will fail on the first 
     # item if necessary
