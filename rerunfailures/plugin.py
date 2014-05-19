@@ -16,7 +16,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     #Add flaky marker
-    config.addinivalue_line("markers", "flaky(reruns=1): mark test to re-run up to reruns times")
+    config.addinivalue_line("markers", "flaky(reruns=1): mark test to re-run up to 'reruns' times")
 
 # making sure the options make sense
 # should run before / at the begining of pytest_cmdline_main
@@ -38,7 +38,6 @@ def pytest_runtest_protocol(item, nextitem):
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
     """
-    
 
     #Check for rerun marker
     #Just register the 'flaky' marker in pytest.ini, and this plugin will only
@@ -56,7 +55,7 @@ def pytest_runtest_protocol(item, nextitem):
             reruns = rerun_marker.args[0]
         elif "reruns" in rerun_marker.kwargs:
             #Check for keyword arguments
-            reruns = rerun_marker.kwargs["max_runs"]
+            reruns = rerun_marker.kwargs["reruns"]
     else:
         #Default to the global setting
         reruns = item.session.config.option.reruns
