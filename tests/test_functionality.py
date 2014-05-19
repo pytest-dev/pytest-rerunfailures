@@ -43,6 +43,20 @@ class TestFunctionality(object):
             @pytest.mark.nondestructive
             def test_flaky_test():
     """ + pass_the_third_time
+    
+    flaky_test_with_1xmarker = """
+            import pytest
+            @pytest.mark.nondestructive
+            @pytest.mark.flaky(reruns=1)
+            def test_flaky_test_with_marker():
+    """ + pass_the_third_time
+    
+    flaky_test_with_2xmarker = """
+            import pytest
+            @pytest.mark.nondestructive
+            @pytest.mark.flaky(reruns=2)
+            def test_flaky_test_with_marker():
+    """ + pass_the_third_time
 
     flakey_setup_conftest = """
         import py, pytest
@@ -142,7 +156,24 @@ class TestFunctionality(object):
         assert len(failed) == 1
         out = failed[0].longrepr.reprcrash.message
         assert out == 'Exception: Failing the second time'
+        
+    def test_flaky_test_with_1x_marker(self, testdir):
+        test_file = testdir.makepyfile(self.flaky_test_with_1xmarker)
 
+        reprec = testdir.inline_run(test_file)
+        passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 1
+        #
+        # result = testdir.runpytest(test_file)
+        # assert u'E           Exception: Failing the first time' in result.outlines
+        
+    def test_flaky_test_with_2x_marker(self, testdir):
+        test_file = testdir.makepyfile(self.flaky_test_with_2xmarker)
+
+        reprec = testdir.inline_run(test_file)
+        passed, skipped, failed = reprec.listoutcomes()
+        assert len(passed) == 1
+        
     def test_flakey_test_passes_if_run_two_times(self, testdir):
         test_file = testdir.makepyfile(self.flakey_test)
 
@@ -349,3 +380,7 @@ class TestFunctionality(object):
         if not found:
             print "'%s' not found in:\n\t%s" % (substring, "\n\t".join(output_lines))
         return found
+
+
+if __name__ == '__main__':
+    pytest.cmdline.main(args=[os.path.abspath(__file__)])
