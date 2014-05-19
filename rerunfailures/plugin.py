@@ -15,7 +15,7 @@ def pytest_addoption(parser):
         
 def pytest_configure(config):
     #Add flaky marker
-    config.addinivalue_line("markers", "flaky(max_runs=1): mark test to re-run up to max_runs times")
+    config.addinivalue_line("markers", "flaky(reruns=1): mark test to re-run up to max_runs times")
 
 # making sure the options make sense
 # should run before / at the begining of pytest_cmdline_main
@@ -47,7 +47,7 @@ def pytest_runtest_protocol(item, nextitem):
     elif len(rerun_marker.args) > 0:
         #Check for arguments
         reruns = rerun_marker.args[0]
-    elif "max_runs" in rerun_marker.kwargs:
+    elif "reruns" in rerun_marker.kwargs:
         #Check for keyword arguments
         reruns = rerun_marker.kwargs["max_runs"]
     else:
