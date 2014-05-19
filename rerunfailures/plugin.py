@@ -44,21 +44,20 @@ def pytest_runtest_protocol(item, nextitem):
     #re-run failing test if they have been marked
     rerun_marker = item.get_marker("flaky")
 
-    #Check if either the global setting is specified, or the current item is marked flaky.
-    if rerun_marker is None and item.session.config.option.reruns is None:
-        return
-
     #Use the marker as a priority over the global setting.
     if rerun_marker is not None:
-        if len(rerun_marker.args) > 0:
-            #Check for arguments
-            reruns = rerun_marker.args[0]
-        elif "reruns" in rerun_marker.kwargs:
+        if "reruns" in rerun_marker.kwargs:
             #Check for keyword arguments
             reruns = rerun_marker.kwargs["reruns"]
-    else:
+        elif len(rerun_marker.args) > 0:
+            #Check for arguments
+            reruns = rerun_marker.args[0]
+    elif item.session.config.option.reruns is not None:
         #Default to the global setting
         reruns = item.session.config.option.reruns
+    else:
+        #Global setting is not specified, and this test is not marked with flaky
+        return
     
     # while this doesn't need to be run with every item, it will fail on the first 
     # item if necessary
