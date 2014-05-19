@@ -13,9 +13,10 @@ def pytest_addoption(parser):
         default=0,
         help="number of times to re-run failed tests. defaults to 0.")
         
+
 def pytest_configure(config):
     #Add flaky marker
-    config.addinivalue_line("markers", "flaky(reruns=1): mark test to re-run up to max_runs times")
+    config.addinivalue_line("markers", "flaky(reruns=1): mark test to re-run up to reruns times")
 
 # making sure the options make sense
 # should run before / at the begining of pytest_cmdline_main
@@ -25,6 +26,7 @@ def check_options(config):
         if config.option.reruns != 0:
             if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
+
 
 def pytest_runtest_protocol(item, nextitem):
     """
@@ -42,14 +44,19 @@ def pytest_runtest_protocol(item, nextitem):
     #Just register the 'flaky' marker in pytest.ini, and this plugin will only
     #re-run failing test if they have been marked
     rerun_marker = item.get_marker("flaky")
-    if rerun_marker is None:
+
+    #Check if either the global setting is specified, or the current item is marked flaky.
+    if rerun_marker is None and item.session.config.option.reruns is None:
         return
-    elif len(rerun_marker.args) > 0:
-        #Check for arguments
-        reruns = rerun_marker.args[0]
-    elif "reruns" in rerun_marker.kwargs:
-        #Check for keyword arguments
-        reruns = rerun_marker.kwargs["max_runs"]
+
+    #Use the marker as a priority over the global setting.
+    if rerun_marker is not None:
+        if len(rerun_marker.args) > 0:
+            #Check for arguments
+            reruns = rerun_marker.args[0]
+        elif "reruns" in rerun_marker.kwargs:
+            #Check for keyword arguments
+            reruns = rerun_marker.kwargs["max_runs"]
     else:
         #Default to the global setting
         reruns = item.session.config.option.reruns
@@ -82,6 +89,7 @@ def pytest_runtest_protocol(item, nextitem):
     # pytest_runtest_protocol returns True
     return True
 
+
 def pytest_report_teststatus(report):
     """ adapted from
     https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-170
@@ -92,6 +100,7 @@ def pytest_report_teststatus(report):
                 return "failed", "F", "FAILED"
             if report.outcome == "passed":
                 return "rerun", "R", "RERUN"
+
 
 def pytest_terminal_summary(terminalreporter):
     """ adapted from
@@ -110,6 +119,7 @@ def pytest_terminal_summary(terminalreporter):
         tr._tw.sep("=", "rerun test summary info")
         for line in lines:
             tr._tw.line(line)
+
 
 def show_rerun(terminalreporter, lines):
     rerun = terminalreporter.stats.get("rerun")
