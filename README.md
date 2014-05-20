@@ -8,7 +8,7 @@ or you can specify --reruns=N on the command line to rerun all failing tests up 
 
 Installation:
 ============
-    (sudo) pip install git+https://github.com/fireflash38/pytest-rerunfailures.git
+    (sudo) pip install git+https://github.com/klrmn/pytest-rerunfailures.git
 
 Parameters:
 ===========
