@@ -1,5 +1,6 @@
 import sys, time
 import py, pytest
+from distutils.version import LooseVersion
 
 from _pytest.runner import runtestprotocol
 
@@ -38,11 +39,17 @@ def pytest_runtest_protocol(item, nextitem):
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
     """
-
-    #Check for rerun marker
-    #Just register the 'flaky' marker in pytest.ini, and this plugin will only
-    #re-run failing test if they have been marked
-    rerun_marker = item.get_marker("flaky")
+    #If pytest version is below 2.4.2, we can't easily get markers.
+    if LooseVersion(pytest.__version__) < LooseVersion("2.4.2"):
+        rerun_marker = None
+        val = item.keywords.get("flaky", None)
+        if val is not None:
+            from _pytest.mark import MarkInfo, MarkDecorator
+            if isinstance(val, (MarkDecorator, MarkInfo)):
+                rerun_marker = val
+    else:
+        #In pytest 2.4.2, we can do this pretty easily.
+        rerun_marker = item.get_marker("flaky")
 
     #Use the marker as a priority over the global setting.
     if rerun_marker is not None:
