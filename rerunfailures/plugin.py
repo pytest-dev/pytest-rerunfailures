@@ -1,6 +1,5 @@
 import sys, time
 import py, pytest
-from distutils.version import LooseVersion
 
 from _pytest.runner import runtestprotocol
 
@@ -39,18 +38,17 @@ def pytest_runtest_protocol(item, nextitem):
     (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
     fix should be released in version 2.2.5
     """
-    #If pytest version is below 2.4.2, we can't easily get markers.
-    if LooseVersion(pytest.__version__) < LooseVersion("2.4.2"):
+    
+    if hasattr(item, 'get_marker'):
+        rerun_marker = item.get_marker("flaky")
+    else:
         rerun_marker = None
         val = item.keywords.get("flaky", None)
         if val is not None:
             from _pytest.mark import MarkInfo, MarkDecorator
             if isinstance(val, (MarkDecorator, MarkInfo)):
                 rerun_marker = val
-    else:
-        #In pytest 2.4.2, we can do this pretty easily.
-        rerun_marker = item.get_marker("flaky")
-
+                
     #Use the marker as a priority over the global setting.
     if rerun_marker is not None:
         if "reruns" in rerun_marker.kwargs:
