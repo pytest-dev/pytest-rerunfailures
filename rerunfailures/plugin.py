@@ -39,10 +39,17 @@ def pytest_runtest_protocol(item, nextitem):
     fix should be released in version 2.2.5
     """
 
-    #Check for rerun marker
-    #Just register the 'flaky' marker in pytest.ini, and this plugin will only
-    #re-run failing test if they have been marked
-    rerun_marker = item.get_marker("flaky")
+    if not hasattr(item, 'get_marker'):
+        # pytest < 2.4.2 doesn't support get_marker
+        rerun_marker = None
+        val = item.keywords.get("flaky", None)
+        if val is not None:
+            from _pytest.mark import MarkInfo, MarkDecorator
+            if isinstance(val, (MarkDecorator, MarkInfo)):
+                rerun_marker = val
+    else:
+        #In pytest 2.4.2, we can do this pretty easily.
+        rerun_marker = item.get_marker("flaky")
 
     #Use the marker as a priority over the global setting.
     if rerun_marker is not None:
