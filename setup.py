@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pytest-rerunfailures',
-      version='0.04',
+      version='0.05',
       description='py.test plugin to re-run tests to eliminate flakey failures',
       author='Leah Klearman',
       author_email='lklrmn@gmail.com',
