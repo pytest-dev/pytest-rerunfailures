@@ -76,13 +76,11 @@ def pytest_runtest_protocol(item, nextitem):
 
     for i in range(reruns+1):  # ensure at least one run of each item
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
-        # break if setup and call pass
-        if reports[0].passed and reports[1].passed:
+
+        if any(j.skipped for j in reports) or all(j.passed for j in reports):
             break
 
-        # break if test marked xfail
-        evalxfail = getattr(item, '_evalxfail', None)
-        if evalxfail:
+        if item.get_marker('xfail'):
             break
 
     for report in reports:
