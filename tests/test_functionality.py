@@ -38,6 +38,13 @@ class TestFunctionality(object):
                 raise Exception("OMG! failing test!")
         """
 
+    skipped_test = """
+            import pytest
+            @pytest.mark.skipIf(True)
+            def test_skip():
+                assert False
+        """
+
     flakey_test = """
             import pytest
             @pytest.mark.nondestructive
@@ -98,6 +105,15 @@ class TestFunctionality(object):
         assert len(failed) == 0
         assert len(skipped) == 0
         assert len(passed) == 1
+
+    def test_skipped_test_not_rerun(self, testdir):
+        test_file = testdir.makepyfile(self.skipped_test)
+
+        reprec = testdir.inline_run(test_file)
+        passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 0
+        assert len(skipped) == 1
+        assert len(passed) == 0
 
     # setup
     def test_fails_with_flakey_setup_if_rerun_not_used(self, testdir):
@@ -216,6 +232,11 @@ class TestFunctionality(object):
             @pytest.mark.nondestructive
             def test_xpass():
                 pass
+
+            @pytest.mark.nondestructive
+            @pytest.mark.skipIf(True)
+            def test_skip():
+                assert False
 
             @pytest.mark.nondestructive
             def test_flaky_test():
