@@ -72,7 +72,7 @@ This plugin is also not compatible with the core --pdb flag.
 
 Continuous Integration
 ----------------------
-[![Build Status](https://secure.travis-ci.org/klrmn/pytest-rerunfailures.png?branch=master)](http://travis-ci.org/klrmn/pytest-rerunfailures)
+[![Build Status](https://travis-ci.org/sergeychipiga/pytest-rerunfailures.svg)](https://travis-ci.org/sergeychipiga/pytest-rerunfailures)
 
 Running the tests:
 =================
