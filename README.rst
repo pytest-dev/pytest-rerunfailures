@@ -85,7 +85,9 @@ Here's an example of the output provided by the plugin when run with
   ======================= 1 failed, 2 rerun in 0.02 seconds ====================
 
 Note that output will show all re-runs. Tests that fail on all the re-runs will
-be marked as failed. This differs from previous versions of the plugin.
+be marked as failed. Due to a
+`current limitation in pytest-xdist <https://github.com/pytest-dev/pytest/issues/1193>`_,
+when running tests in parallel only the final result will be included in the output.
 
 Compatibility
 -------------
