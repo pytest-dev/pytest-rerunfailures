@@ -64,7 +64,7 @@ def pytest_runtest_protocol(item, nextitem):
                                            location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
-        for report in reports:
+        for report in reports:  # 3 reports: setup, test, teardown
             report.rerun = i
             xfail = hasattr(report, 'wasxfail')
             if i < reruns and report.failed and not xfail:
@@ -78,9 +78,9 @@ def pytest_runtest_protocol(item, nextitem):
             else:
                 # no failure detected, log as normal
                 item.ihook.pytest_runtest_logreport(report=report)
+
         if report.outcome != 'rerun':
-            # no need to rerun
-            return True
+            return True  # no need to rerun
 
     return True
 
