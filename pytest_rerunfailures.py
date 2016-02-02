@@ -1,22 +1,27 @@
-import sys, time
-import py, pytest
+import pytest
 
 from _pytest.runner import runtestprotocol
 
+
 # command line options
 def pytest_addoption(parser):
-    group = parser.getgroup("rerunfailures", "re-run failing tests to eliminate flakey failures")
-    group._addoption('--reruns',
+    group = parser.getgroup(
+        "rerunfailures",
+        "re-run failing tests to eliminate flaky failures")
+    group._addoption(
+        '--reruns',
         action="store",
         dest="reruns",
         type="int",
         default=0,
         help="number of times to re-run failed tests. defaults to 0.")
-        
+
 
 def pytest_configure(config):
-    #Add flaky marker
-    config.addinivalue_line("markers", "flaky(reruns=1): mark test to re-run up to 'reruns' times")
+    # add flaky marker
+    config.addinivalue_line(
+        "markers", "flaky(reruns=1): mark test to re-run up to 'reruns' times")
+
 
 # making sure the options make sense
 # should run before / at the begining of pytest_cmdline_main
@@ -30,44 +35,28 @@ def check_options(config):
 
 def pytest_runtest_protocol(item, nextitem):
     """
-    Note: when teardown fails, two reports are generated for the case, one for the test
-    case and the other for the teardown error.
-
-    Note: in some versions of py.test, when setup fails on a test that has been marked with xfail, 
-    it gets an XPASS rather than an XFAIL 
-    (https://bitbucket.org/hpk42/pytest/issue/160/an-exception-thrown-in)
-    fix should be released in version 2.2.5
+    Note: when teardown fails, two reports are generated for the case, one for
+    the test case and the other for the teardown error.
     """
-
-    if not hasattr(item, 'get_marker'):
-        # pytest < 2.4.2 doesn't support get_marker
-        rerun_marker = None
-        val = item.keywords.get("flaky", None)
-        if val is not None:
-            from _pytest.mark import MarkInfo, MarkDecorator
-            if isinstance(val, (MarkDecorator, MarkInfo)):
-                rerun_marker = val
-    else:
-        #In pytest 2.4.2, we can do this pretty easily.
-        rerun_marker = item.get_marker("flaky")
-
-    #Use the marker as a priority over the global setting.
+    rerun_marker = item.get_marker("flaky")
+    # use the marker as a priority over the global setting.
     if rerun_marker is not None:
         if "reruns" in rerun_marker.kwargs:
-            #Check for keyword arguments
+            # check for keyword arguments
             reruns = rerun_marker.kwargs["reruns"]
         elif len(rerun_marker.args) > 0:
-            #Check for arguments
+            # check for arguments
             reruns = rerun_marker.args[0]
     elif item.session.config.option.reruns is not None:
-        #Default to the global setting
+        # default to the global setting
         reruns = item.session.config.option.reruns
     else:
-        #Global setting is not specified, and this test is not marked with flaky
+        # global setting is not specified, and this test is not marked with
+        # flaky
         return
-    
-    # while this doesn't need to be run with every item, it will fail on the first 
-    # item if necessary
+
+    # while this doesn't need to be run with every item, it will fail on the
+    # first item if necessary
     check_options(item.session.config)
 
     item.ihook.pytest_runtest_logstart(
@@ -117,7 +106,7 @@ def pytest_terminal_summary(terminalreporter):
 
     lines = []
     for char in tr.reportchars:
-        if char in "rR":
+        if char in 'rR':
             show_rerun(terminalreporter, lines)
 
     if lines:
