@@ -5,7 +5,7 @@ pytest-rerunfailures is a plugin for `py.test <http://pytest.org>`_ that
 re-runs tests to eliminate intermittent failures.
 
 .. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
-   :target: https://github.com/gocept/pytest-selenium/blob/master/LICENSE
+   :target: https://github.com/gocept/pytest-rerunfailures/blob/master/LICENSE
    :alt: License
 .. image:: https://img.shields.io/pypi/v/pytest-rerunfailures.svg
    :target: https://pypi.python.org/pypi/pytest-rerunfailures/
@@ -20,7 +20,7 @@ re-runs tests to eliminate intermittent failures.
 Requirements
 ------------
 
-You will need the following prerequisites in order to use pytest-variables:
+You will need the following prerequisites in order to use pytest-rerunfailures:
 
 - Python 2.6, 2.7, 3.2, 3.3, 3.4, 3.5, PyPy, or PyPy3
 - py.test 2.7 or newer
@@ -110,5 +110,5 @@ against the supported Python versions.
 Resources
 ---------
 
-- `Issue Tracker <http://github.com/gocept/pytest-variables/issues>`_
-- `Code <http://github.com/gocept/pytest-variables/>`_
+- `Issue Tracker <http://github.com/gocept/pytest-rerunfailures/issues>`_
+- `Code <http://github.com/gocept/pytest-rerunfailures/>`_
