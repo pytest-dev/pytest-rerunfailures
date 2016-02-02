@@ -1,6 +1,5 @@
-===================================
-Change log for pytest-rerunfailures
-===================================
+Changelog
+---------
 
 
 1.0.2 (unreleased)
