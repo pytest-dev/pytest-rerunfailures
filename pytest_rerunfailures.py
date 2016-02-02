@@ -59,28 +59,31 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
 
-    item.ihook.pytest_runtest_logstart(
-        nodeid=item.nodeid, location=item.location,
-    )
+    def _run_tests(item, nextitem, reruns):
+        for i in range(reruns + 1):  # ensure at least one run of each item
+            item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
+                                               location=item.location)
+            reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
-    for i in range(reruns+1):  # ensure at least one run of each item
-        reports = runtestprotocol(item, nextitem=nextitem, log=False)
-        # break if setup and call pass
-        if reports[0].passed and reports[1].passed:
-            break
-
-        # break if test marked xfail
-        evalxfail = getattr(item, '_evalxfail', None)
-        if evalxfail:
-            break
-
-    for report in reports:
-        if report.when in ("call"):
-            if i > 0:
+            for report in reports:
                 report.rerun = i
-        item.ihook.pytest_runtest_logreport(report=report)
+                xfail = hasattr(report, 'wasxfail')
+                if i < reruns and report.failed and not xfail:
+                    # failure detected and reruns not exhausted
+                    report.outcome = 'rerun'
+                    if not hasattr(item.config, 'slaveinput'):
+                        # unable to log multiple reports in pytest-xdist
+                        # see: https://github.com/pytest-dev/pytest/issues/1193
+                        item.ihook.pytest_runtest_logreport(report=report)
+                    break
+                else:
+                    # no failure detected, log as normal
+                    item.ihook.pytest_runtest_logreport(report=report)
+            if not report.outcome == 'rerun' or i == reruns:
+                # last rerun or no need for a rerun
+                return
 
-    # pytest_runtest_protocol returns True
+    _run_tests(item, nextitem, reruns)
     return True
 
 
@@ -88,12 +91,8 @@ def pytest_report_teststatus(report):
     """ adapted from
     https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-170
     """
-    if report.when in ("call"):
-        if hasattr(report, "rerun") and report.rerun > 0:
-            if report.outcome == "failed":
-                return "failed", "F", "FAILED"
-            if report.outcome == "passed":
-                return "rerun", "R", "RERUN"
+    if report.outcome == 'rerun':
+        return 'rerun', 'R', ('RERUN', {'yellow': True})
 
 
 def pytest_terminal_summary(terminalreporter):
