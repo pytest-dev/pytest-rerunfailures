@@ -4,6 +4,9 @@ pytest-rerunfailures
 pytest-rerunfailures is a plugin for `py.test <http://pytest.org>`_ that
 re-runs tests to eliminate intermittent failures.
 
+.. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
+   :target: https://github.com/gocept/pytest-selenium/blob/master/LICENSE
+   :alt: License
 .. image:: https://img.shields.io/pypi/v/pytest-rerunfailures.svg
    :target: https://pypi.python.org/pypi/pytest-rerunfailures/
    :alt: PyPI
