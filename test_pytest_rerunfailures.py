@@ -15,6 +15,7 @@ def temporary_failure(count=1):
 def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
                     xpassed=0, rerun=0):
     outcomes = result.parseoutcomes()
+    print outcomes
     assert outcomes.get('passed', 0) == passed
     assert outcomes.get('skipped', 0) == skipped
     assert outcomes.get('failed', 0) == failed
@@ -161,3 +162,29 @@ def test_verbose(testdir):
     result = testdir.runpytest('--reruns', '1', '-v')
     result.stdout.fnmatch_lines_random(['test_*::test_* RERUN'])
     assert '1 rerun' in result.stdout.str()
+
+
+def test_no_rerun_on_class_setup_error_without_reruns(testdir):
+    testdir.makepyfile("""
+        class TestFoo(object):
+            @classmethod
+            def setup_class(cls):
+                assert False
+
+            def test_pass():
+                pass""")
+    result = testdir.runpytest('--reruns', '0')
+    assert_outcomes(result, passed=0, error=1, rerun=0)
+
+
+def test_rerun_on_class_setup_error_with_reruns(testdir):
+    testdir.makepyfile("""
+        class TestFoo(object):
+            @classmethod
+            def setup_class(cls):
+                assert False
+
+            def test_pass():
+                pass""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=0, error=1, rerun=1)
