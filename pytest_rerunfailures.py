@@ -67,17 +67,18 @@ def pytest_runtest_protocol(item, nextitem):
         for report in reports:  # 3 reports: setup, test, teardown
             report.rerun = i
             xfail = hasattr(report, 'wasxfail')
-            if i < reruns and report.failed and not xfail:
-                # failure detected and reruns not exhausted
+            if i == reruns or not report.failed or xfail:
+                # last run or no failure detected, log normally
+                item.ihook.pytest_runtest_logreport(report=report)
+            else:
+                # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
+
                 if not hasattr(item.config, 'slaveinput'):
                     # unable to log multiple reports in pytest-xdist
                     # see: https://github.com/pytest-dev/pytest/issues/1193
                     item.ihook.pytest_runtest_logreport(report=report)
                 break
-            else:
-                # no failure detected, log as normal
-                item.ihook.pytest_runtest_logreport(report=report)
 
         if report.outcome != 'rerun':
             return True  # no need to rerun
