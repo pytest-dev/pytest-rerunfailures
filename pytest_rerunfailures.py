@@ -78,9 +78,9 @@ def pytest_runtest_protocol(item, nextitem):
                     # unable to log multiple reports in pytest-xdist
                     # see: https://github.com/pytest-dev/pytest/issues/1193
                     item.ihook.pytest_runtest_logreport(report=report)
-                break
 
-        if report.outcome != 'rerun':
+                break  # trigger rerun
+        else:
             return True  # no need to rerun
 
     return True
