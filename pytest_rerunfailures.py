@@ -59,31 +59,29 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
 
-    def _run_tests(item, nextitem, reruns):
-        for i in range(reruns + 1):  # ensure at least one run of each item
-            item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
-                                               location=item.location)
-            reports = runtestprotocol(item, nextitem=nextitem, log=False)
+    for i in range(reruns + 1):  # ensure at least one run of each item
+        item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
+                                           location=item.location)
+        reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
-            for report in reports:
-                report.rerun = i
-                xfail = hasattr(report, 'wasxfail')
-                if i < reruns and report.failed and not xfail:
-                    # failure detected and reruns not exhausted
-                    report.outcome = 'rerun'
-                    if not hasattr(item.config, 'slaveinput'):
-                        # unable to log multiple reports in pytest-xdist
-                        # see: https://github.com/pytest-dev/pytest/issues/1193
-                        item.ihook.pytest_runtest_logreport(report=report)
-                    break
-                else:
-                    # no failure detected, log as normal
+        for report in reports:
+            report.rerun = i
+            xfail = hasattr(report, 'wasxfail')
+            if i < reruns and report.failed and not xfail:
+                # failure detected and reruns not exhausted
+                report.outcome = 'rerun'
+                if not hasattr(item.config, 'slaveinput'):
+                    # unable to log multiple reports in pytest-xdist
+                    # see: https://github.com/pytest-dev/pytest/issues/1193
                     item.ihook.pytest_runtest_logreport(report=report)
-            if not report.outcome == 'rerun' or i == reruns:
-                # last rerun or no need for a rerun
-                return
+                break
+            else:
+                # no failure detected, log as normal
+                item.ihook.pytest_runtest_logreport(report=report)
+        if not report.outcome == 'rerun' or i == reruns:
+            # last rerun or no need for a rerun
+            return True
 
-    _run_tests(item, nextitem, reruns)
     return True
 
 
