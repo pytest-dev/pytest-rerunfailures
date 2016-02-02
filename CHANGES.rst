@@ -3,7 +3,7 @@ Change log for pytest-rerunfailures
 ===================================
 
 
-1.0.1 (unreleased)
+1.0.1 (2016-02-02)
 ==================
 
 - Improve package description and include CHANGELOG into description.
