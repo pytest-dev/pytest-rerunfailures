@@ -3,6 +3,7 @@
 .DS_Store
 .Python
 .cache/
+.python-version
 .tox*
 bin/
 build/*
