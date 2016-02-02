@@ -1,5 +1,40 @@
 import py, pytest
 
+pytest_plugins = "pytester"
+
+
+class TestConfig(object):
+
+    passing_test = """
+            import pytest
+            @pytest.mark.nondestructive
+            def test_fake_pass():
+                assert True
+        """
+
+    @pytest.mark.xfail(reason="don't know where to put check so that it is testable. manually, the test passes.")
+    def test_reruns_incompatible_with_pdb(self, testdir):
+        file_test = testdir.makepyfile(self.passing_test)
+        reprec = testdir.inline_run('--reruns=3',
+                                    '--pdb',
+                                    file_test)
+        passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 1
+        out = failed[0].longrepr.reprcrash.message
+        assert out == 'ERROR: --reruns incompatible with --pdb'
+
+
+    def test_reruns_incompatible_with_looponfail(self, testdir):
+        pytest.skip("-xdist highjacks process before my plugin can test command line options")
+        file_test = testdir.makepyfile(self.passing_test)
+        reprec = testdir.inline_run('--reruns=3',
+                                    '--looponfail',
+                                    file_test)
+        passed, skipped, failed = reprec.listoutcomes()
+        assert len(failed) == 1
+        out = failed[0].longrepr.reprcrash.message
+        assert out == 'ERROR: --reruns incompatible with --looponfail'
+
 
 class TestFunctionality(object):
 
@@ -43,14 +78,14 @@ class TestFunctionality(object):
             @pytest.mark.nondestructive
             def test_flaky_test():
     """ + pass_the_third_time
-    
+
     flaky_test_with_1xmarker = """
             import pytest
             @pytest.mark.nondestructive
             @pytest.mark.flaky(reruns=1)
             def test_flaky_test_with_marker():
     """ + pass_the_third_time
-    
+
     flaky_test_with_2xmarker = """
             import pytest
             @pytest.mark.nondestructive
@@ -156,7 +191,7 @@ class TestFunctionality(object):
         assert len(failed) == 1
         out = failed[0].longrepr.reprcrash.message
         assert out == 'Exception: Failing the second time'
-        
+
     def test_flaky_test_with_1x_marker(self, testdir):
         test_file = testdir.makepyfile(self.flaky_test_with_1xmarker)
 
@@ -166,14 +201,14 @@ class TestFunctionality(object):
         #
         # result = testdir.runpytest(test_file)
         # assert u'E           Exception: Failing the first time' in result.outlines
-        
+
     def test_flaky_test_with_2x_marker(self, testdir):
         test_file = testdir.makepyfile(self.flaky_test_with_2xmarker)
 
         reprec = testdir.inline_run(test_file)
         passed, skipped, failed = reprec.listoutcomes()
         assert len(passed) == 1
-        
+
     def test_flakey_test_passes_if_run_two_times(self, testdir):
         test_file = testdir.makepyfile(self.flakey_test)
 
