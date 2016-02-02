@@ -15,7 +15,6 @@ def temporary_failure(count=1):
 def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
                     xpassed=0, rerun=0):
     outcomes = result.parseoutcomes()
-    print outcomes
     assert outcomes.get('passed', 0) == passed
     assert outcomes.get('skipped', 0) == skipped
     assert outcomes.get('failed', 0) == failed
