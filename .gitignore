@@ -1,5 +1,11 @@
-.DS_Store
 *.pyc
 *egg*
-build/*
+.DS_Store
+.Python
+.cache/
 .tox*
+bin/
+build/*
+include/
+lib/
+pip-selfcheck.json
