@@ -78,8 +78,8 @@ def pytest_runtest_protocol(item, nextitem):
             else:
                 # no failure detected, log as normal
                 item.ihook.pytest_runtest_logreport(report=report)
-        if not report.outcome == 'rerun' or i == reruns:
-            # last rerun or no need for a rerun
+        if report.outcome != 'rerun':
+            # no need to rerun
             return True
 
     return True
