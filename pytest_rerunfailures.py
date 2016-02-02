@@ -86,16 +86,14 @@ def pytest_runtest_protocol(item, nextitem):
 
 
 def pytest_report_teststatus(report):
-    """ adapted from
-    https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-170
+    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     """
     if report.outcome == 'rerun':
         return 'rerun', 'R', ('RERUN', {'yellow': True})
 
 
 def pytest_terminal_summary(terminalreporter):
-    """ adapted from
-    https://bitbucket.org/hpk42/pytest/src/a5e7a5fa3c7e/_pytest/skipping.py#cl-179
+    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     """
     tr = terminalreporter
     if not tr.reportchars:
