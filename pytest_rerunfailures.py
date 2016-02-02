@@ -74,9 +74,15 @@ def pytest_runtest_protocol(item, nextitem):
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
 
-                if not hasattr(item.config, 'slaveinput'):
-                    # unable to log multiple reports in pytest-xdist
-                    # see: https://github.com/pytest-dev/pytest/issues/1193
+                # When running tests in parallel using pytest-xdist the first
+                # report that is logged will finish and terminate the current
+                # node rather rerunning the test. Thus we must skip logging of
+                # intermediate results when running in parallel, otherwise no
+                # test is rerun.
+                # See: https://github.com/pytest-dev/pytest/issues/1193
+                parallel_testing = hasattr(item.config, 'slaveinput')
+                if not parallel_testing:
+                    # will rerun test, log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
 
                 break  # trigger rerun
