@@ -9,8 +9,19 @@ python:
   - pypy
   - pypy3
 env:
+  - PYTEST=2.4.2
+  - PYTEST=2.5.2
+  - PYTEST=2.6.4
   - PYTEST=2.7.3
-  - PYTEST=2.8.2
+  - PYTEST=2.8.7
+matrix:
+  exclude:
+    - python: 3.5
+      env: PYTEST=2.4.2
+    - python: 3.5
+      env: PYTEST=2.5.2
+    - python: 3.5
+      env: PYTEST=2.6.4
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
