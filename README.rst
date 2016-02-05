@@ -13,9 +13,6 @@ re-runs tests to eliminate intermittent failures.
 .. image:: https://img.shields.io/travis/pytest-dev/pytest-rerunfailures.svg
    :target: https://travis-ci.org/pytest-dev/pytest-rerunfailures/
    :alt: Travis
-.. image:: https://img.shields.io/github/issues-raw/pytest-dev/pytest-rerunfailures.svg
-   :target: https://github.com/pytest-dev/pytest-rerunfailures/issues
-   :alt: Issues
 
 Requirements
 ------------
