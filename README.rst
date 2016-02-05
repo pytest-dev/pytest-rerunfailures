@@ -109,7 +109,7 @@ against the supported Python versions.
 
 Tests with Python 3.2 will fail if virtualenv 14 or higher is used, since they
 dropped support for Python 3.2 (will break with ``SyntaxError: invalid syntax``
-near `` empty_fill = u'∙'``). Therefore:
+near ``empty_fill = u'∙'``). Therefore:
 
 .. code-block:: bash
 
