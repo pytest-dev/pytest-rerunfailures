@@ -93,7 +93,7 @@ Compatibility
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with the core --pdb flag.
 * The support for Python 3.5 is limited to pytest 2.7.3 and higher. (Will break
-  with `TypeError: Call constructor takes either 0 or 3 positional arguments`
+  with ``TypeError: Call constructor takes either 0 or 3 positional arguments``
   for older versions, see https://github.com/pytest-dev/pytest/issues/744)
 
 Running Tests
@@ -108,8 +108,8 @@ against the supported Python versions.
   $ tox
 
 Tests with Python 3.2 will fail if virtualenv 14 or higher is used, since they
-dropped support for Python 3.2 (will break with `SyntaxError: invalid syntax`
-near ` empty_fill = u'∙'`). Therefore:
+dropped support for Python 3.2 (will break with ``SyntaxError: invalid syntax``
+near `` empty_fill = u'∙'``). Therefore:
 
 .. code-block:: bash
 
@@ -117,7 +117,7 @@ near ` empty_fill = u'∙'`). Therefore:
   $ pip install virtualenv==13.1.2
 
 They will also fail if pip 8 or higher is used, since they, too, dropped
-support for Python 3.2. Make sure to use `easy_install` instead for Python 3.2.
+support for Python 3.2. Make sure to use ``easy_install`` instead for Python 3.2.
 
 Resources
 ---------
