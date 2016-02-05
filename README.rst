@@ -5,16 +5,16 @@ pytest-rerunfailures is a plugin for `py.test <http://pytest.org>`_ that
 re-runs tests to eliminate intermittent failures.
 
 .. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
-   :target: https://github.com/gocept/pytest-rerunfailures/blob/master/LICENSE
+   :target: https://github.com/pytest-dev/pytest-rerunfailures/blob/master/LICENSE
    :alt: License
 .. image:: https://img.shields.io/pypi/v/pytest-rerunfailures.svg
    :target: https://pypi.python.org/pypi/pytest-rerunfailures/
    :alt: PyPI
-.. image:: https://img.shields.io/travis/gocept/pytest-rerunfailures.svg
-   :target: https://travis-ci.org/gocept/pytest-rerunfailures/
+.. image:: https://img.shields.io/travis/pytest-dev/pytest-rerunfailures.svg
+   :target: https://travis-ci.org/pytest-dev/pytest-rerunfailures/
    :alt: Travis
-.. image:: https://img.shields.io/github/issues-raw/gocept/pytest-rerunfailures.svg
-   :target: https://github.com/gocept/pytest-rerunfailures/issues
+.. image:: https://img.shields.io/github/issues-raw/pytest-dev/pytest-rerunfailures.svg
+   :target: https://github.com/pytest-dev/pytest-rerunfailures/issues
    :alt: Issues
 
 Requirements
@@ -110,5 +110,5 @@ against the supported Python versions.
 Resources
 ---------
 
-- `Issue Tracker <http://github.com/gocept/pytest-rerunfailures/issues>`_
-- `Code <http://github.com/gocept/pytest-rerunfailures/>`_
+- `Issue Tracker <http://github.com/pytest-dev/pytest-rerunfailures/issues>`_
+- `Code <http://github.com/pytest-dev/pytest-rerunfailures/>`_
