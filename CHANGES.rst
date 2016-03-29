@@ -5,7 +5,7 @@ Changelog
 1.0.2 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Add support for `--resultlog` option by parsing reruns accordingly. (#28)
 
 
 1.0.1 (2016-02-02)
