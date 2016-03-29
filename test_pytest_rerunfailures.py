@@ -187,3 +187,14 @@ def test_rerun_on_class_setup_error_with_reruns(testdir):
                 pass""")
     result = testdir.runpytest('--reruns', '1')
     assert_outcomes(result, passed=0, error=1, rerun=1)
+
+
+def test_rerun_with_resultslog(testdir):
+    testdir.makepyfile("""
+        def test_fail():
+            assert False""")
+
+    result = testdir.runpytest('--reruns', '2',
+                               '--result-log', './pytest.log')
+
+    assert_outcomes(result, passed=0, failed=1, rerun=2)

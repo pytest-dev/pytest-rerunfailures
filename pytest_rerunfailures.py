@@ -1,6 +1,7 @@
 import pytest
 
 from _pytest.runner import runtestprotocol
+from _pytest.resultlog import ResultLog
 
 
 # command line options
@@ -31,6 +32,13 @@ def check_options(config):
         if config.option.reruns != 0:
             if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
+
+    resultlog = getattr(config, '_resultlog', None)
+    if resultlog:
+        logfile = resultlog.logfile
+        config.pluginmanager.unregister(resultlog)
+        config._resultlog = RerunResultLog(config, logfile)
+        config.pluginmanager.register(config._resultlog)
 
 
 def pytest_runtest_protocol(item, nextitem):
@@ -123,3 +131,33 @@ def show_rerun(terminalreporter, lines):
         for rep in rerun:
             pos = rep.nodeid
             lines.append("RERUN %s" % (pos,))
+
+
+class RerunResultLog(ResultLog):
+    def __init__(self, config, logfile):
+        ResultLog.__init__(self, config, logfile)
+
+    def pytest_runtest_logreport(self, report):
+        """
+        Adds support for rerun report fix for issue:
+        https://github.com/pytest-dev/pytest-rerunfailures/issues/28
+        """
+        if report.when != "call" and report.passed:
+            return
+        res = self.config.hook.pytest_report_teststatus(report=report)
+        code = res[1]
+        if code == 'x':
+            longrepr = str(report.longrepr)
+        elif code == 'X':
+            longrepr = ''
+        elif report.passed:
+            longrepr = ""
+        elif report.failed:
+            longrepr = str(report.longrepr)
+        elif report.skipped:
+            longrepr = str(report.longrepr[2])
+        elif report.outcome == 'rerun':
+            longrepr = str(report.longrepr)
+
+        self.log_outcome(report, code, longrepr)
+
