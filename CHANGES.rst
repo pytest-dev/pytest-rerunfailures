@@ -5,8 +5,8 @@ Changelog
 1.0.3 (unreleased)
 ==================
 
-- Nothing changed yet.
-
+- Drop support for Python 3.2, since supporting it became too much of a hassle.
+  (Reason: Virtualenv 14+ / PIP 8+ do not support Python 3.2 anymore.)
 
 1.0.2 (2016-03-29)
 ==================

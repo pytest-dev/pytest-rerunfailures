@@ -19,7 +19,7 @@ Requirements
 
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
-- Python 2.6, 2.7, 3.2, 3.3, 3.4, 3.5, PyPy, or PyPy3
+- Python 2.6, 2.7, 3.3, 3.4, 3.5, PyPy, or PyPy3
 - py.test 2.4.2 or newer, except Python 3.5 that needs py.test 2.7.3 or newer
 
 Installation
@@ -95,29 +95,6 @@ Compatibility
 * The support for Python 3.5 is limited to pytest 2.7.3 and higher. (Will break
   with ``TypeError: Call constructor takes either 0 or 3 positional arguments``
   for older versions, see https://github.com/pytest-dev/pytest/issues/744)
-
-Running Tests
--------------
-
-You will need `Tox <http://tox.testrun.org/>`_ installed to run the tests
-against the supported Python versions.
-
-.. code-block:: bash
-
-  $ pip install tox
-  $ tox
-
-Tests with Python 3.2 will fail if virtualenv 14 or higher is used, since they
-dropped support for Python 3.2 (will break with ``SyntaxError: invalid syntax``
-near ``empty_fill = u'∙'``). Therefore:
-
-.. code-block:: bash
-
-  $ pip uninstall virtualenv
-  $ pip install virtualenv==13.1.2
-
-They will also fail if pip 8 or higher is used, since they, too, dropped
-support for Python 3.2. Make sure to use ``easy_install`` instead for Python 3.2.
 
 Resources
 ---------
