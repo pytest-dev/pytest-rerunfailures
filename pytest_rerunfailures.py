@@ -13,7 +13,7 @@ def pytest_addoption(parser):
         '--reruns',
         action="store",
         dest="reruns",
-        type="int",
+        type=int,
         default=0,
         help="number of times to re-run failed tests. defaults to 0.")
 
