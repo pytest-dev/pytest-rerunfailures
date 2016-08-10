@@ -2,7 +2,7 @@ Changelog
 ---------
 
 
-2.0.1 (unreleased)
+2.0.1 (2016-08-10)
 ==================
 
 - Prepare CLI options to pytest 3.0, to avoid a deprecation warning.
