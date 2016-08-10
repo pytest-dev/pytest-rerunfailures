@@ -5,7 +5,10 @@ Changelog
 2.0.1 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Prepare CLI options to pytest 3.0, to avoid a deprecation warning.
+
+- Fix error due to missing CHANGES.rst when creating the source distribution
+  by adding a MANIFEST.in.
 
 
 2.0.0 (2016-04-06)
@@ -13,6 +16,7 @@ Changelog
 
 - Drop support for Python 3.2, since supporting it became too much of a hassle.
   (Reason: Virtualenv 14+ / PIP 8+ do not support Python 3.2 anymore.)
+
 
 1.0.2 (2016-03-29)
 ==================
