@@ -1,4 +1,5 @@
 import random
+import pytest_rerunfailures
 
 pytest_plugins = 'pytester'
 
@@ -129,11 +130,31 @@ def test_rerun_passes_after_temporary_test_failure(testdir):
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
     testdir.makepyfile("""
         import pytest
-        @pytest.mark.flaky(reruns=1)
+        @pytest.mark.flaky(reruns=2)
         def test_pass():
-            {0}""".format(temporary_failure()))
+            {0}""".format(temporary_failure(2)))
+    result = testdir.runpytest('-r', 'R')
+    assert_outcomes(result, passed=1, rerun=2)
+
+
+def test_reruns_if_flaky_mark_is_called_without_options(testdir):
+    testdir.makepyfile("""
+        import pytest
+        @pytest.mark.flaky()
+        def test_pass():
+            {0}""".format(temporary_failure(1)))
     result = testdir.runpytest('-r', 'R')
     assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
+    testdir.makepyfile("""
+        import pytest
+        @pytest.mark.flaky(2)
+        def test_pass():
+            {0}""".format(temporary_failure(2)))
+    result = testdir.runpytest('-r', 'R')
+    assert_outcomes(result, passed=1, rerun=2)
 
 
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
