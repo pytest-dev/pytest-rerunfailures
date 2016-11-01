@@ -2,7 +2,7 @@ Changelog
 ---------
 
 
-2.1.0 (unreleased)
+2.1.0 (2016-11-01)
 ==================
 
 - Add default value of ``reruns=1`` if ``pytest.mark.flaky()`` is called
