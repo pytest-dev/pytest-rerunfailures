@@ -2,10 +2,15 @@ Changelog
 ---------
 
 
-2.0.2 (unreleased)
+2.1.0 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Add default value of ``reruns=1`` if ``pytest.mark.flaky()`` is called
+  without arguments.
+
+- Also offer a distribution as universal wheel. (Thanks to `@tltx`_ for the PR)
+
+.. _@tltx: https://github.com/tltx
 
 
 2.0.1 (2016-08-10)
