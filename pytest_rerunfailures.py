@@ -57,7 +57,7 @@ def pytest_runtest_protocol(item, nextitem):
             reruns = rerun_marker.args[0]
         else:
             reruns = 1
-    elif item.session.config.option.reruns is not None:
+    elif item.session.config.option.reruns:
         # default to the global setting
         reruns = item.session.config.option.reruns
     else:
