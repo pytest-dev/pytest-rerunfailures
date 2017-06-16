@@ -6,7 +6,7 @@ python:
   - 3.4
   - 3.5
   - pypy
-  - pypy3
+  - pypy3.3-5.5-alpha
 env:
   - PYTEST=2.4.2
   - PYTEST=2.5.2
