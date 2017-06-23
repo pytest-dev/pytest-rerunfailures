@@ -2,6 +2,12 @@ Changelog
 ---------
 
 
+2.3 (unreleased)
+================
+
+- Nothing changed yet.
+
+
 2.2 (2017-06-23)
 ================
 
