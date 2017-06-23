@@ -2,8 +2,8 @@ Changelog
 ---------
 
 
-2.1.1 (unreleased)
-==================
+2.2 (2017-06-23)
+================
 
 - Ensure that other plugins can run after this one, in case of a global setting
   ``--rerun=0``. (Thanks to `@sublee`_ for the PR)
