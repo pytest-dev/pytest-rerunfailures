@@ -8,7 +8,7 @@ Changelog
 - Ensure that other plugins can run after this one, in case of a global setting
   ``--rerun=0``. (Thanks to `@sublee`_ for the PR)
 
-.. _@tltx: https://github.com/sublee
+.. _@sublee: https://github.com/sublee
 
 2.1.0 (2016-11-01)
 ==================
