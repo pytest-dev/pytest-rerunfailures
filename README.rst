@@ -19,8 +19,8 @@ Requirements
 
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
-- Python 2.6, 2.7, 3.3, 3.4, 3.5, PyPy, or PyPy3
-- py.test 2.4.2 or newer, except Python 3.5 that needs py.test 2.7.3 or newer
+- Python 2.7, 3.4, 3.5, 3.6, PyPy, or PyPy3
+- py.test 2.7.3 or newer
 
 Installation
 ------------
@@ -92,9 +92,6 @@ Compatibility
 * This plugin may *not* be used with class, module, and package level fixtures.
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with the core --pdb flag.
-* The support for Python 3.5 is limited to pytest 2.7.3 and higher. (Will break
-  with ``TypeError: Call constructor takes either 0 or 3 positional arguments``
-  for older versions, see https://github.com/pytest-dev/pytest/issues/744)
 
 Resources
 ---------
