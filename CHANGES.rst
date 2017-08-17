@@ -2,10 +2,16 @@ Changelog
 ---------
 
 
-2.3 (unreleased)
+3.0 (unreleased)
 ================
 
-- Nothing changed yet.
+- Add support for Python 3.6.
+
+- Add support for pytest 2.9 up to 3.2
+
+- Drop support for Python 2.6 and 3.3.
+
+- Drop support for pytest < 2.7.
 
 
 2.2 (2017-06-23)
