@@ -1,3 +1,5 @@
+from distutils.version import LooseVersion
+
 import pytest
 
 from _pytest.runner import runtestprotocol
@@ -69,6 +71,11 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
 
+    parallel = hasattr(item.config, 'slaveinput')
+    plugins = [p[1] for p in item.config.pluginmanager.list_plugin_distinfo()]
+    xdist = next((LooseVersion(p.version) for p in plugins if
+                  p.project_name == 'pytest-xdist'), None)
+
     for i in range(reruns + 1):  # ensure at least one run of each item
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
                                            location=item.location)
@@ -84,14 +91,12 @@ def pytest_runtest_protocol(item, nextitem):
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
 
-                # When running tests in parallel using pytest-xdist the first
-                # report that is logged will finish and terminate the current
-                # node rather rerunning the test. Thus we must skip logging of
-                # intermediate results when running in parallel, otherwise no
-                # test is rerun.
-                # See: https://github.com/pytest-dev/pytest/issues/1193
-                parallel_testing = hasattr(item.config, 'slaveinput')
-                if not parallel_testing:
+                # When running tests in parallel using pytest-xdist < 1.20.0,
+                # the first report that is logged will finish and terminate the
+                # current node rather rerunning the test. Thus we must skip
+                # logging of intermediate results under these circumstances,
+                # otherwise no test is rerun.
+                if not parallel or xdist >= LooseVersion('1.20.0'):
                     # will rerun test, log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
 
@@ -162,4 +167,3 @@ class RerunResultLog(ResultLog):
             longrepr = str(report.longrepr)
 
         self.log_outcome(report, code, longrepr)
-
