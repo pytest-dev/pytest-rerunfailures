@@ -1,9 +1,25 @@
-from distutils.version import LooseVersion
+import pkg_resources
 
 import pytest
 
 from _pytest.runner import runtestprotocol
 from _pytest.resultlog import ResultLog
+
+
+def works_with_current_xdist():
+    """Returns compatibility with installed pytest-xdist version.
+
+    When running tests in parallel using pytest-xdist < 1.20.0, the first
+    report that is logged will finish and terminate the current node rather
+    rerunning the test. Thus we must skip logging of intermediate results under
+    these circumstances, otherwise no test is rerun.
+
+    """
+    try:
+        d = pkg_resources.get_distribution('pytest-xdist')
+        return d.parsed_version >= pkg_resources.parse_version('1.20')
+    except pkg_resources.DistributionNotFound:
+        return None
 
 
 # command line options
@@ -72,9 +88,6 @@ def pytest_runtest_protocol(item, nextitem):
     check_options(item.session.config)
 
     parallel = hasattr(item.config, 'slaveinput')
-    plugins = [p[1] for p in item.config.pluginmanager.list_plugin_distinfo()]
-    xdist = next((LooseVersion(p.version) for p in plugins if
-                  p.project_name == 'pytest-xdist'), None)
 
     for i in range(reruns + 1):  # ensure at least one run of each item
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
@@ -91,12 +104,7 @@ def pytest_runtest_protocol(item, nextitem):
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
 
-                # When running tests in parallel using pytest-xdist < 1.20.0,
-                # the first report that is logged will finish and terminate the
-                # current node rather rerunning the test. Thus we must skip
-                # logging of intermediate results under these circumstances,
-                # otherwise no test is rerun.
-                if not parallel or xdist >= LooseVersion('1.20.0'):
+                if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
 
