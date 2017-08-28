@@ -5,7 +5,9 @@ Changelog
 3.1 (unreleased)
 ================
 
-- Nothing changed yet.
+- Restored compatibility with pytest-xdist. (Thanks to `@davehunt`_ for the PR)
+
+.. _@davehunt: https://github.com/davehunt
 
 
 3.0 (2017-08-17)
