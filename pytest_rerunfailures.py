@@ -1,7 +1,25 @@
+import pkg_resources
+
 import pytest
 
 from _pytest.runner import runtestprotocol
 from _pytest.resultlog import ResultLog
+
+
+def works_with_current_xdist():
+    """Returns compatibility with installed pytest-xdist version.
+
+    When running tests in parallel using pytest-xdist < 1.20.0, the first
+    report that is logged will finish and terminate the current node rather
+    rerunning the test. Thus we must skip logging of intermediate results under
+    these circumstances, otherwise no test is rerun.
+
+    """
+    try:
+        d = pkg_resources.get_distribution('pytest-xdist')
+        return d.parsed_version >= pkg_resources.parse_version('1.20')
+    except pkg_resources.DistributionNotFound:
+        return None
 
 
 # command line options
@@ -69,6 +87,8 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
 
+    parallel = hasattr(item.config, 'slaveinput')
+
     for i in range(reruns + 1):  # ensure at least one run of each item
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
                                            location=item.location)
@@ -84,14 +104,7 @@ def pytest_runtest_protocol(item, nextitem):
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
 
-                # When running tests in parallel using pytest-xdist the first
-                # report that is logged will finish and terminate the current
-                # node rather rerunning the test. Thus we must skip logging of
-                # intermediate results when running in parallel, otherwise no
-                # test is rerun.
-                # See: https://github.com/pytest-dev/pytest/issues/1193
-                parallel_testing = hasattr(item.config, 'slaveinput')
-                if not parallel_testing:
+                if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
 
@@ -162,4 +175,3 @@ class RerunResultLog(ResultLog):
             longrepr = str(report.longrepr)
 
         self.log_outcome(report, code, longrepr)
-
