@@ -2,7 +2,7 @@ Changelog
 ---------
 
 
-3.1 (unreleased)
+3.1 (2017-08-29)
 ================
 
 - Restored compatibility with pytest-xdist. (Thanks to `@davehunt`_ for the PR)
