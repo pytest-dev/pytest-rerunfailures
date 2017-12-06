@@ -1,4 +1,5 @@
 import pkg_resources
+import time
 
 import pytest
 
@@ -34,6 +35,14 @@ def pytest_addoption(parser):
         type=int,
         default=0,
         help="number of times to re-run failed tests. defaults to 0.")
+    group._addoption(
+        '--reruns-delay',
+        action='store',
+        dest='reruns_delay',
+        type=float,
+        default=0,
+        help='add time (seconds) delay between reruns.'
+    )
 
 
 def pytest_configure(config):
@@ -103,6 +112,8 @@ def pytest_runtest_protocol(item, nextitem):
             else:
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
+
+                time.sleep(item.session.config.option.reruns_delay)
 
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result

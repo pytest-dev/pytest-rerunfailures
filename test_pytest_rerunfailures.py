@@ -1,6 +1,8 @@
 import random
 import pytest_rerunfailures
 
+import pytest
+
 pytest_plugins = 'pytester'
 
 
@@ -219,3 +221,15 @@ def test_rerun_with_resultslog(testdir):
                                '--result-log', './pytest.log')
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+@pytest.mark.parametrize('delay_time', [0, 0.0, 1, 2.5])
+def test_reruns_with_delay(testdir, delay_time):
+    testdir.makepyfile("""
+        def test_fail():
+            assert False""")
+
+    result = testdir.runpytest('--reruns', '3',
+                               '--reruns-delay', delay_time)
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
