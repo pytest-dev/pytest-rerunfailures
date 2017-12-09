@@ -182,7 +182,7 @@ def test_verbose(testdir):
         def test_pass():
             {0}""".format(temporary_failure()))
     result = testdir.runpytest('--reruns', '1', '-v')
-    result.stdout.fnmatch_lines_random(['test_*:* RERUN'])
+    result.stdout.fnmatch_lines_random(['test_*:* RERUN*'])
     assert '1 rerun' in result.stdout.str()
 
 
