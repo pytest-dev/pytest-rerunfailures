@@ -68,12 +68,10 @@ def check_options(config):
         config.pluginmanager.register(config._resultlog)
 
 
-def pytest_runtest_protocol(item, nextitem):
-    """
-    Note: when teardown fails, two reports are generated for the case, one for
-    the test case and the other for the teardown error.
-    """
+def reruns_count(item):
     rerun_marker = item.get_marker("flaky")
+    reruns = None
+
     # use the marker as a priority over the global setting.
     if rerun_marker is not None:
         if "reruns" in rerun_marker.kwargs:
@@ -87,7 +85,35 @@ def pytest_runtest_protocol(item, nextitem):
     elif item.session.config.option.reruns:
         # default to the global setting
         reruns = item.session.config.option.reruns
+
+    return reruns
+
+
+def reruns_delay(item):
+    rerun_marker = item.get_marker("flaky")
+
+    if rerun_marker is not None:
+        if "reruns_delay" in rerun_marker.kwargs:
+            delay = rerun_marker.kwargs["reruns_delay"]
+        elif len(rerun_marker.args) > 1:
+            # check for arguments
+            delay = rerun_marker.args[1]
+        else:
+            delay = 0
     else:
+        delay = item.session.config.option.reruns_delay
+
+    return delay
+
+
+def pytest_runtest_protocol(item, nextitem):
+    """
+    Note: when teardown fails, two reports are generated for the case, one for
+    the test case and the other for the teardown error.
+    """
+
+    reruns = reruns_count(item)
+    if reruns is None:
         # global setting is not specified, and this test is not marked with
         # flaky
         return
@@ -95,7 +121,7 @@ def pytest_runtest_protocol(item, nextitem):
     # while this doesn't need to be run with every item, it will fail on the
     # first item if necessary
     check_options(item.session.config)
-
+    delay = reruns_delay(item)
     parallel = hasattr(item.config, 'slaveinput')
 
     for i in range(reruns + 1):  # ensure at least one run of each item
@@ -112,8 +138,7 @@ def pytest_runtest_protocol(item, nextitem):
             else:
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
-
-                time.sleep(item.session.config.option.reruns_delay)
+                time.sleep(delay)
 
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result

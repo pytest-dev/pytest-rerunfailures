@@ -233,3 +233,20 @@ def test_reruns_with_delay(testdir, delay_time):
                                '--reruns-delay', delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_with_delay_marker(testdir):
+    testdir.makepyfile("""
+        import pytest
+        
+        @pytest.mark.flaky(reruns_delay=1)
+        def test_fail_one():
+            assert False
+            
+        @pytest.mark.flaky(reruns=2, reruns_delay=1)
+        def test_fail_two():
+            assert False""")
+
+    result = testdir.runpytest()
+
+    assert_outcomes(result, passed=0, failed=2, rerun=3)
