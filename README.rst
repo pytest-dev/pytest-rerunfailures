@@ -42,8 +42,8 @@ maximum number of times you'd like the tests to run:
   $ pytest --reruns 5
 
 To add a delay time between re-runs use the ``--reruns-delay`` command line
-option with amount of seconds that you would like wait before the next test
-re-run is lunched:
+option with the amount of seconds that you would like wait before the next
+test re-run is launched:
 
 .. code-block:: bash
 
@@ -66,7 +66,7 @@ test to run:
 Note that when teardown fails, two reports are generated for the case, one for
 the test case and the other for the teardown error.
 
-You can also add a delay time in the marker:
+You can also specify the re-run delay time in the marker:
 
 .. code-block:: python
 
