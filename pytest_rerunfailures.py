@@ -48,7 +48,9 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
-        "markers", "flaky(reruns=1): mark test to re-run up to 'reruns' times")
+        "markers", "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
+                   "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
+                   "between re-runs.")
 
 
 # making sure the options make sense
@@ -68,7 +70,7 @@ def check_options(config):
         config.pluginmanager.register(config._resultlog)
 
 
-def reruns_count(item):
+def get_reruns_count(item):
     rerun_marker = item.get_marker("flaky")
     reruns = None
 
@@ -89,7 +91,7 @@ def reruns_count(item):
     return reruns
 
 
-def reruns_delay(item):
+def get_reruns_delay(item):
     rerun_marker = item.get_marker("flaky")
 
     if rerun_marker is not None:
@@ -112,7 +114,7 @@ def pytest_runtest_protocol(item, nextitem):
     the test case and the other for the teardown error.
     """
 
-    reruns = reruns_count(item)
+    reruns = get_reruns_count(item)
     if reruns is None:
         # global setting is not specified, and this test is not marked with
         # flaky
@@ -121,7 +123,7 @@ def pytest_runtest_protocol(item, nextitem):
     # while this doesn't need to be run with every item, it will fail on the
     # first item if necessary
     check_options(item.session.config)
-    delay = reruns_delay(item)
+    delay = get_reruns_delay(item)
     parallel = hasattr(item.config, 'slaveinput')
 
     for i in range(reruns + 1):  # ensure at least one run of each item
