@@ -5,7 +5,7 @@ Changelog
 3.2 (unreleased)
 ================
 
-- Added option to add a delay time between test re-runs (Thanks to `@Kanguos`_
+- Added option to add a delay time between test re-runs (Thanks to `@Kanguros`_
   for the PR).
 
 - Added support for pytest >= 3.3.
