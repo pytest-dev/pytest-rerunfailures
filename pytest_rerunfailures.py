@@ -1,5 +1,6 @@
 import pkg_resources
 import time
+import warnings
 
 import pytest
 
@@ -104,6 +105,11 @@ def get_reruns_delay(item):
             delay = 0
     else:
         delay = item.session.config.option.reruns_delay
+
+    if delay < 0:
+        delay = 0
+        warnings.warn('Delay time between re-runs cannot be < 0. '
+                      'Using default value: 0')
 
     return delay
 

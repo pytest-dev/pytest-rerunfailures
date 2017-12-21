@@ -229,8 +229,8 @@ def test_rerun_with_resultslog(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
-@pytest.mark.parametrize('delay_time', [0, 0.0, 1, 2.5])
-def test_reruns_with_delay(testdir, delay_time, monkeypatch):
+@pytest.mark.parametrize('delay_time', [-1, 0, 0.0, 1, 2.5])
+def test_reruns_with_delay(testdir, delay_time):
     testdir.makepyfile("""
         def test_fail():
             assert False""")
@@ -240,12 +240,15 @@ def test_reruns_with_delay(testdir, delay_time, monkeypatch):
     result = testdir.runpytest('--reruns', '3',
                                '--reruns-delay', delay_time)
 
+    if delay_time < 0:
+        delay_time = 0
+
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=3)
 
 
-@pytest.mark.parametrize('delay_time', [0, 0.0, 1, 2.5])
+@pytest.mark.parametrize('delay_time', [-1, 0, 0.0, 1, 2.5])
 def test_reruns_with_delay_marker(testdir, delay_time):
     testdir.makepyfile("""
         import pytest
@@ -257,6 +260,9 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     time.sleep = mock.MagicMock()
 
     result = testdir.runpytest()
+
+    if delay_time < 0:
+        delay_time = 0
 
     time.sleep.assert_called_with(delay_time)
 
