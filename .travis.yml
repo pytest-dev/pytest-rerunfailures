@@ -7,7 +7,6 @@ python:
   - pypy
   - pypy3.5-5.8.0
 env:
-  - PYTEST=2.7.3
   - PYTEST=2.8.7
   - PYTEST=2.9.2
   - PYTEST=3.0.7
