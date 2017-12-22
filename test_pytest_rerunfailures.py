@@ -1,5 +1,13 @@
 import random
+import time
 import pytest_rerunfailures
+
+try:
+    import mock
+except ImportError:
+    from unittest import mock
+
+import pytest
 
 pytest_plugins = 'pytester'
 
@@ -180,7 +188,7 @@ def test_verbose(testdir):
         def test_pass():
             {0}""".format(temporary_failure()))
     result = testdir.runpytest('--reruns', '1', '-v')
-    result.stdout.fnmatch_lines_random(['test_*:* RERUN'])
+    result.stdout.fnmatch_lines_random(['test_*:* RERUN*'])
     assert '1 rerun' in result.stdout.str()
 
 
@@ -217,5 +225,45 @@ def test_rerun_with_resultslog(testdir):
 
     result = testdir.runpytest('--reruns', '2',
                                '--result-log', './pytest.log')
+
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+@pytest.mark.parametrize('delay_time', [-1, 0, 0.0, 1, 2.5])
+def test_reruns_with_delay(testdir, delay_time):
+    testdir.makepyfile("""
+        def test_fail():
+            assert False""")
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest('--reruns', '3',
+                               '--reruns-delay', delay_time)
+
+    if delay_time < 0:
+        delay_time = 0
+
+    time.sleep.assert_called_with(delay_time)
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+@pytest.mark.parametrize('delay_time', [-1, 0, 0.0, 1, 2.5])
+def test_reruns_with_delay_marker(testdir, delay_time):
+    testdir.makepyfile("""
+        import pytest
+
+        @pytest.mark.flaky(reruns=2, reruns_delay={})
+        def test_fail_two():
+            assert False""".format(delay_time))
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest()
+
+    if delay_time < 0:
+        delay_time = 0
+
+    time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)

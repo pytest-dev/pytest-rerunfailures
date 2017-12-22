@@ -20,7 +20,7 @@ Requirements
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
 - Python 2.7, 3.4, 3.5, 3.6, PyPy, or PyPy3
-- py.test 2.7.3 or newer
+- pytest 2.7.3 or newer
 
 Installation
 ------------
@@ -39,7 +39,15 @@ maximum number of times you'd like the tests to run:
 
 .. code-block:: bash
 
-  $ py.test --rerun 5
+  $ pytest --reruns 5
+
+To add a delay time between re-runs use the ``--reruns-delay`` command line
+option with the amount of seconds that you would like wait before the next
+test re-run is launched:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --reruns-delay 1
 
 Re-run individual failures
 --------------------------
@@ -57,6 +65,15 @@ test to run:
 
 Note that when teardown fails, two reports are generated for the case, one for
 the test case and the other for the teardown error.
+
+You can also specify the re-run delay time in the marker:
+
+.. code-block:: python
+
+  @pytest.mark.flaky(reruns=5, reruns_delay=2)
+  def test_example():
+      import random
+      assert random.choice([True, False])
 
 Output
 ------
