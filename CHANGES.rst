@@ -2,7 +2,7 @@ Changelog
 ---------
 
 
-3.2 (unreleased)
+4.0 (2017-12-23)
 ================
 
 - Added option to add a delay time between test re-runs (Thanks to `@Kanguros`_
