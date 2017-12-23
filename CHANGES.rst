@@ -10,6 +10,8 @@ Changelog
 
 - Added support for pytest >= 3.3.
 
+- Drop support for pytest < 2.8.7.
+
 .. _@Kanguros: https://github.com/Kanguros
 
 
