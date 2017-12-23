@@ -2,6 +2,12 @@ Changelog
 ---------
 
 
+4.1 (unreleased)
+================
+
+- Nothing changed yet.
+
+
 4.0 (2017-12-23)
 ================
 
