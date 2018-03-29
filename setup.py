@@ -1,17 +1,16 @@
 from setuptools import setup
 
-setup(name='pytest-rerunfailures',
-      version='4.1.dev0',
-      description='pytest plugin to re-run tests to eliminate flaky failures',
+setup(name='pytest-cleanrerun',
+      version='0.9',
+      description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
       long_description=(
           open('README.rst').read() +
           '\n\n' +
           open('CHANGES.rst').read()),
-      author='Leah Klearman',
-      author_email='lklrmn@gmail.com',
-      url='https://github.com/pytest-dev/pytest-rerunfailures',
-      py_modules=['pytest_rerunfailures'],
-      entry_points={'pytest11': ['rerunfailures = pytest_rerunfailures']},
+      author='Leah Klearman, DataRobot',
+      url='https://github.com/datarobot/pytest-rerunfailures',
+      py_modules=['pytest-cleanrerun'],
+      entry_points={'pytest11': ['cleanrerun = pytest_cleanrerun']},
       install_requires=['pytest >= 2.8.7'],
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest rerun failures flaky',
