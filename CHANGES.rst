@@ -1,7 +1,7 @@
 Changelog
 ---------
 
-0.9.0 (2018-03-29)
+0.9.1 (2018-03-29)
 ================
 Forked based on pytest-rerunfailures v4.0 package:
 Changes:

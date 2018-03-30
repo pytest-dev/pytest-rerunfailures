@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pytest-cleanrerun',
-      version='0.9.0',
+      version='0.9.1',
       description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
       long_description=(
           open('README.rst').read() +
