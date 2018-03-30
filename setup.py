@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pytest-cleanrerun',
-      version='0.9',
+      version='0.9.0',
       description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
       long_description=(
           open('README.rst').read() +
@@ -9,7 +9,7 @@ setup(name='pytest-cleanrerun',
           open('CHANGES.rst').read()),
       author='Leah Klearman, DataRobot',
       url='https://github.com/datarobot/pytest-rerunfailures',
-      py_modules=['pytest-cleanrerun'],
+      py_modules=['pytest_cleanrerun'],
       entry_points={'pytest11': ['cleanrerun = pytest_cleanrerun']},
       install_requires=['pytest >= 2.8.7'],
       license='Mozilla Public License 2.0 (MPL 2.0)',
