@@ -1,23 +1,16 @@
-pytest-rerunfailures
+pytest-cleanrerun
 ====================
 
-pytest-rerunfailures is a plugin for `py.test <http://pytest.org>`_ that
-re-runs tests to eliminate intermittent failures.
-
-.. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
-   :target: https://github.com/pytest-dev/pytest-rerunfailures/blob/master/LICENSE
-   :alt: License
-.. image:: https://img.shields.io/pypi/v/pytest-rerunfailures.svg
-   :target: https://pypi.python.org/pypi/pytest-rerunfailures/
-   :alt: PyPI
-.. image:: https://img.shields.io/travis/pytest-dev/pytest-rerunfailures.svg
-   :target: https://travis-ci.org/pytest-dev/pytest-rerunfailures/
-   :alt: Travis
+pytest-cleanrerun is a plugin for `py.test <http://pytest.org>`_ that
+re-runs tests to eliminate intermittent failures with failed tests related fixture invalidation.
+Added all scoped fixtures invalidation for current test item in case of test failure before rerun occurs.
+Plugin able to track all related fixtures: direct injects, autouse, usefixture mark.
+Fixtures invalidated gracefully with executing finalizer.
 
 Requirements
 ------------
 
-You will need the following prerequisites in order to use pytest-rerunfailures:
+You will need the following prerequisites in order to use pytest-cleanrerun:
 
 - Python 2.7, 3.4, 3.5, 3.6, PyPy, or PyPy3
 - pytest 2.8.7 or newer
@@ -25,11 +18,11 @@ You will need the following prerequisites in order to use pytest-rerunfailures:
 Installation
 ------------
 
-To install pytest-rerunfailures:
+To install pytest-cleanrerun:
 
 .. code-block:: bash
 
-  $ pip install pytest-rerunfailures
+  $ pip install pytest-cleanrerun
 
 Re-run all failures
 -------------------
@@ -104,12 +97,11 @@ be marked as failed.
 Compatibility
 -------------
 
-* This plugin may *not* be used with class, module, and package level fixtures.
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with the core --pdb flag.
 
 Resources
 ---------
 
-- `Issue Tracker <http://github.com/pytest-dev/pytest-rerunfailures/issues>`_
-- `Code <http://github.com/pytest-dev/pytest-rerunfailures/>`_
+- `Issue Tracker <https://github.com/datarobot/pytest-rerunfailures>`_
+- `Code <https://github.com/datarobot/pytest-rerunfailures>`_

@@ -27,8 +27,8 @@ def works_with_current_xdist():
 # command line options
 def pytest_addoption(parser):
     group = parser.getgroup(
-        "rerunfailures",
-        "re-run failing tests to eliminate flaky failures")
+        "cleanrerun",
+        "re-run failing tests with fixtures invalidation to eliminate flaky failures")
     group._addoption(
         '--reruns',
         action="store",
@@ -144,6 +144,22 @@ def pytest_runtest_protocol(item, nextitem):
                 # last run or no failure detected, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
+                # failure detected and reruns not exhausted, since i < reruns
+
+                # collect all item related fixtures and call finalizers for them
+                fixturemanager = item.session._fixturemanager
+                fixtures = set(item.fixturenames)
+                fixtures.update(fixturemanager._getautousenames(item.nodeid))
+                fixtures.update(item._fixtureinfo.argnames)
+                usefixtures = getattr(item.function, 'usefixtures', None)
+                if usefixtures:
+                    fixtures.update(usefixtures.args)
+
+                for fixt in fixtures:
+                    for fixtdef in fixturemanager.getfixturedefs(fixt, item.nodeid) or []:
+                        item._initrequest()
+                        fixtdef.finish(item._request)
+
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = 'rerun'
                 time.sleep(delay)
