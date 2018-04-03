@@ -1,7 +1,7 @@
-pytest-cleanrerun
+pytest-rerunfailures
 ====================
 
-pytest-cleanrerun is a plugin for `py.test <http://pytest.org>`_ that
+pytest-rerunfailures is a plugin for `py.test <http://pytest.org>`_ that
 re-runs tests to eliminate intermittent failures with failed tests related fixture invalidation.
 Added all scoped fixtures invalidation for current test item in case of test failure before rerun occurs.
 Plugin able to track all related fixtures: direct injects, autouse, usefixture mark.
@@ -10,7 +10,7 @@ Fixtures invalidated gracefully with executing finalizer.
 Requirements
 ------------
 
-You will need the following prerequisites in order to use pytest-cleanrerun:
+You will need the following prerequisites in order to use pytest-rerunfailures:
 
 - Python 2.7, 3.4, 3.5, 3.6, PyPy, or PyPy3
 - pytest 2.8.7 or newer
@@ -18,11 +18,11 @@ You will need the following prerequisites in order to use pytest-cleanrerun:
 Installation
 ------------
 
-To install pytest-cleanrerun:
+To install pytest-rerunfailures:
 
 .. code-block:: bash
 
-  $ pip install pytest-cleanrerun
+  $ pip install pytest-rerunfailures
 
 Re-run all failures
 -------------------

@@ -27,7 +27,7 @@ def works_with_current_xdist():
 # command line options
 def pytest_addoption(parser):
     group = parser.getgroup(
-        "cleanrerun",
+        "rerunfailures",
         "re-run failing tests with fixtures invalidation to eliminate flaky failures")
     group._addoption(
         '--reruns',
