@@ -1,6 +1,6 @@
 import random
 import time
-import pytest_cleanrerun
+import pytest_rerunfailures
 
 try:
     import mock
