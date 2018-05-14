@@ -73,7 +73,7 @@ def pytest_addoption(parser):
         help='add time (seconds) delay between reruns.'
     )
 
-
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config):
     """
     Defined appropriate plugins selection in pytest_configure hook
@@ -120,10 +120,11 @@ class RerunPlugin(object):
         """
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
+        reruns = self._get_reruns_count(item)
 
         for report in reports:  # 3 reports: setup, test, teardown
             xfail = hasattr(report, 'wasxfail')
-            if report.failed and not xfail:
+            if report.failed and not xfail and reruns > 0:
                 # failure detected
                 self.tests_to_rerun.add(item)
                 report.outcome = 'rerun'
@@ -141,12 +142,13 @@ class RerunPlugin(object):
         Perform reruns for failed tests
         """
         for item in self.tests_to_rerun:
+            self._invalidate_fixtures(item)
+        for item in self.tests_to_rerun:
             reruns = self._get_reruns_count(item)
             if reruns is None:
                 continue
 
             self._rerun_item(item, reruns)
-
 
     def _rerun_item(self, item, reruns):
         """
@@ -160,7 +162,6 @@ class RerunPlugin(object):
         parallel = hasattr(item.config, 'slaveinput')
 
         for i in range(reruns):
-            self._invalidate_fixtures(item)
             time.sleep(delay)
             item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
             reports = runtestprotocol(item, nextitem=None, log=False)

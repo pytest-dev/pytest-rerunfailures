@@ -9,7 +9,7 @@ Moved rerun execution on testrun end:
 
 - When last test executed started reruns for collected tests
 
-- Fixtures are still invalidated between reruns
+- Fixtures would be invalidated once before reruns occurs
 
 4.1.dr1 (2018-03-29)
 ================
