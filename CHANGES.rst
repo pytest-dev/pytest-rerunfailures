@@ -1,6 +1,16 @@
 Changelog
 ---------
 
+4.1.dr2 (2018-05-14)
+================
+Moved rerun execution on testrun end:
+
+- Plugin state introduced. All failures collected during testrun.
+
+- When last test executed started reruns for collected tests
+
+- Fixtures are still invalidated between reruns
+
 4.1.dr1 (2018-03-29)
 ================
 Forked based on pytest-rerunfailures v4.0 package:
