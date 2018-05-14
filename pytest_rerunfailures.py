@@ -242,7 +242,7 @@ class RerunPlugin(object):
     def _show_rerun(self, terminalreporter, lines):
         """
         Format reruned tests to be market as RERUN in output
-        Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
+        Adapted from https://docs.pytest.org/en/latest/skipping.html
 
         Parameters
         ----------
