@@ -205,7 +205,7 @@ class RerunPlugin(object):
         Pytest hook
 
         Handle of report rerun outcome
-        Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
+        Adapted from https://docs.pytest.org/en/latest/skipping.html
 
         Parameters
         ----------
@@ -219,7 +219,7 @@ class RerunPlugin(object):
         Pytest hook
 
         Handle rerun terminal summary report
-        Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
+        Adapted from https://docs.pytest.org/en/latest/skipping.html
 
         Parameters
         ----------
