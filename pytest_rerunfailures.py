@@ -73,6 +73,7 @@ def pytest_addoption(parser):
         help='add time (seconds) delay between reruns.'
     )
 
+
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config):
     """
