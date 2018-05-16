@@ -11,7 +11,7 @@ setup(name='pytest-rerunfailures',
       url='https://github.com/datarobot/pytest-rerunfailures',
       py_modules=['pytest_rerunfailures'],
       entry_points={'pytest11': ['rerunfailures = pytest_rerunfailures']},
-      install_requires=['pytest >= 2.8.7', 'mock==2.0.0'],
+      install_requires=['pytest >= 2.8.7', 'mock>=1.0.1'],
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest rerun failures flaky',
       classifiers=[
