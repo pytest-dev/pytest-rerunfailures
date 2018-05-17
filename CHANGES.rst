@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+4.1.dr3 (2018-05-14)
+================
+- Softer mock version dependecy 
+
+
 4.1.dr2 (2018-05-14)
 ================
 Moved rerun execution on testrun end:
