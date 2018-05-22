@@ -71,8 +71,16 @@ def check_options(config):
         config.pluginmanager.register(config._resultlog)
 
 
+def _get_marker(item):
+    try:
+        return item.get_closest_marker("flaky")
+    except AttributeError:
+        # pytest < 3.6
+        return item.get_marker("flaky")
+
+
 def get_reruns_count(item):
-    rerun_marker = item.get_marker("flaky")
+    rerun_marker = _get_marker(item)
     reruns = None
 
     # use the marker as a priority over the global setting.
@@ -93,7 +101,7 @@ def get_reruns_count(item):
 
 
 def get_reruns_delay(item):
-    rerun_marker = item.get_marker("flaky")
+    rerun_marker = _get_marker(item)
 
     if rerun_marker is not None:
         if "reruns_delay" in rerun_marker.kwargs:

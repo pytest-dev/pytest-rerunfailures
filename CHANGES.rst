@@ -5,8 +5,10 @@ Changelog
 4.1 (unreleased)
 ================
 
-- Nothing changed yet.
+- Add support for pytest 3.6 by using ``Node.get_closest_marker()`` (Thanks to
+  `@The-Compiler`_ for the PR).
 
+.. _@The-Compiler: https://github.com/The-Compiler
 
 4.0 (2017-12-23)
 ================
