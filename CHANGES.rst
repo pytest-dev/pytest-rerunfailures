@@ -2,7 +2,7 @@ Changelog
 ---------
 
 
-4.1 (unreleased)
+4.1 (2018-05-23)
 ================
 
 - Add support for pytest 3.6 by using ``Node.get_closest_marker()`` (Thanks to
