@@ -15,7 +15,7 @@ env:
   - PYTEST=3.3.2
   - PYTEST=3.4.2
   - PYTEST=3.5.1
-  - PYTEST=3.6.0
+  - PYTEST=3.6.1
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
