@@ -191,7 +191,7 @@ class RerunPlugin(object):
                     item.ihook.pytest_runtest_logreport(report=report)
 
             self.rerun_stats['rerun_tests'].append({
-                'test': u'{}::{}'.format(item.location[0], item.location[2]),
+                'test': item.nodeid,
                 'rerun_status': rerun_status
             })
 
