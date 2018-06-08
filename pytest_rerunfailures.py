@@ -1,11 +1,12 @@
+import json
 import pkg_resources
 import time
 import warnings
 
 import pytest
 
-from _pytest.runner import runtestprotocol
 from _pytest.resultlog import ResultLog
+from _pytest.runner import runtestprotocol
 
 
 def works_with_current_xdist():
@@ -72,6 +73,14 @@ def pytest_addoption(parser):
         default=0,
         help='add time (seconds) delay between reruns.'
     )
+    group._addoption(
+        '--reruns-artifact-path',
+        action='store',
+        dest='reruns_artifact_path',
+        type=str,
+        default='',
+        help='provide path to export reruns artifact.'
+    )
 
 
 @pytest.hookimpl(trylast=True)
@@ -106,6 +115,9 @@ class RerunPlugin(object):
 
     def __init__(self):
         self.tests_to_rerun = set([])
+        self.rerun_stats = {
+            'rerun_tests': [],
+        }
 
     def pytest_runtest_protocol(self, item, nextitem):
         """
@@ -135,6 +147,7 @@ class RerunPlugin(object):
         # Last test of a testrun was performed
         if nextitem == None:
             self._execute_reruns()
+            self._save_reruns_artifact(item.session)
 
         return True
 
@@ -176,6 +189,11 @@ class RerunPlugin(object):
                 if not parallel or works_with_current_xdist():
                     # will log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
+
+            self.rerun_stats['rerun_tests'].append({
+                'test': u'{}::{}'.format(item.location[0], item.location[2]),
+                'rerun_status': rerun_status
+            })
 
             if rerun_status:
                 break
@@ -316,9 +334,18 @@ class RerunPlugin(object):
         if delay < 0:
             delay = 0
             warnings.warn('Delay time between re-runs cannot be < 0. '
-                        'Using default value: 0')
+                          'Using default value: 0')
 
         return delay
+
+    def _save_reruns_artifact(self, session):
+        """Save reruns artifact as json if path to artifact provided."""
+        artifact_path = session.config.option.reruns_artifact_path
+        if not artifact_path:
+            return
+
+        with open(artifact_path, 'w') as artifact:
+            json.dump(self.rerun_stats, artifact)
 
 
 class RerunResultLog(ResultLog):

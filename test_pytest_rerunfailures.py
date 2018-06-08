@@ -1,6 +1,6 @@
+import json
 import random
 import time
-import pytest_rerunfailures
 
 try:
     import mock
@@ -267,3 +267,25 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_reruns_with_artifact(testdir):
+    artifact_path = testdir.tmpdir.strpath + '/artifact.json'
+    testdir.makepyfile("""
+        def test_pass():
+            {0}""".format(temporary_failure()))
+    result = testdir.runpytest(
+        '--reruns', '1', '-r', 'R',
+        '--reruns-artifact-path', artifact_path,
+    )
+    assert_outcomes(result, passed=1, rerun=1)
+    with open(artifact_path) as artifact:
+        artifact_data = json.load(artifact)
+        assert artifact_data == {
+            'rerun_tests': [
+                {
+                    'test': 'test_reruns_with_artifact.py::test_pass',
+                    'rerun_status': True
+                }
+            ]
+        }
