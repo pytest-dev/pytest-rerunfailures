@@ -115,7 +115,7 @@ class RerunPlugin(object):
 
     def __init__(self):
         self.tests_to_rerun = set([])
-        self.testrun_stats = {}
+        self.mainrun_stats = {}
         self.rerun_stats = {
             'rerun_tests': [],
             'total_failed': 0,
@@ -131,9 +131,36 @@ class RerunPlugin(object):
         -------
         dict
         """
-        stat = self.testrun_stats.get(nodeid, {
+        default_stat = {'nodeid': nodeid, 'status': 'failed'}
+        default_stat.update(self._test_traces())
+        stat = self.mainrun_stats.get(nodeid, default_stat)
+        self.mainrun_stats[nodeid] = stat
+        return stat
+
+    def _rerun_test(self, nodeid):
+        """
+        Template format for rerun test stat
+
+        Returns
+        -------
+        dict
+        """
+        stat = {
             'nodeid': nodeid,
             'status': 'failed',
+            'rerun_trace': self._test_traces(),
+            'original_trace': {
+                'setup': self.mainrun_stats[nodeid]['setup'],
+                'call': self.mainrun_stats[nodeid]['call'],
+                'teardown': self.mainrun_stats[nodeid]['teardown'],
+            }
+        }
+        self.rerun_stats['rerun_tests'].append(stat)
+        return stat
+
+    def _test_traces(self):
+        """Default traces structures"""
+        return {
             'setup': {
                 'caplog': None,
                 'capstderr': None,
@@ -151,50 +178,8 @@ class RerunPlugin(object):
                 'capstderr': None,
                 'capstdout': None,
                 'text_repr': None
-            },
-        })
-        self.testrun_stats[nodeid] = stat
-        return stat
-
-    def _rerun_test(self, nodeid):
-        """
-        Template format for rerun test stat
-
-        Returns
-        -------
-        dict
-        """
-        stat = {
-            'nodeid': nodeid,
-            'status': 'failed',
-            'rerun_trace': {
-                'setup': {
-                    'caplog': None,
-                    'capstderr': None,
-                    'capstdout': None,
-                    'text_repr': None
-                },
-                'call': {
-                    'caplog': None,
-                    'capstderr': None,
-                    'capstdout': None,
-                    'text_repr': None
-                },
-                'teardown': {
-                    'caplog': None,
-                    'capstderr': None,
-                    'capstdout': None,
-                    'text_repr': None
-                },
-            },
-            'original_trace': {
-                'setup': self.testrun_stats[nodeid]['setup'],
-                'call': self.testrun_stats[nodeid]['call'],
-                'teardown': self.testrun_stats[nodeid]['teardown'],
             }
         }
-        self.rerun_stats['rerun_tests'].append(stat)
-        return stat
 
     def pytest_runtest_protocol(self, item, nextitem):
         """
@@ -208,7 +193,8 @@ class RerunPlugin(object):
         item : _pytest.main.Item
         nextitem : _pytest.main.Item || None
         """
-        item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
+        item.ihook.pytest_runtest_logstart(
+            nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
         reruns = self._get_reruns_count(item)
 
@@ -247,11 +233,11 @@ class RerunPlugin(object):
             if reruns is None:
                 continue
 
-            self._rerun_item(item, reruns)  
+            self._rerun_item(item, reruns)
 
         for rerun in self.rerun_stats['rerun_tests']:
-            rerun['status'] = self.testrun_stats[rerun['nodeid']]['status']
-        
+            rerun['status'] = self.mainrun_stats[rerun['nodeid']]['status']
+
     def _rerun_item(self, item, reruns):
         """
         Perform reruns for single test items
@@ -265,7 +251,8 @@ class RerunPlugin(object):
 
         for i in range(reruns):
             time.sleep(delay)
-            item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
+            item.ihook.pytest_runtest_logstart(
+                nodeid=item.nodeid, location=item.location)
             reports = runtestprotocol(item, nextitem=None, log=False)
             rerun_status = True
             stat = self._rerun_test(item.nodeid)
@@ -288,7 +275,7 @@ class RerunPlugin(object):
 
             if rerun_status:
                 self.rerun_stats['total_resolved_by_reruns'] += 1
-                self.testrun_stats[item.nodeid]['status'] = 'flake'
+                self.mainrun_stats[item.nodeid]['status'] = 'flake'
                 break
 
     def _invalidate_fixtures(self, item):
