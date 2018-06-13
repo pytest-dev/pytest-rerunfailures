@@ -1,11 +1,12 @@
+import json
 import pkg_resources
 import time
 import warnings
 
 import pytest
 
-from _pytest.runner import runtestprotocol
 from _pytest.resultlog import ResultLog
+from _pytest.runner import runtestprotocol
 
 
 def works_with_current_xdist():
@@ -72,6 +73,14 @@ def pytest_addoption(parser):
         default=0,
         help='add time (seconds) delay between reruns.'
     )
+    group._addoption(
+        '--reruns-artifact-path',
+        action='store',
+        dest='reruns_artifact_path',
+        type=str,
+        default='',
+        help='provide path to export reruns artifact.'
+    )
 
 
 @pytest.hookimpl(trylast=True)
@@ -106,6 +115,71 @@ class RerunPlugin(object):
 
     def __init__(self):
         self.tests_to_rerun = set([])
+        self.mainrun_stats = {}
+        self.rerun_stats = {
+            'rerun_tests': [],
+            'total_failed': 0,
+            'total_reruns': 0,
+            'total_resolved_by_reruns': 0
+        }
+
+    def _failed_test(self, nodeid):
+        """
+        Template format for failed test stat
+
+        Returns
+        -------
+        dict
+        """
+        default_stat = {'nodeid': nodeid, 'status': 'failed'}
+        default_stat.update(self._test_traces())
+        stat = self.mainrun_stats.get(nodeid, default_stat)
+        self.mainrun_stats[nodeid] = stat
+        return stat
+
+    def _rerun_test(self, nodeid):
+        """
+        Template format for rerun test stat
+
+        Returns
+        -------
+        dict
+        """
+        stat = {
+            'nodeid': nodeid,
+            'status': 'failed',
+            'rerun_trace': self._test_traces(),
+            'original_trace': {
+                'setup': self.mainrun_stats[nodeid]['setup'],
+                'call': self.mainrun_stats[nodeid]['call'],
+                'teardown': self.mainrun_stats[nodeid]['teardown'],
+            }
+        }
+        self.rerun_stats['rerun_tests'].append(stat)
+        return stat
+
+    def _test_traces(self):
+        """Default traces structures"""
+        return {
+            'setup': {
+                'caplog': None,
+                'capstderr': None,
+                'capstdout': None,
+                'text_repr': None
+            },
+            'call': {
+                'caplog': None,
+                'capstderr': None,
+                'capstdout': None,
+                'text_repr': None
+            },
+            'teardown': {
+                'caplog': None,
+                'capstderr': None,
+                'capstdout': None,
+                'text_repr': None
+            }
+        }
 
     def pytest_runtest_protocol(self, item, nextitem):
         """
@@ -119,14 +193,21 @@ class RerunPlugin(object):
         item : _pytest.main.Item
         nextitem : _pytest.main.Item || None
         """
-        item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
+        item.ihook.pytest_runtest_logstart(
+            nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
         reruns = self._get_reruns_count(item)
 
-        for report in reports:  # 3 reports: setup, test, teardown
+        for report in reports:  # 3 reports: setup, call, teardown
             xfail = hasattr(report, 'wasxfail')
             if report.failed and not xfail and reruns > 0:
                 # failure detected
+                stat = self._failed_test(item.nodeid)
+                stat[report.when]['caplog'] = report.caplog
+                stat[report.when]['capstderr'] = report.capstderr
+                stat[report.when]['capstdout'] = report.capstdout
+                stat[report.when]['text_repr'] = report.longreprtext
+
                 self.tests_to_rerun.add(item)
                 report.outcome = 'rerun'
 
@@ -135,6 +216,7 @@ class RerunPlugin(object):
         # Last test of a testrun was performed
         if nextitem == None:
             self._execute_reruns()
+            self._save_reruns_artifact(item.session)
 
         return True
 
@@ -144,12 +226,17 @@ class RerunPlugin(object):
         """
         for item in self.tests_to_rerun:
             self._invalidate_fixtures(item)
+
+        self.rerun_stats['total_failed'] = len(self.tests_to_rerun)
         for item in self.tests_to_rerun:
             reruns = self._get_reruns_count(item)
             if reruns is None:
                 continue
 
             self._rerun_item(item, reruns)
+
+        for rerun in self.rerun_stats['rerun_tests']:
+            rerun['status'] = self.mainrun_stats[rerun['nodeid']]['status']
 
     def _rerun_item(self, item, reruns):
         """
@@ -164,9 +251,11 @@ class RerunPlugin(object):
 
         for i in range(reruns):
             time.sleep(delay)
-            item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
+            item.ihook.pytest_runtest_logstart(
+                nodeid=item.nodeid, location=item.location)
             reports = runtestprotocol(item, nextitem=None, log=False)
             rerun_status = True
+            stat = self._rerun_test(item.nodeid)
             for report in reports:
                 xfail = hasattr(report, 'wasxfail')
                 report.rerun = i
@@ -177,7 +266,16 @@ class RerunPlugin(object):
                     # will log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
 
+                stat['rerun_trace'][report.when]['caplog'] = report.caplog
+                stat['rerun_trace'][report.when]['capstderr'] = report.capstderr
+                stat['rerun_trace'][report.when]['capstdout'] = report.capstdout
+                stat['rerun_trace'][report.when]['text_repr'] = report.longreprtext
+
+            self.rerun_stats['total_reruns'] += 1
+
             if rerun_status:
+                self.rerun_stats['total_resolved_by_reruns'] += 1
+                self.mainrun_stats[item.nodeid]['status'] = 'flake'
                 break
 
     def _invalidate_fixtures(self, item):
@@ -316,9 +414,18 @@ class RerunPlugin(object):
         if delay < 0:
             delay = 0
             warnings.warn('Delay time between re-runs cannot be < 0. '
-                        'Using default value: 0')
+                          'Using default value: 0')
 
         return delay
+
+    def _save_reruns_artifact(self, session):
+        """Save reruns artifact as json if path to artifact provided."""
+        artifact_path = session.config.option.reruns_artifact_path
+        if not artifact_path:
+            return
+
+        with open(artifact_path, 'w') as artifact:
+            json.dump(self.rerun_stats, artifact)
 
 
 class RerunResultLog(ResultLog):

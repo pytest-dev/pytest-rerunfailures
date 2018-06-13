@@ -1,6 +1,6 @@
+import json
 import random
 import time
-import pytest_rerunfailures
 
 try:
     import mock
@@ -267,3 +267,242 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_reruns_with_artifact(testdir):
+    artifact_path = testdir.tmpdir.strpath + '/artifact.json'
+    testdir.makepyfile("""
+        def test_pass():
+            {0}""".format(temporary_failure()))
+    result = testdir.runpytest(
+        '--reruns', '1', '-r', 'R',
+        '--reruns-artifact-path', artifact_path,
+    )
+    assert_outcomes(result, passed=1, rerun=1)
+    with open(artifact_path) as artifact:
+        artifact_data = json.load(artifact)
+        assert artifact_data == {
+            'total_reruns': 1,
+            'total_failed': 1,
+            'total_resolved_by_reruns': 1,
+            'rerun_tests': [
+                {
+                    'nodeid': 'test_reruns_with_artifact.py::test_pass',
+                    'status': 'flake',
+                    'rerun_trace': {
+                        'teardown': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'setup': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        }
+                    },
+                    'original_trace': {
+                        'teardown': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'setup': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': "def test_pass():\n        import py\n        path = py.path.local(__file__).dirpath().ensure('test.res')\n        count = path.read() or 1\n        if int(count) <= 1:\n            path.write(int(count) + 1)\n>           raise Exception('Failure: {0}'.format(count))\nE           Exception: Failure: 1\n\ntest_reruns_with_artifact.py:7: Exception"
+                        }
+                    }
+                }
+            ]
+        }
+
+
+def test_2_reruns_with_artifact(testdir):
+    artifact_path = testdir.tmpdir.strpath + '/artifact.json'
+    testdir.makepyfile("""
+        def test_pass():
+            {0}""".format(temporary_failure(2)))
+    result = testdir.runpytest(
+        '--reruns', '2', '-r', 'R',
+        '--reruns-artifact-path', artifact_path,
+    )
+    assert_outcomes(result, passed=1, rerun=2)
+    with open(artifact_path) as artifact:
+        artifact_data = json.load(artifact)
+        assert artifact_data == {
+            'total_reruns': 2,
+            'total_failed': 1,
+            'total_resolved_by_reruns': 1,
+            'rerun_tests': [
+                {
+                    'nodeid': 'test_2_reruns_with_artifact.py::test_pass',
+                    'status': 'flake',
+                    'rerun_trace': {
+                        'teardown': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'setup': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': "def test_pass():\n        import py\n        path = py.path.local(__file__).dirpath().ensure('test.res')\n        count = path.read() or 1\n        if int(count) <= 2:\n            path.write(int(count) + 1)\n>           raise Exception('Failure: {0}'.format(count))\nE           Exception: Failure: 2\n\ntest_2_reruns_with_artifact.py:7: Exception"
+                        }
+                    },
+                    'original_trace': {
+                        'teardown': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'setup': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': "def test_pass():\n        import py\n        path = py.path.local(__file__).dirpath().ensure('test.res')\n        count = path.read() or 1\n        if int(count) <= 2:\n            path.write(int(count) + 1)\n>           raise Exception('Failure: {0}'.format(count))\nE           Exception: Failure: 1\n\ntest_2_reruns_with_artifact.py:7: Exception"
+                        }
+                    }
+                },
+                {
+                    'nodeid': 'test_2_reruns_with_artifact.py::test_pass',
+                    'status': 'flake',
+                    'rerun_trace': {
+                        'teardown': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'setup': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        }
+                    },
+                    'original_trace': {
+                        'teardown': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'setup': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': "def test_pass():\n        import py\n        path = py.path.local(__file__).dirpath().ensure('test.res')\n        count = path.read() or 1\n        if int(count) <= 2:\n            path.write(int(count) + 1)\n>           raise Exception('Failure: {0}'.format(count))\nE           Exception: Failure: 1\n\ntest_2_reruns_with_artifact.py:7: Exception"
+                        }
+                    }
+                }
+            ]
+        }
+
+def test_uncuccess_reruns_with_artifact(testdir):
+    artifact_path = testdir.tmpdir.strpath + '/artifact.json'
+    testdir.makepyfile("""
+        def test_pass():
+            {0}""".format(temporary_failure(2)))
+    result = testdir.runpytest(
+        '--reruns', '1', '-r', 'R',
+        '--reruns-artifact-path', artifact_path,
+    )
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    with open(artifact_path) as artifact:
+        artifact_data = json.load(artifact)
+        print artifact_data['rerun_tests'][0]['original_trace']['call']
+        assert artifact_data == {
+            'total_reruns': 1,
+            'total_failed': 1,
+            'total_resolved_by_reruns': 0,
+            'rerun_tests': [
+                {
+                    'nodeid': 'test_uncuccess_reruns_with_artifact.py::test_pass',
+                    'status': 'failed',
+                    'rerun_trace': {
+                        'teardown': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'setup': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': ''
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': "def test_pass():\n        import py\n        path = py.path.local(__file__).dirpath().ensure('test.res')\n        count = path.read() or 1\n        if int(count) <= 2:\n            path.write(int(count) + 1)\n>           raise Exception('Failure: {0}'.format(count))\nE           Exception: Failure: 2\n\ntest_uncuccess_reruns_with_artifact.py:7: Exception"
+                        }
+                    },
+                    'original_trace': {
+                        'teardown': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'setup': {
+                            'caplog': None,
+                            'capstderr': None,
+                            'capstdout': None,
+                            'text_repr': None
+                        },
+                        'call': {
+                            'caplog': '',
+                            'capstderr': '',
+                            'capstdout': '',
+                            'text_repr': "def test_pass():\n        import py\n        path = py.path.local(__file__).dirpath().ensure('test.res')\n        count = path.read() or 1\n        if int(count) <= 2:\n            path.write(int(count) + 1)\n>           raise Exception('Failure: {0}'.format(count))\nE           Exception: Failure: 1\n\ntest_uncuccess_reruns_with_artifact.py:7: Exception"
+                        }
+                    }
+                }
+            ]
+        }
