@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+4.1.dr4 (2018-06-13)
+================
+- Added possibility to persist rerun stats to json file
+
+
 4.1.dr3 (2018-05-14)
 ================
 - Softer mock version dependecy 

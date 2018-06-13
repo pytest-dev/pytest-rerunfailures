@@ -95,6 +95,23 @@ Here's an example of the output provided by the plugin when run with
 Note that output will show all re-runs. Tests that fail on all the re-runs will
 be marked as failed.
 
+Persist rerun stats
+-------------------
+Plugin provide ability to store rerun stats to standalone json file:
+  `--reruns-artifact-path {path-to-json}`
+
+Stats file fill consist next fields:
+```
+  total_reruns - total rerun performed
+  total_failed - total tests failed during run
+  total_resolved_by_reruns - amount of tests fixed by rerun
+  rerun_tests - List of each test rerun
+    nodeid - pytest test nodeid
+    status - test status after rerun: flake or failed
+    rerun_trace - Test relevant tarces for teardown, setup and test call
+    original_trace - Original test failure tarce appreared during main run 
+```
+
 Compatibility
 -------------
 
