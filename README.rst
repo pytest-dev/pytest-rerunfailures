@@ -98,10 +98,10 @@ be marked as failed.
 Persist rerun stats
 -------------------
 Plugin provide ability to store rerun stats to standalone json file:
-  `--reruns-artifact-path {path-to-json}`
+  ``--reruns-artifact-path {path-to-json}``
 
-Stats file fill consist next fields:
-```
+Stats file fill consist next fields::
+
   total_reruns - total rerun performed
   total_failed - total tests failed during run
   total_resolved_by_reruns - amount of tests fixed by rerun
@@ -110,7 +110,7 @@ Stats file fill consist next fields:
     status - test status after rerun: flake or failed
     rerun_trace - Test relevant tarces for teardown, setup and test call
     original_trace - Original test failure tarce appreared during main run 
-```
+
 
 Compatibility
 -------------
