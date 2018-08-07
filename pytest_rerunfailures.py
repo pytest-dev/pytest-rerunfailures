@@ -123,6 +123,7 @@ class RerunPlugin(object):
             'total_reruns': 0,
             'total_resolved_by_reruns': 0
         }
+        # resolving xdist worker object
         self.xdist_worker = next(iter(filter(
             lambda x: x.__class__.__name__ == 'WorkerInteractor', 
             pytest.config.pluginmanager.get_plugins()
@@ -431,6 +432,7 @@ class RerunPlugin(object):
             return
 
         if self.xdist_worker:
+            # Adding xdist worker prefix to filepath to avoid stats overwrite
             path = artifact_path.split('/')
             path[-1] = self.xdist_worker.workerid + '_' + path[-1]
             artifact_path = '/'.join(path)
@@ -440,6 +442,10 @@ class RerunPlugin(object):
 
     @contextmanager
     def _prepare_xdist(self, item):
+        """
+        Explicetly changing current working test for xdist worker with rollback
+        to keep messaging flow safe
+        """
         if self.xdist_worker:
             current_index = self.xdist_worker.item_index
             self.xdist_worker.item_index = self.xdist_worker.session.items.index(item)
