@@ -1,6 +1,11 @@
 Changelog
 ---------
 
+4.1.dr5 (2018-08-07)
+================
+- Pytest-xdist support added 
+
+
 4.1.dr4 (2018-06-13)
 ================
 - Added possibility to persist rerun stats to json file

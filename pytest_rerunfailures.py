@@ -2,6 +2,7 @@ import json
 import pkg_resources
 import time
 import warnings
+from contextlib import contextmanager
 
 import pytest
 
@@ -122,6 +123,10 @@ class RerunPlugin(object):
             'total_reruns': 0,
             'total_resolved_by_reruns': 0
         }
+        self.xdist_worker = next(iter(filter(
+            lambda x: x.__class__.__name__ == 'WorkerInteractor', 
+            pytest.config.pluginmanager.get_plugins()
+        )), None)
 
     def _failed_test(self, nodeid):
         """
@@ -233,7 +238,8 @@ class RerunPlugin(object):
             if reruns is None:
                 continue
 
-            self._rerun_item(item, reruns)
+            with self._prepare_xdist(item):
+                self._rerun_item(item, reruns)
 
         for rerun in self.rerun_stats['rerun_tests']:
             rerun['status'] = self.mainrun_stats[rerun['nodeid']]['status']
@@ -424,9 +430,23 @@ class RerunPlugin(object):
         if not artifact_path:
             return
 
+        if self.xdist_worker:
+            path = artifact_path.split('/')
+            path[-1] = self.xdist_worker.workerid + '_' + path[-1]
+            artifact_path = '/'.join(path)
+
         with open(artifact_path, 'w') as artifact:
             json.dump(self.rerun_stats, artifact)
 
+    @contextmanager
+    def _prepare_xdist(self, item):
+        if self.xdist_worker:
+            current_index = self.xdist_worker.item_index
+            self.xdist_worker.item_index = self.xdist_worker.session.items.index(item)
+            yield
+            self.xdist_worker.item_index = current_index
+        else:
+            yield
 
 class RerunResultLog(ResultLog):
     """ResultLog wrapper for support rerun capabilities"""
