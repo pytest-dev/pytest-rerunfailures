@@ -4,6 +4,8 @@ Changelog
 4.1.dr5 (2018-08-07)
 ================
 - Pytest-xdist support added 
+- Added --max-tests-rerun param to do not perform reruns after some threshold
+- Added reruns time spends reporting
 
 
 4.1.dr4 (2018-06-13)

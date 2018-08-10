@@ -1,3 +1,4 @@
+import copy
 import json
 import pkg_resources
 import time
@@ -82,6 +83,14 @@ def pytest_addoption(parser):
         default='',
         help='provide path to export reruns artifact.'
     )
+    group._addoption(
+        '--max-tests-rerun',
+        action='store',
+        dest='max_tests_rerun',
+        type=int,
+        default=None,
+        help='provide path to export reruns artifact.'
+    )
 
 
 @pytest.hookimpl(trylast=True)
@@ -128,6 +137,8 @@ class RerunPlugin(object):
             lambda x: x.__class__.__name__ == 'WorkerInteractor', 
             pytest.config.pluginmanager.get_plugins()
         )), None)
+        self.reruns_time = 0
+        self.test_reports = {}
 
     def _failed_test(self, nodeid):
         """
@@ -203,6 +214,8 @@ class RerunPlugin(object):
             nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
         reruns = self._get_reruns_count(item)
+        
+        self.test_reports[item.nodeid] = copy.deepcopy(reports)
 
         for report in reports:  # 3 reports: setup, call, teardown
             xfail = hasattr(report, 'wasxfail')
@@ -221,10 +234,34 @@ class RerunPlugin(object):
 
         # Last test of a testrun was performed
         if nextitem == None:
+            max_tests_reruns = item.config.option.max_tests_rerun
+            if max_tests_reruns and len(self.tests_to_rerun) > max_tests_reruns:
+                self._skip_reruns(
+                    max_tests_reruns,
+                    item.config.pluginmanager.getplugin("terminalreporter")
+                )
+                return True
+            rerun_start = time.time()
             self._execute_reruns()
             self._save_reruns_artifact(item.session)
-
+            self.reruns_time = time.time() - rerun_start
         return True
+
+    def _skip_reruns(self, max_tests_reruns, terminalreporter):
+        """
+        Skip reruns and republish reports
+        """
+        msg = "Too many failed test: %s with threshold of %s. Restore failures without reruns" % (
+            len(self.tests_to_rerun), max_tests_reruns
+        )
+        markup = {'red': True, "bold": True}
+        terminalreporter.write_sep("=", msg, **markup)
+
+        for item in self.tests_to_rerun:
+            for report in self.test_reports[item.nodeid]:
+                item.ihook.pytest_runtest_logreport(report=report)
+
+        self.tests_to_rerun = []
 
     def _execute_reruns(self):
         """
@@ -345,6 +382,12 @@ class RerunPlugin(object):
             tr._tw.sep("=", "rerun test summary info")
             for line in lines:
                 tr._tw.line(line)
+
+        msg = "Performed %s reruns in %2f seconds" % (len(self.tests_to_rerun), self.reruns_time)
+        markup = {'yellow': True, "bold": True}
+        tr.write_sep("=", msg, **markup)
+        if len(self.tests_to_rerun) == 0:
+            tr.stats['rerun'] = []
 
     def _show_rerun(self, terminalreporter, lines):
         """
