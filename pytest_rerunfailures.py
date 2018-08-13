@@ -89,7 +89,7 @@ def pytest_addoption(parser):
         dest='max_tests_rerun',
         type=int,
         default=None,
-        help='provide path to export reruns artifact.'
+        help='max amount of failures at which reruns would be executed'
     )
 
 
@@ -486,7 +486,7 @@ class RerunPlugin(object):
     @contextmanager
     def _prepare_xdist(self, item):
         """
-        Explicetly changing current working test for xdist worker with rollback
+        Explicitly changing current working test for xdist worker with rollback
         to keep messaging flow safe
         """
         if self.xdist_worker:
