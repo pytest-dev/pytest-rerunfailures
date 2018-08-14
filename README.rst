@@ -111,6 +111,11 @@ Stats file fill consist next fields::
     rerun_trace - Test relevant tarces for teardown, setup and test call
     original_trace - Original test failure tarce appreared during main run 
 
+Skip reruns execution
+---------------------
+In case if it is not needed to perform reruns if many tests failed next param could be used:
+  ``--max-tests-rerun {threshold}``
+So if during testrun will occur more failed test then threshold value no reruns would be performed.
 
 Compatibility
 -------------
