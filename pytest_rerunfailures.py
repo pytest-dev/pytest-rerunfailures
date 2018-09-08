@@ -122,6 +122,30 @@ def get_reruns_delay(item):
     return delay
 
 
+def _remove_cached_results_from_fixtures(item):
+    """
+    Note: remove all cached_result attribute from every fixture
+    """
+    cached_result = 'cached_result'
+    fixture_info = getattr(item, '_fixtureinfo')
+    for fixture_def_str in fixture_info.name2fixturedefs:
+        fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
+        for fixture_def in fixture_defs:
+            if hasattr(fixture_def, cached_result):
+                delattr(fixture_def, cached_result)
+
+
+def _remove_failed_setup_state_from_session(item):
+    """
+    Note: remove all _prepare_exc attribute from every col in stack of _setupstate
+    """
+    prepare_exc = "_prepare_exc"
+    setup_state = getattr(item.session, '_setupstate')
+    for col in setup_state.stack:
+        if hasattr(col, prepare_exc):
+            delattr(col, prepare_exc)
+
+
 def pytest_runtest_protocol(item, nextitem):
     """
     Note: when teardown fails, two reports are generated for the case, one for
@@ -159,6 +183,10 @@ def pytest_runtest_protocol(item, nextitem):
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
+
+                # cleanin item's cashed results from any level of setups
+                _remove_cached_results_from_fixtures(item)
+                _remove_failed_setup_state_from_session(item)
 
                 break  # trigger rerun
         else:
