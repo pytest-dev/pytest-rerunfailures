@@ -137,13 +137,14 @@ def _remove_cached_results_from_fixtures(item):
 
 def _remove_failed_setup_state_from_session(item):
     """
-    Note: remove all _prepare_exc attribute from every col in stack of _setupstate
+    Note: remove all _prepare_exc attribute from every col in stack of _setupstate and cleaning the stack itself
     """
     prepare_exc = "_prepare_exc"
     setup_state = getattr(item.session, '_setupstate')
     for col in setup_state.stack:
         if hasattr(col, prepare_exc):
             delattr(col, prepare_exc)
+    setup_state.stack = list()
 
 
 def pytest_runtest_protocol(item, nextitem):

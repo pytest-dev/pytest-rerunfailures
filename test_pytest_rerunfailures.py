@@ -267,3 +267,42 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_rerun_on_class_setup_with_first_execution_error_for_parametrized_test(testdir):
+    testdir.makepyfile("""
+        import pytest
+        
+        class TestFoo(object):
+            execution_number = 1
+            @classmethod
+            def setup_class(cls):
+                if cls.execution_number:
+                    cls.execution_number -= 1
+                    assert False
+                assert True
+            @pytest.mark.parametrize('param', [1, 2, 3])
+            def test_pass(self, param):
+                assert param""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=3, rerun=1)
+
+
+def test_rerun_on_class_scope_fixture_setup_with_first_execution_error_for_parametrized_test(testdir):
+    testdir.makepyfile("""
+        import pytest
+        
+        class TestFoo(object):
+            execution_number = 1
+            
+            @pytest.fixture(scope="class")
+            def setup_fixture(self):
+                if self.execution_number:
+                    self.execution_number -= 1
+                    assert False
+                assert True
+            @pytest.mark.parametrize('param', [1, 2, 3])
+            def test_pass(self, setup_fixture, param):
+                assert param""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=3, rerun=1)
