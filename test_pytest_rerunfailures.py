@@ -267,3 +267,12 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_execution_count_exposed(testdir):
+    testdir.makepyfile('def test_pass(): assert True')
+    testdir.makeconftest("""
+        def pytest_runtest_teardown(item):
+            assert item.execution_count == 3""")
+    result = testdir.runpytest('--reruns', '2')
+    assert_outcomes(result, passed=3, rerun=2)
