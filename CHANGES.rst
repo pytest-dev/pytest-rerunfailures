@@ -5,7 +5,10 @@ Changelog
 4.2 (unreleased)
 ================
 
-- Nothing changed yet.
+- Fixed #64 issue related to ``setup_class`` and ``fixture`` executions on rerun (Thanks to
+  `@OlegKuzovkov`_ for the PR).
+
+.. _@OlegKuzovkov: https://github.com/OlegKuzovkov
 
 
 4.1 (2018-05-23)
