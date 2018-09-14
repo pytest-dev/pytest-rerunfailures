@@ -5,7 +5,10 @@ Changelog
 4.2 (unreleased)
 ================
 
-- Nothing changed yet.
+- Added new ``execution_count`` attribute to reflect the number of test case executions according to #67 issue.
+  (Thanks to `@OlegKuzovkov`_ for the PR).
+
+.. _@OlegKuzovkov: https://github.com/OlegKuzovkov
 
 
 4.1 (2018-05-23)

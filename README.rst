@@ -113,3 +113,12 @@ Resources
 
 - `Issue Tracker <http://github.com/pytest-dev/pytest-rerunfailures/issues>`_
 - `Code <http://github.com/pytest-dev/pytest-rerunfailures/>`_
+
+Development
+-----------
+
+* Test execution count can be retrieved from the ``execution_count`` attribute in test ``item``'s object. Example::
+
+  @hookimpl(tryfirst=True, hookwrapper=True)
+  def pytest_runtest_makereport(item, call):
+      print(item.execution_count)
