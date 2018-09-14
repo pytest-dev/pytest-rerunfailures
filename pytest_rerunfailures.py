@@ -146,7 +146,7 @@ def _remove_failed_setup_state_from_session(item):
     for col in setup_state.stack:
         if hasattr(col, prepare_exc):
             delattr(col, prepare_exc)
-    setup_state.stack.clear()
+    setup_state.stack = list()
 
 
 def pytest_runtest_protocol(item, nextitem):
