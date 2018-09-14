@@ -122,7 +122,7 @@ def get_reruns_delay(item):
     return delay
 
 
-def _remove_cached_results_from_fixtures(item):
+def _remove_cached_results_from_failed_fixtures(item):
     """
     Note: remove all cached_result attribute from every fixture
     """
@@ -132,7 +132,9 @@ def _remove_cached_results_from_fixtures(item):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
             if hasattr(fixture_def, cached_result):
-                delattr(fixture_def, cached_result)
+                result, cache_key, err = getattr(fixture_def, cached_result)
+                if err:  # Deleting cached results for only failed fixtures
+                    delattr(fixture_def, cached_result)
 
 
 def _remove_failed_setup_state_from_session(item):
@@ -144,7 +146,7 @@ def _remove_failed_setup_state_from_session(item):
     for col in setup_state.stack:
         if hasattr(col, prepare_exc):
             delattr(col, prepare_exc)
-    setup_state.stack = list()
+    setup_state.stack.clear()
 
 
 def pytest_runtest_protocol(item, nextitem):
@@ -186,7 +188,7 @@ def pytest_runtest_protocol(item, nextitem):
                     item.ihook.pytest_runtest_logreport(report=report)
 
                 # cleanin item's cashed results from any level of setups
-                _remove_cached_results_from_fixtures(item)
+                _remove_cached_results_from_failed_fixtures(item)
                 _remove_failed_setup_state_from_session(item)
 
                 break  # trigger rerun
