@@ -322,18 +322,18 @@ def test_rerun_on_module_fixture_with_reruns(testdir):
     testdir.makepyfile("""
         import pytest
         
-        class Execution:
-            count = 0
+        pass_fixture = False
       
         @pytest.fixture(scope='module')
         def module_fixture():
-            assert not Execution.count
+            assert not pass_fixture
         
         class TestFoo(object):
             @pytest.fixture(scope="class")
             def setup_fixture(self):
-                if not Execution.count:
-                    Execution.count += 1
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
                     assert False
                 assert True
             def test_pass_1(self, module_fixture, setup_fixture):
@@ -353,18 +353,18 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
     testdir.makepyfile("""
         import pytest
         
-        class Execution:
-            count = 0
+        pass_fixture = False
 
         @pytest.fixture(scope='session')
         def session_fixture():
-            assert not Execution.count
+            assert not pass_fixture
 
         class TestFoo(object):
             @pytest.fixture(scope="class")
             def setup_fixture(self):
-                if not Execution.count:
-                    Execution.count += 1
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
                     assert False
                 assert True
             
