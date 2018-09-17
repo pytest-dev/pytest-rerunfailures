@@ -276,12 +276,14 @@ def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     testdir.makepyfile("""
         import pytest
         
+        pass_fixture = False
+        
         class TestFoo(object):
-            execution_number = 1
             @classmethod
             def setup_class(cls):
-                if cls.execution_number:
-                    cls.execution_number -= 1
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
                     assert False
                 assert True
             @pytest.mark.parametrize('param', [1, 2, 3])
@@ -298,13 +300,15 @@ def test_rerun_on_class_scope_fixture_with_error_with_reruns(testdir):
     testdir.makepyfile("""
         import pytest
         
+        pass_fixture = False
+        
         class TestFoo(object):
-            execution_number = 1
             
             @pytest.fixture(scope="class")
             def setup_fixture(self):
-                if self.execution_number:
-                    self.execution_number -= 1
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
                     assert False
                 assert True
             @pytest.mark.parametrize('param', [1, 2, 3])
@@ -374,3 +378,12 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
                 assert True""")
     result = testdir.runpytest('--reruns', '1')
     assert_outcomes(result, passed=2, rerun=1)
+
+
+def test_execution_count_exposed(testdir):
+    testdir.makepyfile('def test_pass(): assert True')
+    testdir.makeconftest("""
+        def pytest_runtest_teardown(item):
+            assert item.execution_count == 3""")
+    result = testdir.runpytest('--reruns', '2')
+    assert_outcomes(result, passed=3, rerun=2)
