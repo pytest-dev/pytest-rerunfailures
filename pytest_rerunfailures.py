@@ -9,6 +9,7 @@ import pytest
 
 from _pytest.resultlog import ResultLog
 from _pytest.runner import runtestprotocol
+from _pytest.junitxml import LogXML
 
 
 def works_with_current_xdist():
@@ -112,12 +113,123 @@ def pytest_configure(config):
     plugin = RerunPlugin()
     config.pluginmanager.register(plugin, 'RerunPlugin')
 
+    if config.option.xmlpath:
+        junit_plugin = [p for p in config.pluginmanager.get_plugins() if isinstance(p, LogXML)][0]
+        config.pluginmanager.unregister(plugin=junit_plugin)
+        rerun_junit_plugin = RerunLogXML(
+            logfile=junit_plugin.logfile,
+            prefix=junit_plugin.prefix,
+            suite_name=junit_plugin.suite_name,
+            logging=junit_plugin.logging
+        )
+        config.pluginmanager.register(rerun_junit_plugin, 'RerunLogXML')
+
     resultlog = getattr(config, '_resultlog', None)
     if resultlog:
         logfile = resultlog.logfile
         config.pluginmanager.unregister(resultlog)
         config._resultlog = RerunResultLog(config, logfile)
         config.pluginmanager.register(config._resultlog)
+
+
+class RerunLogXML(LogXML):
+
+    def update_testcase_status(self, report):
+        """
+        Set status to testcase node. Since upcoming scope could rewrite preious status
+        we are skipping overwriting non-passed statuses
+        """
+        reporter = self.node_reporter(report)
+        if 'status' not in reporter.attrs or reporter.attrs['status'].uniobj == 'passed':
+            reporter.add_attribute('status', report.outcome)
+    
+    def pytest_runtest_logreport(self, report):
+        """handle a setup/call/teardown report, generating the appropriate
+        xml tags as necessary.
+        note: due to plugins like xdist, this hook may be called in interlaced
+        order with reports from other nodes. for example:
+        usual call order:
+            -> setup node1
+            -> call node1
+            -> teardown node1
+            -> setup node2
+            -> call node2
+            -> teardown node2
+        possible call order in xdist:
+            -> setup node1
+            -> call node1
+            -> setup node2
+            -> call node2
+            -> teardown node2
+            -> teardown node1
+        
+        Function copies parent implementation with selected rerun status 
+        """
+        close_report = None
+        if report.passed:
+            if report.when == "call":  # ignore setup/teardown
+                reporter = self._opentestcase(report)
+                reporter.append_pass(report)
+         # added rerun status handling
+        elif report.failed or report.outcome == 'rerun':
+            if report.when == "teardown":
+                # The following vars are needed when xdist plugin is used
+                report_wid = getattr(report, "worker_id", None)
+                report_ii = getattr(report, "item_index", None)
+                close_report = next(
+                    (
+                        rep
+                        for rep in self.open_reports
+                        if (
+                            rep.nodeid == report.nodeid
+                            and getattr(rep, "item_index", None) == report_ii
+                            and getattr(rep, "worker_id", None) == report_wid
+                        )
+                    ),
+                    None,
+                )
+                if close_report:
+                    # We need to open new testcase in case we have failure in
+                    # call and error in teardown in order to follow junit
+                    # schema
+                    self.finalize(close_report)
+                    self.cnt_double_fail_tests += 1
+            reporter = self._opentestcase(report)
+            if report.when == "call":
+                reporter.append_failure(report)
+                self.open_reports.append(report)
+            else:
+                reporter.append_error(report)
+        elif report.skipped:
+            reporter = self._opentestcase(report)
+            reporter.append_skipped(report)
+
+        self.update_testcase_status(report)
+        self.update_testcase_duration(report)
+        if report.when == "teardown":
+            reporter = self._opentestcase(report)
+            reporter.write_captured_output(report)
+
+            for propname, propvalue in report.user_properties:
+                reporter.add_property(propname, propvalue)
+
+            self.finalize(report)
+            report_wid = getattr(report, "worker_id", None)
+            report_ii = getattr(report, "item_index", None)
+            close_report = next(
+                (
+                    rep
+                    for rep in self.open_reports
+                    if (
+                        rep.nodeid == report.nodeid
+                        and getattr(rep, "item_index", None) == report_ii
+                        and getattr(rep, "worker_id", None) == report_wid
+                    )
+                ),
+                None,
+            )
+            if close_report:
+                self.open_reports.remove(close_report)
 
 
 class RerunPlugin(object):
