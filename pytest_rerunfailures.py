@@ -172,6 +172,7 @@ class RerunLogXML(LogXML):
         close_report = None
         # Do not report reruns
         if report.outcome == "rerun":
+            # If some previous report for current test was tracked - remove it
             if self.was_reported(report):
                 reporter = self.node_reporters[self.reporter_id(report)]
                 self.node_reporters_ordered.remove(reporter)
@@ -180,67 +181,8 @@ class RerunLogXML(LogXML):
         # Skip finilization if no previous reports were tracked
         elif report.when == "teardown" and not self.was_reported(report):
             return
-        elif report.passed:
-            if report.when == "call":  # ignore setup/teardown
-                reporter = self._opentestcase(report)
-                reporter.append_pass(report)
-        elif report.failed:
-            if report.when == "teardown":
-                # The following vars are needed when xdist plugin is used
-                report_wid = getattr(report, "worker_id", None)
-                report_ii = getattr(report, "item_index", None)
-                close_report = next(
-                    (
-                        rep
-                        for rep in self.open_reports
-                        if (
-                            rep.nodeid == report.nodeid
-                            and getattr(rep, "item_index", None) == report_ii
-                            and getattr(rep, "worker_id", None) == report_wid
-                        )
-                    ),
-                    None,
-                )
-                if close_report:
-                    # We need to open new testcase in case we have failure in
-                    # call and error in teardown in order to follow junit
-                    # schema
-                    self.finalize(close_report)
-                    self.cnt_double_fail_tests += 1
-            reporter = self._opentestcase(report)
-            if report.when == "call":
-                reporter.append_failure(report)
-                self.open_reports.append(report)
-            else:
-                reporter.append_error(report)
-        elif report.skipped:
-            reporter = self._opentestcase(report)
-            reporter.append_skipped(report)
-        self.update_testcase_duration(report)
-        if report.when == "teardown":
-            reporter = self._opentestcase(report)
-            reporter.write_captured_output(report)
-
-            for propname, propvalue in report.user_properties:
-                reporter.add_property(propname, propvalue)
-
-            self.finalize(report)
-            report_wid = getattr(report, "worker_id", None)
-            report_ii = getattr(report, "item_index", None)
-            close_report = next(
-                (
-                    rep
-                    for rep in self.open_reports
-                    if (
-                        rep.nodeid == report.nodeid
-                        and getattr(rep, "item_index", None) == report_ii
-                        and getattr(rep, "worker_id", None) == report_wid
-                    )
-                ),
-                None,
-            )
-            if close_report:
-                self.open_reports.remove(close_report)
+        # Continue with usual junit flow 
+        super(RerunLogXML, self).pytest_runtest_logreport(report)
 
 
 class RerunPlugin(object):
