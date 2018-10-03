@@ -134,15 +134,6 @@ def pytest_configure(config):
 
 class RerunLogXML(LogXML):
 
-    def update_testcase_status(self, report):
-        """
-        Set status to testcase node. Since upcoming scope could rewrite preious status
-        we are skipping overwriting non-passed statuses
-        """
-        reporter = self.node_reporter(report)
-        if 'status' not in reporter.attrs or reporter.attrs['status'].uniobj == 'passed':
-            reporter.add_attribute('status', report.outcome)
-    
     def pytest_runtest_logreport(self, report):
         """handle a setup/call/teardown report, generating the appropriate
         xml tags as necessary.
@@ -166,12 +157,13 @@ class RerunLogXML(LogXML):
         Function copies parent implementation with selected rerun status 
         """
         close_report = None
-        if report.passed:
+        if report.outcome == 'rerun':
+            return
+        elif report.passed:
             if report.when == "call":  # ignore setup/teardown
                 reporter = self._opentestcase(report)
                 reporter.append_pass(report)
-         # added rerun status handling
-        elif report.failed or report.outcome == 'rerun':
+        elif report.failed:
             if report.when == "teardown":
                 # The following vars are needed when xdist plugin is used
                 report_wid = getattr(report, "worker_id", None)
@@ -203,8 +195,6 @@ class RerunLogXML(LogXML):
         elif report.skipped:
             reporter = self._opentestcase(report)
             reporter.append_skipped(report)
-
-        self.update_testcase_status(report)
         self.update_testcase_duration(report)
         if report.when == "teardown":
             reporter = self._opentestcase(report)
@@ -352,6 +342,7 @@ class RerunPlugin(object):
                     max_tests_reruns,
                     item.config.pluginmanager.getplugin("terminalreporter")
                 )
+                self._save_reruns_artifact(item.session)
                 return True
             rerun_start = time.time()
             self._execute_reruns()
