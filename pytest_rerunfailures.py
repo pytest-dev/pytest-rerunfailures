@@ -113,6 +113,8 @@ def pytest_configure(config):
     plugin = RerunPlugin()
     config.pluginmanager.register(plugin, 'RerunPlugin')
 
+    # If xmlpath provided to config - junit report will be generated
+    # For correct interaction with reruns tests it should be replaced by rerun junit wrapper 
     if config.option.xmlpath:
         junit_plugin = [p for p in config.pluginmanager.get_plugins() if isinstance(p, LogXML)][0]
         config.pluginmanager.unregister(plugin=junit_plugin)
