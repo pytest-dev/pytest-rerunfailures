@@ -134,6 +134,19 @@ def pytest_configure(config):
 
 class RerunLogXML(LogXML):
 
+    def reporter_id(self, report):
+        # Partially copies self.node_reporter
+        nodeid = getattr(report, "nodeid", report)
+        # local hack to handle xdist report order
+        slavenode = getattr(report, "node", None)
+        return (nodeid, slavenode)
+
+    def was_reported(self, report):
+        """
+        Check if test from report was already tarcked
+        """
+        return self.reporter_id(report) in self.node_reporters
+
     def pytest_runtest_logreport(self, report):
         """handle a setup/call/teardown report, generating the appropriate
         xml tags as necessary.
@@ -157,7 +170,15 @@ class RerunLogXML(LogXML):
         Function copies parent implementation with selected rerun status 
         """
         close_report = None
-        if report.outcome == 'rerun':
+        # Do not report reruns
+        if report.outcome == "rerun":
+            if self.was_reported(report):
+                reporter = self.node_reporters[self.reporter_id(report)]
+                self.node_reporters_ordered.remove(reporter)
+                del self.node_reporters[self.reporter_id(report)]
+            return
+        # Skip finilization if no previous reports were tracked
+        elif report.when == "teardown" and not self.was_reported(report):
             return
         elif report.passed:
             if report.when == "call":  # ignore setup/teardown

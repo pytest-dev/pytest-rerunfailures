@@ -32,7 +32,7 @@ def test_test_passing_1(session_fixture_1):
 def test_test_failing(session_fixture_2):
     global number
     number += 1
-    assert number == int(os.getenv('EXPECTED_FAILURES_INT', 2))
+    assert number == int(os.getenv('EXPECTED_FAILURES_INT', 1))
 
 def test_test_passing_2(session_fixture_3):
     assert True
