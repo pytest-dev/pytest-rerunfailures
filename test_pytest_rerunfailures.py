@@ -269,6 +269,117 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
+def test_rerun_on_setup_class_with_error_with_reruns(testdir):
+    """
+     Case: setup_class throwing error on the first execution for parametrized test
+    """
+    testdir.makepyfile("""
+        import pytest
+        
+        pass_fixture = False
+        
+        class TestFoo(object):
+            @classmethod
+            def setup_class(cls):
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
+                    assert False
+                assert True
+            @pytest.mark.parametrize('param', [1, 2, 3])
+            def test_pass(self, param):
+                assert param""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=3, rerun=1)
+
+
+def test_rerun_on_class_scope_fixture_with_error_with_reruns(testdir):
+    """
+    Case: Class scope fixture throwing error on the first execution for parametrized test
+    """
+    testdir.makepyfile("""
+        import pytest
+        
+        pass_fixture = False
+        
+        class TestFoo(object):
+            
+            @pytest.fixture(scope="class")
+            def setup_fixture(self):
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
+                    assert False
+                assert True
+            @pytest.mark.parametrize('param', [1, 2, 3])
+            def test_pass(self, setup_fixture, param):
+                assert param""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=3, rerun=1)
+
+
+def test_rerun_on_module_fixture_with_reruns(testdir):
+    """
+    Case: Module scope fixture is not re-executed when class scope fixture throwing error on the first execution
+    for parametrized test
+    """
+    testdir.makepyfile("""
+        import pytest
+        
+        pass_fixture = False
+      
+        @pytest.fixture(scope='module')
+        def module_fixture():
+            assert not pass_fixture
+        
+        class TestFoo(object):
+            @pytest.fixture(scope="class")
+            def setup_fixture(self):
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
+                    assert False
+                assert True
+            def test_pass_1(self, module_fixture, setup_fixture):
+                assert True
+            
+            def test_pass_2(self, module_fixture, setup_fixture):
+                assert True""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=2, rerun=1)
+
+
+def test_rerun_on_session_fixture_with_reruns(testdir):
+    """
+    Case: Module scope fixture is not re-executed when class scope fixture throwing error on the first execution
+    for parametrized test
+    """
+    testdir.makepyfile("""
+        import pytest
+        
+        pass_fixture = False
+
+        @pytest.fixture(scope='session')
+        def session_fixture():
+            assert not pass_fixture
+
+        class TestFoo(object):
+            @pytest.fixture(scope="class")
+            def setup_fixture(self):
+                global pass_fixture
+                if not pass_fixture:
+                    pass_fixture = True
+                    assert False
+                assert True
+            
+            def test_pass_1(self, session_fixture, setup_fixture):
+                assert True
+            def test_pass_2(self, session_fixture, setup_fixture):
+                assert True""")
+    result = testdir.runpytest('--reruns', '1')
+    assert_outcomes(result, passed=2, rerun=1)
+
+
 def test_execution_count_exposed(testdir):
     testdir.makepyfile('def test_pass(): assert True')
     testdir.makeconftest("""
