@@ -238,7 +238,7 @@ def test_reruns_with_delay(testdir, delay_time):
     time.sleep = mock.MagicMock()
 
     result = testdir.runpytest('--reruns', '3',
-                               '--reruns-delay', delay_time)
+                               '--reruns-delay', str(delay_time))
 
     if delay_time < 0:
         delay_time = 0

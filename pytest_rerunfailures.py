@@ -9,6 +9,7 @@ import pytest
 
 from _pytest.resultlog import ResultLog
 from _pytest.runner import runtestprotocol
+from _pytest.junitxml import LogXML
 
 
 def works_with_current_xdist():
@@ -112,12 +113,78 @@ def pytest_configure(config):
     plugin = RerunPlugin()
     config.pluginmanager.register(plugin, 'RerunPlugin')
 
+    # If xmlpath provided to config - junit report will be generated
+    # For correct interaction with reruns tests it should be replaced by rerun junit wrapper 
+    if config.option.xmlpath:
+        junit_plugin = [p for p in config.pluginmanager.get_plugins() if isinstance(p, LogXML)][0]
+        config.pluginmanager.unregister(plugin=junit_plugin)
+        rerun_junit_plugin = RerunLogXML(
+            logfile=junit_plugin.logfile,
+            prefix=junit_plugin.prefix,
+            suite_name=junit_plugin.suite_name,
+            logging=junit_plugin.logging
+        )
+        config.pluginmanager.register(rerun_junit_plugin, 'RerunLogXML')
+
     resultlog = getattr(config, '_resultlog', None)
     if resultlog:
         logfile = resultlog.logfile
         config.pluginmanager.unregister(resultlog)
         config._resultlog = RerunResultLog(config, logfile)
         config.pluginmanager.register(config._resultlog)
+
+
+class RerunLogXML(LogXML):
+
+    def reporter_id(self, report):
+        # Partially copies self.node_reporter
+        nodeid = getattr(report, "nodeid", report)
+        # local hack to handle xdist report order
+        slavenode = getattr(report, "node", None)
+        return (nodeid, slavenode)
+
+    def was_reported(self, report):
+        """
+        Check if test from report was already tarcked
+        """
+        return self.reporter_id(report) in self.node_reporters
+
+    def pytest_runtest_logreport(self, report):
+        """handle a setup/call/teardown report, generating the appropriate
+        xml tags as necessary.
+        note: due to plugins like xdist, this hook may be called in interlaced
+        order with reports from other nodes. for example:
+        usual call order:
+            -> setup node1
+            -> call node1
+            -> teardown node1
+            -> setup node2
+            -> call node2
+            -> teardown node2
+        possible call order in xdist:
+            -> setup node1
+            -> call node1
+            -> setup node2
+            -> call node2
+            -> teardown node2
+            -> teardown node1
+        
+        Function copies parent implementation with selected rerun status 
+        """
+        close_report = None
+        # Do not report reruns
+        if report.outcome == "rerun":
+            # If some previous report for current test was tracked - remove it
+            if self.was_reported(report):
+                reporter = self.node_reporters[self.reporter_id(report)]
+                self.node_reporters_ordered.remove(reporter)
+                del self.node_reporters[self.reporter_id(report)]
+            return
+        # Skip finilization if no previous reports were tracked
+        elif report.when == "teardown" and not self.was_reported(report):
+            return
+        # Continue with usual junit flow 
+        super(RerunLogXML, self).pytest_runtest_logreport(report)
 
 
 class RerunPlugin(object):
@@ -240,6 +307,7 @@ class RerunPlugin(object):
                     max_tests_reruns,
                     item.config.pluginmanager.getplugin("terminalreporter")
                 )
+                self._save_reruns_artifact(item.session)
                 return True
             rerun_start = time.time()
             self._execute_reruns()
