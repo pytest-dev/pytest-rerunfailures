@@ -238,7 +238,7 @@ def test_reruns_with_delay(testdir, delay_time):
     time.sleep = mock.MagicMock()
 
     result = testdir.runpytest('--reruns', '3',
-                               '--reruns-delay', delay_time)
+                               '--reruns-delay', str(delay_time))
 
     if delay_time < 0:
         delay_time = 0
@@ -275,9 +275,9 @@ def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     """
     testdir.makepyfile("""
         import pytest
-        
+
         pass_fixture = False
-        
+
         class TestFoo(object):
             @classmethod
             def setup_class(cls):
@@ -299,11 +299,11 @@ def test_rerun_on_class_scope_fixture_with_error_with_reruns(testdir):
     """
     testdir.makepyfile("""
         import pytest
-        
+
         pass_fixture = False
-        
+
         class TestFoo(object):
-            
+
             @pytest.fixture(scope="class")
             def setup_fixture(self):
                 global pass_fixture
@@ -325,13 +325,13 @@ def test_rerun_on_module_fixture_with_reruns(testdir):
     """
     testdir.makepyfile("""
         import pytest
-        
+
         pass_fixture = False
-      
+
         @pytest.fixture(scope='module')
         def module_fixture():
             assert not pass_fixture
-        
+
         class TestFoo(object):
             @pytest.fixture(scope="class")
             def setup_fixture(self):
@@ -342,7 +342,7 @@ def test_rerun_on_module_fixture_with_reruns(testdir):
                 assert True
             def test_pass_1(self, module_fixture, setup_fixture):
                 assert True
-            
+
             def test_pass_2(self, module_fixture, setup_fixture):
                 assert True""")
     result = testdir.runpytest('--reruns', '1')
@@ -356,7 +356,7 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
     """
     testdir.makepyfile("""
         import pytest
-        
+
         pass_fixture = False
 
         @pytest.fixture(scope='session')
@@ -371,7 +371,7 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
                     pass_fixture = True
                     assert False
                 assert True
-            
+
             def test_pass_1(self, session_fixture, setup_fixture):
                 assert True
             def test_pass_2(self, session_fixture, setup_fixture):
