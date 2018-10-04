@@ -7,6 +7,7 @@ Changelog
 
 - Fixed #64 issue related to ``setup_class`` and ``fixture`` executions on rerun (Thanks to
   `@OlegKuzovkov`_ for the PR).
+
 - Added new ``execution_count`` attribute to reflect the number of test case executions according to #67 issue.
   (Thanks to `@OlegKuzovkov`_ for the PR).
 
