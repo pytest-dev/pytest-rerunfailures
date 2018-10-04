@@ -2,7 +2,7 @@ Changelog
 ---------
 
 
-4.2 (unreleased)
+4.2 (2018-10-04)
 ================
 
 - Fixed #64 issue related to ``setup_class`` and ``fixture`` executions on rerun (Thanks to
