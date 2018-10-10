@@ -1,3 +1,4 @@
+import sys
 import copy
 import json
 import pkg_resources
@@ -12,14 +13,17 @@ from _pytest.runner import runtestprotocol
 from _pytest.junitxml import LogXML
 
 
+LOWEST_SUPPORTED_XDIST = '1.23.2'
+
+
 def works_with_current_xdist():
     """
     Pytest hook
 
     Returns compatibility with installed pytest-xdist version.
 
-    When running tests in parallel using pytest-xdist < 1.20.0, the first
-    report that is logged will finish and terminate the current node rather
+    When running tests in parallel using pytest-xdist < LOWEST_SUPPORTED_XDIST,
+    the first report that is logged will finish and terminate the current node rather
     rerunning the test. Thus we must skip logging of intermediate results under
     these circumstances, otherwise no test is rerun.
 
@@ -29,7 +33,7 @@ def works_with_current_xdist():
     """
     try:
         d = pkg_resources.get_distribution('pytest-xdist')
-        return d.parsed_version >= pkg_resources.parse_version('1.20')
+        return d.parsed_version >= pkg_resources.parse_version(LOWEST_SUPPORTED_XDIST)
     except pkg_resources.DistributionNotFound:
         return None
 
@@ -85,12 +89,20 @@ def pytest_addoption(parser):
         help='provide path to export reruns artifact.'
     )
     group._addoption(
+        '--xdist-worker-reruns-artifact',
+        action='store_true',
+        dest='xdist_worker_reruns_artifact',
+        default=False,
+        help='save artifact for each xdist worker separetly for details'
+    )
+    group._addoption(
         '--max-tests-rerun',
         action='store',
         dest='max_tests_rerun',
         type=int,
         default=None,
-        help='max amount of failures at which reruns would be executed'
+        help='max amount of failures at which reruns would be executed. ' +\
+             'If xdist used - max amount of failures per worker' 
     )
 
 
@@ -108,23 +120,42 @@ def pytest_configure(config):
                    "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
                    "between re-runs.")
 
+    if not works_with_current_xdist():
+        t_writer = config.pluginmanager.getplugin('terminalreporter')
+        # terminalreporter exists only in master process
+        if t_writer:
+            msg = 'Reruns initialization failure: ' + \
+                'Unsupported xdist version. Xdist is supported from %s.' % (
+                    LOWEST_SUPPORTED_XDIST
+                )
+            markup = {'red': True, "bold": True}
+            t_writer.write_sep("=", msg, **markup)
+        return
+
     check_options(config)
 
-    plugin = RerunPlugin()
-    config.pluginmanager.register(plugin, 'RerunPlugin')
+    # We should treat usual execution/xdist worker execution and xdist master execution differently
+    if config.pluginmanager.getplugin('dsession'):
+        plugin = XdistRerunsAggregator()
+        config.pluginmanager.register(plugin, 'XdistRerunsAggregator')
+    else:
+        plugin = RerunPlugin()
+        config.pluginmanager.register(plugin, 'RerunPlugin')
 
     # If xmlpath provided to config - junit report will be generated
     # For correct interaction with reruns tests it should be replaced by rerun junit wrapper 
     if config.option.xmlpath:
-        junit_plugin = [p for p in config.pluginmanager.get_plugins() if isinstance(p, LogXML)][0]
-        config.pluginmanager.unregister(plugin=junit_plugin)
-        rerun_junit_plugin = RerunLogXML(
-            logfile=junit_plugin.logfile,
-            prefix=junit_plugin.prefix,
-            suite_name=junit_plugin.suite_name,
-            logging=junit_plugin.logging
-        )
-        config.pluginmanager.register(rerun_junit_plugin, 'RerunLogXML')
+        log_xml_plugins = [p for p in config.pluginmanager.get_plugins() if isinstance(p, LogXML)]
+        if log_xml_plugins:
+            junit_plugin = log_xml_plugins[0]
+            config.pluginmanager.unregister(plugin=junit_plugin)
+            rerun_junit_plugin = RerunLogXML(
+                logfile=junit_plugin.logfile,
+                prefix=junit_plugin.prefix,
+                suite_name=junit_plugin.suite_name,
+                logging=junit_plugin.logging
+            )
+            config.pluginmanager.register(rerun_junit_plugin, 'RerunLogXML')
 
     resultlog = getattr(config, '_resultlog', None)
     if resultlog:
@@ -168,7 +199,7 @@ class RerunLogXML(LogXML):
             -> call node2
             -> teardown node2
             -> teardown node1
-        
+
         Function copies parent implementation with selected rerun status 
         """
         close_report = None
@@ -187,83 +218,184 @@ class RerunLogXML(LogXML):
         super(RerunLogXML, self).pytest_runtest_logreport(report)
 
 
-class RerunPlugin(object):
-    """Pytest plugin implements rerun failed functionality"""
+class RerunStats(object):
+    """Represents rerun stats"""
 
     def __init__(self):
-        self.tests_to_rerun = set([])
-        self.mainrun_stats = {}
+        self._tracked_nodes = {}
         self.rerun_stats = {
             'rerun_tests': [],
             'total_failed': 0,
             'total_reruns': 0,
             'total_resolved_by_reruns': 0
         }
-        # resolving xdist worker object
-        self.xdist_worker = next(iter(filter(
-            lambda x: x.__class__.__name__ == 'WorkerInteractor', 
-            pytest.config.pluginmanager.get_plugins()
-        )), None)
-        self.reruns_time = 0
-        self.test_reports = {}
 
-    def _failed_test(self, nodeid):
+    def _failure_entry(self, nodeid):
         """
-        Template format for failed test stat
+        Add failure entry
+        We assume that failure for test could appear once per run shich mean that
+        tests are executed without repetition in main run 
+        """
+        if nodeid not in self._tracked_nodes:
+            self._tracked_nodes[nodeid] = self._stat_entry(nodeid)
+            self.rerun_stats['total_failed'] += 1
+        return self._tracked_nodes[nodeid]   
 
-        Returns
-        -------
-        dict
+    def _rerun_entry(self, nodeid):
         """
-        default_stat = {'nodeid': nodeid, 'status': 'failed'}
-        default_stat.update(self._test_traces())
-        stat = self.mainrun_stats.get(nodeid, default_stat)
-        self.mainrun_stats[nodeid] = stat
-        return stat
+        Add rerun entry
+        Rerun could be added several times
+        """
+        if nodeid not in self._tracked_nodes:
+            self._tracked_nodes[nodeid] = self._stat_entry(nodeid)
+        self.rerun_stats['total_reruns'] += 1
+        return self._tracked_nodes[nodeid]   
 
-    def _rerun_test(self, nodeid):
-        """
-        Template format for rerun test stat
-
-        Returns
-        -------
-        dict
-        """
-        stat = {
+    def _stat_entry(self, nodeid):
+        """Default entry structure"""
+        return {
             'nodeid': nodeid,
             'status': 'failed',
-            'rerun_trace': self._test_traces(),
-            'original_trace': {
-                'setup': self.mainrun_stats[nodeid]['setup'],
-                'call': self.mainrun_stats[nodeid]['call'],
-                'teardown': self.mainrun_stats[nodeid]['teardown'],
-            }
+            'original_trace': self._test_traces(),
+            'rerun_trace': self._test_traces()
         }
-        self.rerun_stats['rerun_tests'].append(stat)
-        return stat
 
     def _test_traces(self):
         """Default traces structures"""
         return {
             'setup': {
-                'caplog': None,
-                'capstderr': None,
-                'capstdout': None,
-                'text_repr': None
+                'caplog': '',
+                'capstderr': '',
+                'capstdout': '',
+                'text_repr': ''
             },
             'call': {
-                'caplog': None,
-                'capstderr': None,
-                'capstdout': None,
-                'text_repr': None
+                'caplog': '',
+                'capstderr': '',
+                'capstdout': '',
+                'text_repr': ''
             },
             'teardown': {
-                'caplog': None,
-                'capstderr': None,
-                'capstdout': None,
-                'text_repr': None
+                'caplog': '',
+                'capstderr': '',
+                'capstdout': '',
+                'text_repr': ''
             }
         }
+
+    def add_failure(self, *reports):
+        """
+        Add faulire appeared during run
+
+        Parameters
+        ----------
+        reports : list[_pytest.runner.TestReport]
+        """
+        if not reports:
+            return
+        failure = self._failure_entry(reports[0].nodeid)
+        for report in reports:
+            failure['original_trace'][report.when]['caplog'] = report.caplog
+            failure['original_trace'][report.when]['capstderr'] = report.capstderr
+            failure['original_trace'][report.when]['capstdout'] = report.capstdout
+            failure['original_trace'][report.when]['text_repr'] = report.longreprtext
+
+    def add_rerun(self, success, *reports):
+        """
+        Add faulire appeared during run
+
+        Parameters
+        ----------
+        success : bool
+        reports : list[_pytest.runner.TestReport]
+        """
+        if not reports:
+            return
+        rerun = self._rerun_entry(reports[0].nodeid)
+        self.rerun_stats['total_resolved_by_reruns'] += int(success)
+        rerun['status'] = 'flake' if success else 'failed'
+        for report in reports:
+            rerun['rerun_trace'][report.when]['caplog'] = report.caplog
+            rerun['rerun_trace'][report.when]['capstderr'] = report.capstderr
+            rerun['rerun_trace'][report.when]['capstdout'] = report.capstdout
+            rerun['rerun_trace'][report.when]['text_repr'] = report.longreprtext
+
+    def dump_artifact(self, artifact_path):
+        self.rerun_stats['rerun_tests'] = list(self._tracked_nodes.values())
+        with open(artifact_path, 'w') as artifact:
+            json.dump(self.rerun_stats, artifact)
+
+    def remove_node(self, nodeid):
+        node = self._tracked_nodes[nodeid]
+        del self._tracked_nodes[nodeid]
+
+
+class XdistRerunsAggregator(object):
+    """Simple rerun stats aggregator aimed to be attached to xdist master process"""
+
+    def __init__(self):
+        self.rerun_stats = RerunStats()
+        self.failure_rerun_map = {}
+        self.reports_aggregation = {}
+
+    def pytest_runtest_logreport(self, report):
+        nodeid = report.nodeid
+        if report.when == 'setup':
+            self.reports_aggregation[nodeid] = [report]
+        elif report.when == 'teardown':
+            self.reports_aggregation[nodeid].append(report)
+            if any([r.outcome == 'rerun' for r in self.reports_aggregation[nodeid]]):
+                self.rerun_stats.add_failure(*self.reports_aggregation[nodeid])
+                self.failure_rerun_map[nodeid] = False
+            elif nodeid in self.failure_rerun_map:
+                success = not any([r.failed for r in self.reports_aggregation[nodeid]])
+                self.rerun_stats.add_rerun(success, *self.reports_aggregation[nodeid])
+                self.failure_rerun_map[nodeid] = not report.restored
+        else:
+            self.reports_aggregation[nodeid].append(report)
+
+    def pytest_unconfigure(self, config):
+        artifact_path = config.option.reruns_artifact_path
+        if not artifact_path:
+            return
+
+        uncompleted_tests = [i for i, j in  self.failure_rerun_map.items() if not j]
+    
+        for t in uncompleted_tests:
+            self.rerun_stats.remove_node(t)
+            self.rerun_stats.rerun_stats['total_failed'] -= 1
+            self.rerun_stats.rerun_stats['total_reruns'] -= 1
+
+        self.rerun_stats.dump_artifact(artifact_path)
+
+    def pytest_report_teststatus(self, report):
+        """
+        Pytest hook
+
+        Handle of report rerun outcome
+        Adapted from https://docs.pytest.org/en/latest/skipping.html
+
+        Parameters
+        ----------
+        report : _pytest.runner.TestReport
+        """
+        if report.outcome == 'rerun':
+            return 'rerun', 'R', ('RERUN', {'yellow': True})
+
+
+class RerunPlugin(object):
+    """Pytest plugin implements rerun failed functionality"""
+
+    def __init__(self):
+        self.tests_to_rerun = set([])
+        self.rerun_stats = RerunStats()
+        # resolving xdist worker object
+        self.xdist_worker = next(iter(filter(
+            lambda x: x.__class__.__name__ == 'WorkerInteractor',
+            pytest.config.pluginmanager.get_plugins()
+        )), None)
+        self.reruns_time = 0
+        self.test_reports = {}
 
     def pytest_runtest_protocol(self, item, nextitem):
         """
@@ -281,32 +413,33 @@ class RerunPlugin(object):
             nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
         reruns = self._get_reruns_count(item)
-        
+
         self.test_reports[item.nodeid] = copy.deepcopy(reports)
 
         for report in reports:  # 3 reports: setup, call, teardown
             xfail = hasattr(report, 'wasxfail')
+            setattr(report, 'restored', False)
             if report.failed and not xfail and reruns > 0:
                 # failure detected
-                stat = self._failed_test(item.nodeid)
-                stat[report.when]['caplog'] = report.caplog
-                stat[report.when]['capstderr'] = report.capstderr
-                stat[report.when]['capstdout'] = report.capstdout
-                stat[report.when]['text_repr'] = report.longreprtext
-
                 self.tests_to_rerun.add(item)
                 report.outcome = 'rerun'
 
             item.ihook.pytest_runtest_logreport(report=report)
 
+        # Add all related reports to rerun report in case if item failed
+        if item in self.tests_to_rerun:
+            self.rerun_stats.add_failure(*reports)
+
         # Last test of a testrun was performed
         if nextitem == None:
             max_tests_reruns = item.config.option.max_tests_rerun
-            if max_tests_reruns and len(self.tests_to_rerun) > max_tests_reruns:
+            tests_failed = len(self.tests_to_rerun)
+            if max_tests_reruns and max_tests_reruns > 0 and tests_failed > max_tests_reruns:
                 self._skip_reruns(
                     max_tests_reruns,
                     item.config.pluginmanager.getplugin("terminalreporter")
                 )
+                self.rerun_stats = RerunStats()
                 self._save_reruns_artifact(item.session)
                 return True
             rerun_start = time.time()
@@ -322,12 +455,19 @@ class RerunPlugin(object):
         msg = "Too many failed test: %s with threshold of %s. Restore failures without reruns" % (
             len(self.tests_to_rerun), max_tests_reruns
         )
-        markup = {'red': True, "bold": True}
-        terminalreporter.write_sep("=", msg, **markup)
+        # terminalreporter exists only in xdist master process
+        if not terminalreporter:
+            msg = '\n[%s] %s' % (self.xdist_worker.workerid, msg)
+            print >> sys.stderr, msg
+        else:
+            markup = {'red': True, "bold": True}
+            terminalreporter.write_sep("=", msg, **markup)
 
         for item in self.tests_to_rerun:
-            for report in self.test_reports[item.nodeid]:
-                item.ihook.pytest_runtest_logreport(report=report)
+            with self._prepare_xdist(item):
+                for report in self.test_reports[item.nodeid]:
+                    setattr(report, 'restored', True)
+                    item.ihook.pytest_runtest_logreport(report=report)
 
         self.tests_to_rerun = []
 
@@ -338,7 +478,6 @@ class RerunPlugin(object):
         for item in self.tests_to_rerun:
             self._invalidate_fixtures(item)
 
-        self.rerun_stats['total_failed'] = len(self.tests_to_rerun)
         for item in self.tests_to_rerun:
             reruns = self._get_reruns_count(item)
             if reruns is None:
@@ -346,9 +485,6 @@ class RerunPlugin(object):
 
             with self._prepare_xdist(item):
                 self._rerun_item(item, reruns)
-
-        for rerun in self.rerun_stats['rerun_tests']:
-            rerun['status'] = self.mainrun_stats[rerun['nodeid']]['status']
 
     def _rerun_item(self, item, reruns):
         """
@@ -359,35 +495,27 @@ class RerunPlugin(object):
         item : _pytest.main.Item
         """
         delay = self._get_reruns_delay(item)
-        parallel = hasattr(item.config, 'slaveinput')
 
         for i in range(reruns):
             time.sleep(delay)
             item.ihook.pytest_runtest_logstart(
-                nodeid=item.nodeid, location=item.location)
+                nodeid=item.nodeid, location=item.location
+            )
+
             reports = runtestprotocol(item, nextitem=None, log=False)
             rerun_status = True
-            stat = self._rerun_test(item.nodeid)
             for report in reports:
                 xfail = hasattr(report, 'wasxfail')
                 report.rerun = i
                 rerun_status = rerun_status and (not report.failed or xfail)
                 if report.failed and (i != reruns - 1):
                     report.outcome = 'rerun'
-                if not parallel or works_with_current_xdist():
-                    # will log intermediate result
-                    item.ihook.pytest_runtest_logreport(report=report)
+                setattr(report, 'restored', False)
+                item.ihook.pytest_runtest_logreport(report=report)
 
-                stat['rerun_trace'][report.when]['caplog'] = report.caplog
-                stat['rerun_trace'][report.when]['capstderr'] = report.capstderr
-                stat['rerun_trace'][report.when]['capstdout'] = report.capstdout
-                stat['rerun_trace'][report.when]['text_repr'] = report.longreprtext
-
-            self.rerun_stats['total_reruns'] += 1
+            self.rerun_stats.add_rerun(rerun_status, *reports)
 
             if rerun_status:
-                self.rerun_stats['total_resolved_by_reruns'] += 1
-                self.mainrun_stats[item.nodeid]['status'] = 'flake'
                 break
 
     def _invalidate_fixtures(self, item):
@@ -543,13 +671,14 @@ class RerunPlugin(object):
             return
 
         if self.xdist_worker:
+            if not session.config.option.xdist_worker_reruns_artifact:
+                return
             # Adding xdist worker prefix to filepath to avoid stats overwrite
             path = artifact_path.split('/')
             path[-1] = self.xdist_worker.workerid + '_' + path[-1]
             artifact_path = '/'.join(path)
 
-        with open(artifact_path, 'w') as artifact:
-            json.dump(self.rerun_stats, artifact)
+        self.rerun_stats.dump_artifact(artifact_path)
 
     @contextmanager
     def _prepare_xdist(self, item):
@@ -564,6 +693,7 @@ class RerunPlugin(object):
             self.xdist_worker.item_index = current_index
         else:
             yield
+
 
 class RerunResultLog(ResultLog):
     """ResultLog wrapper for support rerun capabilities"""
