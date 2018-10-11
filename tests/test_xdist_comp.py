@@ -1,3 +1,4 @@
+import os
 import json
 
 import pytest
@@ -190,8 +191,10 @@ def test_xdist_all_tests_failed_with_junit(testdir):
         assert artifact_data['testsuite']['@failures'] == '2'
         assert artifact_data['testsuite']['@tests'] == '4'
         assert len(artifact_data['testsuite']['testcase']) == 4
-        assert artifact_data['testsuite']['testcase'][2]['failure']
-        assert artifact_data['testsuite']['testcase'][3]['failure']
+        assert len(
+            [t for t in artifact_data['testsuite']['testcase'] if 'failure' in t]
+        ) == 2
+
 
 
 def test_xdist_all_tests_max_reruns_with_junit(testdir):
@@ -210,8 +213,9 @@ def test_xdist_all_tests_max_reruns_with_junit(testdir):
         assert artifact_data['testsuite']['@failures'] == '2'
         assert artifact_data['testsuite']['@tests'] == '4'
         assert len(artifact_data['testsuite']['testcase']) == 4
-        assert artifact_data['testsuite']['testcase'][2]['failure']
-        assert artifact_data['testsuite']['testcase'][3]['failure']
+        assert len(
+            [t for t in artifact_data['testsuite']['testcase'] if 'failure' in t]
+        ) == 2
 
 
 def test_xdist_after_temporary_setup_resolved_with_junit(testdir):
@@ -264,7 +268,12 @@ def test_xdist_worker_rerun_stats(testdir):
         '--xdist-worker-reruns-artifact',
     )
     assert_outcomes(result, passed=4, rerun=2)
-    with open(testdir.tmpdir.strpath + '/gw0_artifact.json') as artifact:
+    if os.path.isfile(testdir.tmpdir.strpath + '/gw0_artifact.json'):
+        xdist_artifact_path = testdir.tmpdir.strpath + '/gw0_artifact.json'
+    else:
+        xdist_artifact_path = testdir.tmpdir.strpath + '/gw1_artifact.json'
+
+    with open(xdist_artifact_path) as artifact:
         artifact_data = json.load(artifact)
         assert artifact_data['total_reruns'] == 2
         assert artifact_data['total_failed'] == 2
