@@ -233,7 +233,7 @@ class RerunStats(object):
     def _failure_entry(self, nodeid):
         """
         Add failure entry
-        We assume that failure for test could appear once per run shich mean that
+        We assume that failure for test could appear once per run which mean that
         tests are executed without repetition in main run 
         """
         if nodeid not in self._tracked_nodes:
@@ -285,7 +285,7 @@ class RerunStats(object):
 
     def add_failure(self, *reports):
         """
-        Add faulire appeared during run
+        Add failure appeared during run
 
         Parameters
         ----------
@@ -302,7 +302,7 @@ class RerunStats(object):
 
     def add_rerun(self, success, *reports):
         """
-        Add faulire appeared during run
+        Add failure appeared during run
 
         Parameters
         ----------
