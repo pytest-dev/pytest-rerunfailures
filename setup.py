@@ -1,5 +1,11 @@
 from setuptools import setup
 
+test_deps = [
+    'xmltodict==0.11.0',
+    'pytest==3.5.1',
+    'pytest-xdist==1.23.2'
+]
+
 setup(name='pytest-rerunfailures',
       version='4.1.dr6',
       description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
@@ -11,7 +17,9 @@ setup(name='pytest-rerunfailures',
       url='https://github.com/datarobot/pytest-rerunfailures',
       py_modules=['pytest_rerunfailures'],
       entry_points={'pytest11': ['rerunfailures = pytest_rerunfailures']},
-      install_requires=['pytest >= 2.8.7', 'mock>=1.0.1'],
+      install_requires=['pytest>=3.5', 'mock>=1.0.1'],
+      tests_require=test_deps,
+      extras_require={'test': test_deps},
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest rerun failures flaky',
       classifiers=[
