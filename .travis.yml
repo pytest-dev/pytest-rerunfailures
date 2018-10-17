@@ -4,6 +4,7 @@ python:
   - 3.4
   - 3.5
   - 3.6
+  - 3.7
   - 3.7-dev
   - pypy
   - pypy3.5-5.8.0
@@ -19,6 +20,7 @@ env:
   - PYTEST=3.6.3
   - PYTEST=3.7.4
   - PYTEST=3.8.2
+  - PYTEST=3.9.1
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
