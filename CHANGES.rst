@@ -1,7 +1,7 @@
 Changelog
 ---------
 
-5.0 (unreleased)
+5.0 (2018-11-06)
 ================
 
 - Drop support for pytest versions < 3.6 to reduce the maintenance burden.
