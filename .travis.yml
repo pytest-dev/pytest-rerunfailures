@@ -8,8 +8,8 @@ python:
   - 3.6
   - 3.7
   - 3.7-dev
-  - pypy
-  - pypy3
+  - pypy2.7
+  - pypy3.5
 env:
   - PYTEST=2.8.7
   - PYTEST=2.9.2
