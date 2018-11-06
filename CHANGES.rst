@@ -9,6 +9,8 @@ Changelog
 - Add support up to pytest version 3.10. Thus supporting the newest 5 pytest
   releases.
 
+- Add support for Python 3.7.
+
 
 4.2 (2018-10-04)
 ================
