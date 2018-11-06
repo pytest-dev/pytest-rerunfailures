@@ -4,10 +4,8 @@ python:
   - 3.4
   - 3.5
   - 3.6
-  - 3.7
-  - 3.7-dev
   - pypy
-  - pypy3.5-5.8.0
+  - pypy3
 env:
   - PYTEST=2.8.7
   - PYTEST=2.9.2
@@ -20,7 +18,16 @@ env:
   - PYTEST=3.6.3
   - PYTEST=3.7.4
   - PYTEST=3.8.2
-  - PYTEST=3.9.1
+  - PYTEST=3.9.3
+  - PYTEST=3.10.0
+matrix:
+    include:
+        - python: "3.7"
+          dist: xenial
+          sudo: true
+        - python: "3.7-dev"
+          dist: xenial
+          sudo: true
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .

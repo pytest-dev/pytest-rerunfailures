@@ -5,7 +5,7 @@ Changelog
 4.3 (unreleased)
 ================
 
-- Nothing changed yet.
+- Claim support up to pytest version 3.10.
 
 
 4.2 (2018-10-04)
