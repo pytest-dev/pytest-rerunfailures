@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pytest-rerunfailures',
-      version='4.3.dev0',
+      version='5.0.dev0',
       description='pytest plugin to re-run tests to eliminate flaky failures',
       long_description=(
           open('README.rst').read() +
@@ -12,7 +12,7 @@ setup(name='pytest-rerunfailures',
       url='https://github.com/pytest-dev/pytest-rerunfailures',
       py_modules=['pytest_rerunfailures'],
       entry_points={'pytest11': ['rerunfailures = pytest_rerunfailures']},
-      install_requires=['pytest >= 2.8.7'],
+      install_requires=['pytest >= 3.6'],
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest rerun failures flaky',
       classifiers=[
