@@ -11,6 +11,9 @@ Changelog
 
 - Add support for Python 3.7.
 
+- Fix issue can occur when used together with `pytest-flake8`
+  (`#73 <https://github.com/pytest-dev/pytest-rerunfailures/issues/73>`_)
+
 
 4.2 (2018-10-04)
 ================
