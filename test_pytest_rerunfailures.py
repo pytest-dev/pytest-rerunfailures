@@ -1,11 +1,10 @@
 import random
 import time
-import pytest_rerunfailures
 
 try:
-    import mock
-except ImportError:
     from unittest import mock
+except ImportError:
+    import mock
 
 import pytest
 
