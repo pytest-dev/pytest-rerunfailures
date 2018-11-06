@@ -1,11 +1,13 @@
 Changelog
 ---------
 
-
-4.3 (unreleased)
+5.0 (unreleased)
 ================
 
-- Claim support up to pytest version 3.10.
+- Drop support for pytest versions < 3.6 to reduce the maintenance burden.
+
+- Add support up to pytest version 3.10. Thus supporting the newest 5 pytest
+  releases.
 
 
 4.2 (2018-10-04)
