@@ -15,6 +15,7 @@ setup(name='pytest-rerunfailures',
       install_requires=['pytest >= 3.6'],
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest rerun failures flaky',
+      zip_safe=False,
       classifiers=[
           'Development Status :: 5 - Production/Stable',
           'Framework :: Pytest',
