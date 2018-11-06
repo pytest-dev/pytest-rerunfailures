@@ -127,8 +127,8 @@ def _remove_cached_results_from_failed_fixtures(item):
     Note: remove all cached_result attribute from every fixture
     """
     cached_result = 'cached_result'
-    fixture_info = getattr(item, '_fixtureinfo')
-    for fixture_def_str in fixture_info.name2fixturedefs:
+    fixture_info = getattr(item, '_fixtureinfo', None)
+    for fixture_def_str in getattr(fixture_info, 'name2fixturedefs', ()):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
             if hasattr(fixture_def, cached_result):
