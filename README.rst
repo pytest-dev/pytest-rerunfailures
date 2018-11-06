@@ -20,7 +20,7 @@ Requirements
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
 - Python 2.7, 3.4, 3.5, 3.6, 3.7, PyPy, or PyPy3
-- pytest 2.8.7 or newer
+- pytest 3.6 or newer
 
 Installation
 ------------
@@ -119,10 +119,10 @@ Resources
 Development
 -----------
 
-* Test execution count can be retrieved from the ``execution_count`` attribute in test ``item``'s object. Example::
+* Test execution count can be retrieved from the ``execution_count`` attribute in test ``item``'s object. Example:
 
-.. code-block:: python
+  .. code-block:: python
 
-  @hookimpl(tryfirst=True, hookwrapper=True)
-  def pytest_runtest_makereport(item, call):
-      print(item.execution_count)
+    @hookimpl(tryfirst=True, hookwrapper=True)
+    def pytest_runtest_makereport(item, call):
+        print(item.execution_count)
