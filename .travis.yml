@@ -11,7 +11,6 @@ python:
   - pypy2.7-5.10.0
   - pypy3.5
 env:
-  - PYTEST=3.6.4
   - PYTEST=3.7.4
   - PYTEST=3.8.2
   - PYTEST=3.9.3
