@@ -1,10 +1,12 @@
 Changelog
 ---------
 
-5.1 (unreleased)
+6.0 (unreleased)
 ================
 
-- Nothing changed yet.
+- Add support for pytest version 4.0.
+
+- Drop support for pytest version 3.6.
 
 
 5.0 (2018-11-06)
