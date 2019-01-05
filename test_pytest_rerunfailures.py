@@ -393,7 +393,6 @@ def test_rerun_report(testdir):
     testdir.makepyfile('def test_pass(): assert False')
     testdir.makeconftest("""
         def pytest_runtest_logreport(report):
-            print report, hasattr(report, 'rerun'), report.rerun
             assert hasattr(report, 'rerun')
             assert isinstance(report.rerun, int)
         """)
