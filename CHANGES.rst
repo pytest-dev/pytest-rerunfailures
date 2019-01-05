@@ -8,6 +8,8 @@ Changelog
 
 - Drop support for pytest version 3.6.
 
+- Fixed #77 issue related to the ``rerun`` attribute on the test report.
+
 
 5.0 (2018-11-06)
 ================

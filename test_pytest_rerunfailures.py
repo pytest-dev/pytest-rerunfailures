@@ -388,3 +388,14 @@ def test_execution_count_exposed(testdir):
             assert item.execution_count == 3""")
     result = testdir.runpytest('--reruns', '2')
     assert_outcomes(result, passed=3, rerun=2)
+
+def test_rerun_report(testdir):
+    testdir.makepyfile('def test_pass(): assert False')
+    testdir.makeconftest("""
+        def pytest_runtest_logreport(report):
+            print report, hasattr(report, 'rerun'), report.rerun
+            assert hasattr(report, 'rerun')
+            assert isinstance(report.rerun, int)
+        """)
+    result = testdir.runpytest('--reruns', '2')
+    assert_outcomes(result, failed=1, rerun=2, passed=0)
