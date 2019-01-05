@@ -8,7 +8,9 @@ Changelog
 
 - Drop support for pytest version 3.6.
 
-- Fixed #77 issue related to the ``rerun`` attribute on the test report.
+- Fixed #77 issue related to the ``rerun`` attribute on the test report. (Thanks to `@RibeiroAna`_ for the PR).
+
+.. _@RibeiroAna: https://github.com/RibeiroAna
 
 
 5.0 (2018-11-06)
