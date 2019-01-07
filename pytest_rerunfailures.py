@@ -175,7 +175,7 @@ def pytest_runtest_protocol(item, nextitem):
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
         for report in reports:  # 3 reports: setup, call, teardown
-            report.rerun = item.execution_count
+            report.rerun = item.execution_count - 1
             xfail = hasattr(report, 'wasxfail')
             if item.execution_count > reruns or not report.failed or xfail:
                 # last run or no failure detected, log normally

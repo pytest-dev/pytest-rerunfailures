@@ -395,6 +395,7 @@ def test_rerun_report(testdir):
         def pytest_runtest_logreport(report):
             assert hasattr(report, 'rerun')
             assert isinstance(report.rerun, int)
+            assert report.rerun <= 2
         """)
     result = testdir.runpytest('--reruns', '2')
     assert_outcomes(result, failed=1, rerun=2, passed=0)
