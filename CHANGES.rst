@@ -1,7 +1,7 @@
 Changelog
 ---------
 
-6.0 (unreleased)
+6.0 (2019-01-08)
 ================
 
 Backwards incompatible changes
