@@ -17,8 +17,10 @@ Features
 Bug fixes
 +++++++++
 
-- Fixed #77 regression issue related to the ``rerun`` attribute on the test
-  report. (Thanks to `@RibeiroAna`_ for the PR).
+- Fixed #77 regression issue introduced in 4.2 related to the ``rerun``
+  attribute on the test report.
+  (`#77 <https://github.com/pytest-dev/pytest-rerunfailures/issues/77>`_)
+  (Thanks to `@RibeiroAna`_ for the PR).
 
 .. _@RibeiroAna: https://github.com/RibeiroAna
 
