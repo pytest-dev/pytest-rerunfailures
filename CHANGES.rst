@@ -4,11 +4,21 @@ Changelog
 6.0 (unreleased)
 ================
 
-- Add support for pytest version 4.0.
+Backwards incompatible changes
+++++++++++++++++++++++++++++++
 
-- Drop support for pytest version 3.6.
+- Drop support for pytest version 3.6 and 3.7.
 
-- Fixed #77 issue related to the ``rerun`` attribute on the test report. (Thanks to `@RibeiroAna`_ for the PR).
+Features
+++++++++
+
+- Add support for pytest version 4.0 and 4.1.
+
+Bug fixes
++++++++++
+
+- Fixed #77 regression issue related to the ``rerun`` attribute on the test
+  report. (Thanks to `@RibeiroAna`_ for the PR).
 
 .. _@RibeiroAna: https://github.com/RibeiroAna
 
