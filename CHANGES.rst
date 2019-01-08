@@ -1,14 +1,14 @@
 Changelog
----------
+=========
 
 6.1 (unreleased)
-================
+----------------
 
 - Nothing changed yet.
 
 
 6.0 (2019-01-08)
-================
+----------------
 
 Backwards incompatible changes
 ++++++++++++++++++++++++++++++
@@ -32,7 +32,7 @@ Bug fixes
 
 
 5.0 (2018-11-06)
-================
+----------------
 
 - Drop support for pytest versions < 3.6 to reduce the maintenance burden.
 
@@ -46,7 +46,7 @@ Bug fixes
 
 
 4.2 (2018-10-04)
-================
+----------------
 
 - Fixed #64 issue related to ``setup_class`` and ``fixture`` executions on rerun (Thanks to
   `@OlegKuzovkov`_ for the PR).
@@ -58,7 +58,7 @@ Bug fixes
 
 
 4.1 (2018-05-23)
-================
+----------------
 
 - Add support for pytest 3.6 by using ``Node.get_closest_marker()`` (Thanks to
   `@The-Compiler`_ for the PR).
@@ -66,7 +66,7 @@ Bug fixes
 .. _@The-Compiler: https://github.com/The-Compiler
 
 4.0 (2017-12-23)
-================
+----------------
 
 - Added option to add a delay time between test re-runs (Thanks to `@Kanguros`_
   for the PR).
@@ -79,7 +79,7 @@ Bug fixes
 
 
 3.1 (2017-08-29)
-================
+----------------
 
 - Restored compatibility with pytest-xdist. (Thanks to `@davehunt`_ for the PR)
 
@@ -87,7 +87,7 @@ Bug fixes
 
 
 3.0 (2017-08-17)
-================
+----------------
 
 - Add support for Python 3.6.
 
@@ -99,7 +99,7 @@ Bug fixes
 
 
 2.2 (2017-06-23)
-================
+----------------
 
 - Ensure that other plugins can run after this one, in case of a global setting
   ``--rerun=0``. (Thanks to `@sublee`_ for the PR)
@@ -107,7 +107,7 @@ Bug fixes
 .. _@sublee: https://github.com/sublee
 
 2.1.0 (2016-11-01)
-==================
+------------------
 
 - Add default value of ``reruns=1`` if ``pytest.mark.flaky()`` is called
   without arguments.
@@ -118,7 +118,7 @@ Bug fixes
 
 
 2.0.1 (2016-08-10)
-==================
+-----------------------------
 
 - Prepare CLI options to pytest 3.0, to avoid a deprecation warning.
 
@@ -127,26 +127,26 @@ Bug fixes
 
 
 2.0.0 (2016-04-06)
-==================
+------------------
 
 - Drop support for Python 3.2, since supporting it became too much of a hassle.
   (Reason: Virtualenv 14+ / PIP 8+ do not support Python 3.2 anymore.)
 
 
 1.0.2 (2016-03-29)
-==================
+------------------
 
 - Add support for `--resultlog` option by parsing reruns accordingly. (#28)
 
 
 1.0.1 (2016-02-02)
-==================
+------------------
 
 - Improve package description and include CHANGELOG into description.
 
 
 1.0.0 (2016-02-02)
-==================
+------------------
 
 - Rewrite to use newer API of pytest >= 2.3.0
 
