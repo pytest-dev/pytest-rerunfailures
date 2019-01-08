@@ -4,6 +4,7 @@ setup(name='pytest-rerunfailures',
       version='6.1.dev0',
       description='pytest plugin to re-run tests to eliminate flaky failures',
       long_description=(
+          '.. contents::\n\n' +
           open('README.rst').read() +
           '\n\n' +
           open('CHANGES.rst').read()),
