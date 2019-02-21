@@ -4,7 +4,15 @@ Changelog
 6.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+Backwards incompatible changes
+++++++++++++++++++++++++++++++
+
+- Drop support for pytest version 3.8 and 3.9.
+
+Features
+++++++++
+
+- Add support for pytest version 4.2 and 4.3.
 
 
 6.0 (2019-01-08)
