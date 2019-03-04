@@ -168,7 +168,8 @@ def pytest_runtest_protocol(item, nextitem):
     parallel = hasattr(item.config, 'slaveinput')
     item.execution_count = 0
 
-    while True:
+    need_to_run = True
+    while need_to_run:
         item.execution_count += 1
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
                                            location=item.location)
@@ -195,7 +196,12 @@ def pytest_runtest_protocol(item, nextitem):
 
                 break  # trigger rerun
         else:
-            return True  # no need to rerun
+            need_to_run = False
+
+        item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid,
+                                            location=item.location)
+
+    return True
 
 
 def pytest_report_teststatus(report):
