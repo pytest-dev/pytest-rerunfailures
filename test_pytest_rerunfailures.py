@@ -389,6 +389,7 @@ def test_execution_count_exposed(testdir):
     result = testdir.runpytest('--reruns', '2')
     assert_outcomes(result, passed=3, rerun=2)
 
+
 def test_rerun_report(testdir):
     testdir.makepyfile('def test_pass(): assert False')
     testdir.makeconftest("""
@@ -399,3 +400,14 @@ def test_rerun_report(testdir):
         """)
     result = testdir.runpytest('--reruns', '2')
     assert_outcomes(result, failed=1, rerun=2, passed=0)
+
+
+def test_pytest_runtest_logfinish_is_called(testdir):
+    hook_message = "Message from pytest_runtest_logfinish hook"
+    testdir.makepyfile('def test_pass(): pass')
+    testdir.makeconftest(r"""
+        def pytest_runtest_logfinish(nodeid, location):
+            print("\n{0}\n")
+    """.format(hook_message))
+    result = testdir.runpytest('--reruns', '1', '-s')
+    result.stdout.fnmatch_lines(hook_message)
