@@ -5,6 +5,7 @@ import pkg_resources
 import time
 import warnings
 from contextlib import contextmanager
+from collections import defaultdict
 
 import pytest
 
@@ -336,7 +337,7 @@ class XdistRerunsAggregator(object):
     def __init__(self):
         self.rerun_stats = RerunStats()
         self.failure_rerun_map = {}
-        self.reports_aggregation = {}
+        self.reports_aggregation = defaultdict(list)
 
     def pytest_runtest_logreport(self, report):
         nodeid = report.nodeid
