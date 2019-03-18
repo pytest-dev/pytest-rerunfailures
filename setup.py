@@ -7,7 +7,7 @@ test_deps = [
 ]
 
 setup(name='pytest-rerunfailures',
-      version='4.1.dr6',
+      version='4.1.dr7',
       description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
       long_description=(
           open('README.rst').read() +

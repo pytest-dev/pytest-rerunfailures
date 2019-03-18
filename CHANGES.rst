@@ -1,7 +1,7 @@
 Changelog
 ---------
 
-4.1.dr7 (unreleased)
+4.1.dr7 (2019-03-18)
 ====================
 - [TEST-362] Use defaultdict for report gathering
 
