@@ -6,6 +6,10 @@ test_deps = [
     'pytest-xdist==1.23.2'
 ]
 
+release_deps = [
+    'twine>=1.6.5,<=1.11.0',
+]
+
 setup(name='pytest-rerunfailures',
       version='4.1.dr7',
       description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
@@ -19,7 +23,10 @@ setup(name='pytest-rerunfailures',
       entry_points={'pytest11': ['rerunfailures = pytest_rerunfailures']},
       install_requires=['pytest>=3.5,<3.6', 'mock>=1.0.1'],
       tests_require=test_deps,
-      extras_require={'test': test_deps},
+      extras_require={
+          'test': test_deps,
+          'dev': test_deps + release_deps
+        },
       license='Mozilla Public License 2.0 (MPL 2.0)',
       keywords='py.test pytest rerun failures flaky',
       classifiers=[
