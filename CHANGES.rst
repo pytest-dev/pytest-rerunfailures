@@ -1,6 +1,15 @@
 Changelog
 ---------
 
+4.1.dr7 (unreleased)
+====================
+- [TEST-362] Use defaultdict for report gathering
+
+4.1.dr6 (2018-10-11)
+====================
+- [DIRE-3375] Fixes for rerun stats and junit report generated with reruns
+- [DIRE-3315] junit report fix
+
 4.1.dr5 (2018-08-07)
 ================
 - Pytest-xdist support added 
