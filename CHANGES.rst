@@ -14,6 +14,15 @@ Features
 
 - Add support for pytest version 4.2 and 4.3.
 
+Bug fixes
++++++++++
+
+- Fixed #83 issue about ignored ``pytest_runtest_logfinish`` hooks.
+  (`#83 <https://github.com/pytest-dev/pytest-rerunfailures/issues/83>`_)
+  (PR from `@KillAChicken`_)
+
+.. _@KillAChicken: https://github.com/KillAChicken
+
 
 6.0 (2019-01-08)
 ----------------
