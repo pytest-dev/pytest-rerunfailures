@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='pytest-rerunfailures',
-      version='6.1.dev0',
+      version='7.0',
       description='pytest plugin to re-run tests to eliminate flaky failures',
       long_description=(
           '.. contents::\n\n' +
