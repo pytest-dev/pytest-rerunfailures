@@ -4,7 +4,15 @@ Changelog
 7.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+Backwards incompatible changes
+++++++++++++++++++++++++++++++
+
+- Drop support for pytest version 3.10.
+
+Features
+++++++++
+
+- Add support for pytest version 4.4.
 
 
 7.0 (2019-03-28)
