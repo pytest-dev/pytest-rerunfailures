@@ -11,11 +11,11 @@ python:
   - pypy2.7-5.10.0
   - pypy3.5
 env:
-  - PYTEST=3.10.0
   - PYTEST=4.0.2
   - PYTEST=4.1.1
   - PYTEST=4.2.1
   - PYTEST=4.3.1
+  - PYTEST=4.4.0
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
