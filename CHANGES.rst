@@ -7,12 +7,12 @@ Changelog
 Backwards incompatible changes
 ++++++++++++++++++++++++++++++
 
-- Drop support for pytest version 3.10.
+- Drop support for pytest version 3.10 and 4.0.
 
 Features
 ++++++++
 
-- Add support for pytest version 4.4.
+- Add support for pytest version 4.4 and 4.5.
 
 
 7.0 (2019-03-28)
