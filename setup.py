@@ -1,13 +1,16 @@
 from setuptools import setup
 
+with open('README.rst') as readme, open('CHANGES.rst') as changelog:
+    long_description = (
+        '.. contents::\n\n' +
+        readme.read() +
+        '\n\n' +
+        changelog.read())
+
 setup(name='pytest-rerunfailures',
       version='7.1.dev0',
       description='pytest plugin to re-run tests to eliminate flaky failures',
-      long_description=(
-          '.. contents::\n\n' +
-          open('README.rst').read() +
-          '\n\n' +
-          open('CHANGES.rst').read()),
+      long_description=long_description,
       author='Leah Klearman',
       author_email='lklrmn@gmail.com',
       url='https://github.com/pytest-dev/pytest-rerunfailures',
