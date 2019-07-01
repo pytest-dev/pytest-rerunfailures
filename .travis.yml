@@ -11,11 +11,20 @@ python:
   - pypy2.7-5.10.0
   - pypy3.5
 env:
-  - PYTEST=4.2.1
   - PYTEST=4.3.1
   - PYTEST=4.4.2
   - PYTEST=4.5.0
-  - PYTEST=4.6.2
+  - PYTEST=4.6.4
+matrix:
+  include:
+    - python: 3.5
+      env: PYTEST=5.0.0
+    - python: 3.6
+      env: PYTEST=5.0.0
+    - python: 3.7
+      env: PYTEST=5.0.0
+    - python: pypy3.5
+      env: PYTEST=5.0.0
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
