@@ -14,17 +14,17 @@ env:
   - PYTEST=4.3.1
   - PYTEST=4.4.2
   - PYTEST=4.5.0
-  - PYTEST=4.6.4
+  - PYTEST=4.6.5
 matrix:
   include:
     - python: 3.5
-      env: PYTEST=5.0.0
+      env: PYTEST=5.0.1
     - python: 3.6
-      env: PYTEST=5.0.0
+      env: PYTEST=5.0.1
     - python: 3.7
-      env: PYTEST=5.0.0
+      env: PYTEST=5.0.1
     - python: pypy3.5
-      env: PYTEST=5.0.0
+      env: PYTEST=5.0.1
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
