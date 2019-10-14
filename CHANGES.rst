@@ -9,6 +9,8 @@ Backwards incompatible changes
 
 - Drop support for pytest version 3.10, 4.0, 4.1 and 4.2.
 
+- Drop support for Python 3.4.
+
 Features
 ++++++++
 
