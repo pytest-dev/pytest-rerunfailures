@@ -16,6 +16,16 @@ Features
 
 - Add support for pytest version 4.4, 4.5, 4.6, 5.0, 5.1 and 5.2.
 
+Bug fixes
++++++++++
+
+- Explicitly depend on setuptools to ensure installation when working in
+  environments without it.
+  (`#98 <https://github.com/pytest-dev/pytest-rerunfailures/pull/98>`_)
+  (PR from `@Eric-Arellano`_)
+
+.. _@Eric-Arellano: https://github.com/Eric-Arellano
+
 
 7.0 (2019-03-28)
 ----------------
