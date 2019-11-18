@@ -1,7 +1,7 @@
 Changelog
 =========
 
-7.1 (unreleased)
+8.0 (2019-11-18)
 ----------------
 
 Backwards incompatible changes
