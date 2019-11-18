@@ -1,6 +1,12 @@
 Changelog
 =========
 
+8.1 (unreleased)
+----------------
+
+- Nothing changed yet.
+
+
 8.0 (2019-11-18)
 ----------------
 
