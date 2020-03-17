@@ -4,7 +4,10 @@ Changelog
 8.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+Features
+++++++++
+
+- Add support for pytest 5.4.0.
 
 
 8.0 (2019-11-18)

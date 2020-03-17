@@ -37,6 +37,11 @@ matrix:
       env: PYTEST=5.2.1
     - python: 3.7
       env: PYTEST=5.2.1
+
+    - python: 3.7
+      env: PYTEST=5.3.5
+    - python: 3.7
+      env: PYTEST=5.4.0
     - python: pypy3.5
       env: PYTEST=5.2.1
 install:

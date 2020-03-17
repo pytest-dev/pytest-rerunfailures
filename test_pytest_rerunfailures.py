@@ -7,6 +7,9 @@ except ImportError:
     import mock
 
 import pytest
+import pkg_resources
+
+
 
 pytest_plugins = 'pytester'
 

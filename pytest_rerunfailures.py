@@ -7,6 +7,7 @@ import pytest
 from _pytest.runner import runtestprotocol
 from _pytest.resultlog import ResultLog
 
+PYTEST_GTE_54 = pkg_resources.parse_version(pytest.__version__) >= pkg_resources.parse_version("5.4")
 
 def works_with_current_xdist():
     """Returns compatibility with installed pytest-xdist version.
@@ -54,6 +55,24 @@ def pytest_configure(config):
                    "between re-runs.")
 
 
+def _get_resultlog(config):
+    if PYTEST_GTE_54:
+        # hack
+        from _pytest.resultlog import resultlog_key
+        return config._store.get(resultlog_key, default=None)
+    else:
+        return getattr(config, '_resultlog', None)
+
+
+def _set_resultlog(config, resultlog):
+    if PYTEST_GTE_54:
+        # hack
+        from _pytest.resultlog import resultlog_key
+        config._store[resultlog_key] = resultlog
+    else:
+        config._resultlog = resultlog
+
+
 # making sure the options make sense
 # should run before / at the begining of pytest_cmdline_main
 def check_options(config):
@@ -63,12 +82,14 @@ def check_options(config):
             if config.option.usepdb:   # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
-    resultlog = getattr(config, '_resultlog', None)
+
+    resultlog = _get_resultlog(config)
     if resultlog:
         logfile = resultlog.logfile
         config.pluginmanager.unregister(resultlog)
-        config._resultlog = RerunResultLog(config, logfile)
-        config.pluginmanager.register(config._resultlog)
+        new_resultlog = RerunResultLog(config, logfile)
+        _set_resultlog(config, new_resultlog)
+        config.pluginmanager.register(new_resultlog)
 
 
 def _get_marker(item):
@@ -131,10 +152,13 @@ def _remove_cached_results_from_failed_fixtures(item):
     for fixture_def_str in getattr(fixture_info, 'name2fixturedefs', ()):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
-            if hasattr(fixture_def, cached_result):
+            if getattr(fixture_def, cached_result, None) is not None:
                 result, cache_key, err = getattr(fixture_def, cached_result)
                 if err:  # Deleting cached results for only failed fixtures
-                    delattr(fixture_def, cached_result)
+                    if PYTEST_GTE_54:
+                        setattr(fixture_def, cached_result, None)
+                    else:
+                        delattr(fixture_def, cached_result)
 
 
 def _remove_failed_setup_state_from_session(item):
@@ -261,6 +285,8 @@ class RerunResultLog(ResultLog):
         elif report.skipped:
             longrepr = str(report.longrepr[2])
         elif report.outcome == 'rerun':
+            longrepr = str(report.longrepr)
+        else:
             longrepr = str(report.longrepr)
 
         self.log_outcome(report, code, longrepr)
