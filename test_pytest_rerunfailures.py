@@ -1,14 +1,7 @@
+import mock
+import pytest
 import random
 import time
-
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
-import pytest
-import pkg_resources
-
 
 
 pytest_plugins = 'pytester'

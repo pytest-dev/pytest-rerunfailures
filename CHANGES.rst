@@ -1,13 +1,23 @@
 Changelog
 =========
 
-8.1 (unreleased)
+9.0 (unreleased)
 ----------------
+
+Backwards incompatible changes
+++++++++++++++++++++++++++++++
+
+- Drop support for pytest version 4.4, 4.5 and 4.6.
+
+- Drop support for Python 2.7.
+
 
 Features
 ++++++++
 
-- Add support for pytest 5.4.0.
+- Add support for pytest 5.4.
+
+- Add support for Python 3.8.
 
 
 8.0 (2019-11-18)
