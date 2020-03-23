@@ -4,7 +4,7 @@ Changelog
 9.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Drop dependency on ``mock``.
 
 
 9.0 (2020-03-18)
