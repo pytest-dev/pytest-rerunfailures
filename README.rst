@@ -127,6 +127,6 @@ Development
 
   .. code-block:: python
 
-    @hookimpl(tryfirst=True, hookwrapper=True)
+    @hookimpl(tryfirst=True)
     def pytest_runtest_makereport(item, call):
         print(item.execution_count)
