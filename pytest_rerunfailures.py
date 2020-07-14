@@ -182,7 +182,7 @@ def _remove_failed_setup_state_from_session(item):
     setup_state.stack = list()
 
 
-def _should_fail_on_error(session_config, report):
+def _should_hard_fail_on_error(session_config, report):
     if report.outcome != 'failed':
         return False
 
@@ -224,7 +224,7 @@ def pytest_runtest_protocol(item, nextitem):
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
         for report in reports:  # 3 reports: setup, call, teardown
-            is_terminal_error = _should_fail_on_error(item.session.config, report)
+            is_terminal_error = _should_hard_fail_on_error(item.session.config, report)
             report.rerun = item.execution_count - 1
             xfail = hasattr(report, 'wasxfail')
             if item.execution_count > reruns or not report.failed or xfail or is_terminal_error:
