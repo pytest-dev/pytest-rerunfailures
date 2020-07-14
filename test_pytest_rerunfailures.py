@@ -423,7 +423,7 @@ def test_pytest_runtest_logfinish_is_called(testdir):
             ('def test_only_rerun(): raise AssertionError("ERR")', 'ERR', True),
         ]
 )
-def test_pytest_only_rerun(testdir, file_text, only_rerun_text, should_rerun):
+def test_only_rerun_flag(testdir, file_text, only_rerun_text, should_rerun):
     testdir.makepyfile(file_text)
 
     num_failed = 1

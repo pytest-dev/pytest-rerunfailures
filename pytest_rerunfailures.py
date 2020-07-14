@@ -37,7 +37,7 @@ def pytest_addoption(parser):
         dest='only_rerun',
         type=str,
         default=None,
-        help='Optional comma seperated list. If passed, only rerun errors matching the regexes provided.'
+        help='Optional comma separated list. If passed, only rerun errors matching the regexes provided.'
     )
     group._addoption(
         '--reruns',
