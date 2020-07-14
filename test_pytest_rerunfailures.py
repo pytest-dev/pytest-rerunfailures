@@ -407,3 +407,29 @@ def test_pytest_runtest_logfinish_is_called(testdir):
     """.format(hook_message))
     result = testdir.runpytest('--reruns', '1', '-s')
     result.stdout.fnmatch_lines(hook_message)
+
+@pytest.mark.parametrize(
+        "file_text, only_rerun_text, should_rerun",
+        [
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'Assertion*', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'Assertion', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'ValueError', False),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError,ValueError', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError ValueError', False),
+            ('def test_only_rerun(): raise AssertionError("ERR")', '', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError: ', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError: ERR', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', 'ERR', True),
+        ]
+)
+def test_pytest_only_rerun(testdir, file_text, only_rerun_text, should_rerun):
+    testdir.makepyfile(file_text)
+
+    num_failed = 1
+    num_passed = 0
+    num_reruns = 1
+    num_reruns_actual = num_reruns if should_rerun else 0
+
+    result = testdir.runpytest('--reruns', str(num_reruns), '--only-rerun', only_rerun_text)
+    assert_outcomes(result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual)

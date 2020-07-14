@@ -1,4 +1,5 @@
 import pkg_resources
+import re
 import time
 import warnings
 
@@ -30,6 +31,14 @@ def pytest_addoption(parser):
     group = parser.getgroup(
         "rerunfailures",
         "re-run failing tests to eliminate flaky failures")
+    group._addoption(
+        '--only-rerun',
+        action='store',
+        dest='only_rerun',
+        type=str,
+        default=None,
+        help='Optional comma seperated list. If passed, only rerun errors matching the regexes provided.'
+    )
     group._addoption(
         '--reruns',
         action="store",
@@ -173,6 +182,21 @@ def _remove_failed_setup_state_from_session(item):
     setup_state.stack = list()
 
 
+def _should_fail_on_error(session_config, report):
+    if report.outcome != 'failed':
+        return False
+
+    rerun_errors = session_config.option.only_rerun
+    if not rerun_errors:
+        return False
+
+    for rerun_regex in rerun_errors.split(','):
+        if re.search(rerun_regex, report.longrepr.reprcrash.message):
+            return False
+
+    return True
+
+
 def pytest_runtest_protocol(item, nextitem):
     """
     Note: when teardown fails, two reports are generated for the case, one for
@@ -200,9 +224,10 @@ def pytest_runtest_protocol(item, nextitem):
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
         for report in reports:  # 3 reports: setup, call, teardown
+            is_terminal_error = _should_fail_on_error(item.session.config, report)
             report.rerun = item.execution_count - 1
             xfail = hasattr(report, 'wasxfail')
-            if item.execution_count > reruns or not report.failed or xfail:
+            if item.execution_count > reruns or not report.failed or xfail or is_terminal_error:
                 # last run or no failure detected, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
