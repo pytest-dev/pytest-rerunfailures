@@ -33,11 +33,11 @@ def pytest_addoption(parser):
         "re-run failing tests to eliminate flaky failures")
     group._addoption(
         '--only-rerun',
-        action='store',
+        action='append',
         dest='only_rerun',
         type=str,
         default=None,
-        help='Optional comma separated list. If passed, only rerun errors matching the regexes provided.'
+        help='If passed, only rerun errors matching the regex provided. Pass this flag multiple times to accumulate a list of regexes to match'
     )
     group._addoption(
         '--reruns',
@@ -190,7 +190,7 @@ def _should_hard_fail_on_error(session_config, report):
     if not rerun_errors:
         return False
 
-    for rerun_regex in rerun_errors.split(','):
+    for rerun_regex in rerun_errors:
         if re.search(rerun_regex, report.longrepr.reprcrash.message):
             return False
 

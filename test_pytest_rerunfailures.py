@@ -409,21 +409,22 @@ def test_pytest_runtest_logfinish_is_called(testdir):
     result.stdout.fnmatch_lines(hook_message)
 
 @pytest.mark.parametrize(
-        "file_text, only_rerun_text, should_rerun",
+        "file_text, only_rerun_texts, should_rerun",
         [
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'Assertion*', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'Assertion', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'ValueError', False),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError,ValueError', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError ValueError', False),
-            ('def test_only_rerun(): raise AssertionError("ERR")', '', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError: ', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'AssertionError: ERR', True),
-            ('def test_only_rerun(): raise AssertionError("ERR")', 'ERR', True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError'], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['Assertion*'], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['Assertion'], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['ValueError'], False),
+            ('def test_only_rerun(): raise AssertionError("ERR")', [''], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError: '], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError: ERR'], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['ERR'], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError,ValueError'], False),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError ValueError'], False),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError','ValueError'], True),
         ]
 )
-def test_only_rerun_flag(testdir, file_text, only_rerun_text, should_rerun):
+def test_only_rerun_flag(testdir, file_text, only_rerun_texts, should_rerun):
     testdir.makepyfile(file_text)
 
     num_failed = 1
@@ -431,5 +432,8 @@ def test_only_rerun_flag(testdir, file_text, only_rerun_text, should_rerun):
     num_reruns = 1
     num_reruns_actual = num_reruns if should_rerun else 0
 
-    result = testdir.runpytest('--reruns', str(num_reruns), '--only-rerun', only_rerun_text)
+    pytest_args = ['--reruns', str(num_reruns)]
+    for only_rerun_text in only_rerun_texts:
+        pytest_args.extend(['--only-rerun', only_rerun_text])
+    result = testdir.runpytest(*pytest_args)
     assert_outcomes(result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual)
