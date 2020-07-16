@@ -421,7 +421,7 @@ def test_pytest_runtest_logfinish_is_called(testdir):
             ('def test_only_rerun(): raise AssertionError("ERR")', ['ERR'], True),
             ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError,ValueError'], False),
             ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError ValueError'], False),
-            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError','ValueError'], True),
+            ('def test_only_rerun(): raise AssertionError("ERR")', ['AssertionError', 'ValueError'], True),
         ]
 )
 def test_only_rerun_flag(testdir, file_text, only_rerun_texts, should_rerun):
