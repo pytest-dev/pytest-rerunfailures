@@ -5,7 +5,7 @@ Changelog
 ----------------
 
 - Drop dependency on ``mock``.
-
+- Add in new flag ``--only-rerun`` to allow for users to rerun only certain errors.
 
 9.0 (2020-03-18)
 ----------------
