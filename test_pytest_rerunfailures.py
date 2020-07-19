@@ -19,7 +19,7 @@ def temporary_failure(count=1):
 
 
 def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
-                    xpassed=0, rerun=0):
+                    xpassed=0, rerun=0, warning=0):
     outcomes = result.parseoutcomes()
     assert outcomes.get('passed', 0) == passed
     assert outcomes.get('skipped', 0) == skipped
@@ -27,6 +27,7 @@ def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
     assert outcomes.get('xfailed', 0) == xfailed
     assert outcomes.get('xpassed', 0) == xpassed
     assert outcomes.get('rerun', 0) == rerun
+    assert outcomes.get('warning', 0) == warning
 
 
 def test_error_when_run_with_pdb(testdir):
@@ -237,13 +238,17 @@ def test_reruns_with_delay(testdir, delay_time):
     result = testdir.runpytest('--reruns', '3',
                                '--reruns-delay', str(delay_time))
 
+    num_warnings = 0
     if delay_time < 0:
         delay_time = 0
+        num_warnings = 1
 
     time.sleep.assert_called_with(delay_time)
 
-    assert_outcomes(result, passed=0, failed=1, rerun=3)
+    assert_outcomes(result, passed=0, failed=1, rerun=3, warning=num_warnings)
 
+    if num_warnings:
+        result.stdout.fnmatch_lines('*UserWarning: Delay time between re-runs cannot be < 0. Using default value: 0')
 
 @pytest.mark.parametrize('delay_time', [-1, 0, 0.0, 1, 2.5])
 def test_reruns_with_delay_marker(testdir, delay_time):
@@ -258,13 +263,17 @@ def test_reruns_with_delay_marker(testdir, delay_time):
 
     result = testdir.runpytest()
 
+    num_warnings = 0
     if delay_time < 0:
         delay_time = 0
+        num_warnings = 1
 
     time.sleep.assert_called_with(delay_time)
 
-    assert_outcomes(result, passed=0, failed=1, rerun=2)
+    assert_outcomes(result, passed=0, failed=1, rerun=2, warning=num_warnings)
 
+    if num_warnings:
+        result.stdout.fnmatch_lines('*UserWarning: Delay time between re-runs cannot be < 0. Using default value: 0')
 
 def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     """
