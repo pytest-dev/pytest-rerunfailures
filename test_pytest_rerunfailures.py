@@ -6,7 +6,6 @@ import time
 
 
 pytest_plugins = 'pytester'
-pytest_version_gte_53 = pkg_resources.parse_version(pytest.__version__) >= pkg_resources.parse_version('5.3')
 
 
 def temporary_failure(count=1):
