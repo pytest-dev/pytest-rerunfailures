@@ -245,6 +245,9 @@ def test_reruns_with_delay(testdir, delay_time):
                                '--reruns-delay', str(delay_time))
 
     if delay_time < 0:
+        result.stdout.fnmatch_lines(
+            '*UserWarning: Delay time between re-runs cannot be < 0. '
+            'Using default value: 0')
         delay_time = 0
 
     time.sleep.assert_called_with(delay_time)
@@ -266,6 +269,9 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     result = testdir.runpytest()
 
     if delay_time < 0:
+        result.stdout.fnmatch_lines(
+            '*UserWarning: Delay time between re-runs cannot be < 0. '
+            'Using default value: 0')
         delay_time = 0
 
     time.sleep.assert_called_with(delay_time)
