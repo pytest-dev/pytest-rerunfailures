@@ -1,10 +1,12 @@
 from unittest import mock
+import pkg_resources
 import pytest
 import random
 import time
 
 
 pytest_plugins = 'pytester'
+pytest_version_gte_53 = pkg_resources.parse_version(pytest.__version__) >= pkg_resources.parse_version('5.3')
 
 
 def temporary_failure(count=1):
@@ -19,7 +21,7 @@ def temporary_failure(count=1):
 
 
 def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
-                    xpassed=0, rerun=0, warning=0):
+                    xpassed=0, rerun=0, warnings=0):
     outcomes = result.parseoutcomes()
     assert outcomes.get('passed', 0) == passed
     assert outcomes.get('skipped', 0) == skipped
@@ -27,7 +29,12 @@ def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
     assert outcomes.get('xfailed', 0) == xfailed
     assert outcomes.get('xpassed', 0) == xpassed
     assert outcomes.get('rerun', 0) == rerun
-    assert outcomes.get('warning', 0) == warning
+
+    warnings_key = 'warnings'
+    if warnings <= 1 and pytest_version_gte_53:
+        # due to https://github.com/pytest-dev/pytest/pull/5990
+        warnings_key = 'warning'
+    assert outcomes.get(warnings_key, 0) == warnings
 
 
 def test_error_when_run_with_pdb(testdir):
@@ -245,7 +252,7 @@ def test_reruns_with_delay(testdir, delay_time):
 
     time.sleep.assert_called_with(delay_time)
 
-    assert_outcomes(result, passed=0, failed=1, rerun=3, warning=num_warnings)
+    assert_outcomes(result, passed=0, failed=1, rerun=3, warnings=num_warnings)
 
     if num_warnings:
         result.stdout.fnmatch_lines('*UserWarning: Delay time between re-runs cannot be < 0. Using default value: 0')
@@ -270,7 +277,7 @@ def test_reruns_with_delay_marker(testdir, delay_time):
 
     time.sleep.assert_called_with(delay_time)
 
-    assert_outcomes(result, passed=0, failed=1, rerun=2, warning=num_warnings)
+    assert_outcomes(result, passed=0, failed=1, rerun=2, warnings=num_warnings)
 
     if num_warnings:
         result.stdout.fnmatch_lines('*UserWarning: Delay time between re-runs cannot be < 0. Using default value: 0')
