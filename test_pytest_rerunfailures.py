@@ -238,17 +238,18 @@ def test_reruns_with_delay(testdir, delay_time):
     result = testdir.runpytest('--reruns', '3',
                                '--reruns-delay', str(delay_time))
 
-    num_warnings = 0
+    if delay_time < 0:
+        result.stdout.fnmatch_lines(
+                '*UserWarning: Delay time between re-runs cannot be < 0. '
+                'Using default value: 0')
+
     if delay_time < 0:
         delay_time = 0
-        num_warnings = 1
 
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=3)
 
-    if num_warnings:
-        result.stdout.fnmatch_lines('*UserWarning: Delay time between re-runs cannot be < 0. Using default value: 0')
 
 @pytest.mark.parametrize('delay_time', [-1, 0, 0.0, 1, 2.5])
 def test_reruns_with_delay_marker(testdir, delay_time):
@@ -263,17 +264,18 @@ def test_reruns_with_delay_marker(testdir, delay_time):
 
     result = testdir.runpytest()
 
-    num_warnings = 0
+    if delay_time < 0:
+        result.stdout.fnmatch_lines(
+                '*UserWarning: Delay time between re-runs cannot be < 0. '
+                'Using default value: 0')
+
     if delay_time < 0:
         delay_time = 0
-        num_warnings = 1
 
     time.sleep.assert_called_with(delay_time)
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
-    if num_warnings:
-        result.stdout.fnmatch_lines('*UserWarning: Delay time between re-runs cannot be < 0. Using default value: 0')
 
 def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     """
