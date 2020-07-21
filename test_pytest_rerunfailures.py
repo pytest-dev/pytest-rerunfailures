@@ -18,15 +18,22 @@ def temporary_failure(count=1):
         count)
 
 
+def check_outcome_field(outcomes, field_name, expected_value):
+    field_value = outcomes.get(field_name, 0)
+    assert field_value == expected_value, \
+            "outcomes.{} has unexpected value. Expected '{}' but got '{}'" \
+            .format(field_name, expected_value, field_value)
+
+
 def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
                     xpassed=0, rerun=0):
     outcomes = result.parseoutcomes()
-    assert outcomes.get('passed', 0) == passed
-    assert outcomes.get('skipped', 0) == skipped
-    assert outcomes.get('failed', 0) == failed
-    assert outcomes.get('xfailed', 0) == xfailed
-    assert outcomes.get('xpassed', 0) == xpassed
-    assert outcomes.get('rerun', 0) == rerun
+    check_outcome_field(outcomes, 'passed', passed)
+    check_outcome_field(outcomes, 'skipped', skipped)
+    check_outcome_field(outcomes, 'failed', failed)
+    check_outcome_field(outcomes, 'xfailed', xfailed)
+    check_outcome_field(outcomes, 'xpassed', xpassed)
+    check_outcome_field(outcomes, 'rerun', rerun)
 
 
 def test_error_when_run_with_pdb(testdir):
