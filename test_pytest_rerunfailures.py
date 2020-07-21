@@ -1,5 +1,4 @@
 from unittest import mock
-import pkg_resources
 import pytest
 import random
 import time
