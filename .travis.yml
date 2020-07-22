@@ -14,4 +14,8 @@ env:
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
-script: py.test
+  - pip install -q pre-commit
+  - pre-commit install
+script:
+  - pre-commit run --all-files --show-diff-on-failure
+  - py.test
