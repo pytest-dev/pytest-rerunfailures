@@ -22,6 +22,8 @@ Preparing Pull Requests
 
    Afterwards ``pre-commit`` will run whenever you commit.
 
+   Note that this is automatically done when running ``tox -e linting``.
+
    https://pre-commit.com/ is a framework for managing and maintaining multi-language pre-commit hooks
    to ensure code-style and code formatting is consistent.
 
