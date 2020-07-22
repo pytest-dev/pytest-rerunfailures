@@ -155,7 +155,7 @@ def get_reruns_delay(item):
     if delay < 0:
         delay = 0
         warnings.warn(
-            "Delay time between re-runs cannot be < 0. " "Using default value: 0"
+            "Delay time between re-runs cannot be < 0. Using default value: 0"
         )
 
     return delay

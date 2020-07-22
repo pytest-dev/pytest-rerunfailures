@@ -17,5 +17,5 @@ install:
   - pip install -q pre-commit
   - pre-commit install
 script:
-  - pre-commit run --all-files --show-diff-on-failure
+  - if [ $TRAVIS_PYTHON_VERSION -ge 3.6 ]; pre-commit run --all-files --show-diff-on-failure; fi
   - py.test
