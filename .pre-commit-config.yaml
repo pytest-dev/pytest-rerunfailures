@@ -13,8 +13,7 @@ repos:
            args: [--remove]
          - id: check-yaml
          - id: debug-statements
-           laneuage_version: python3
-      exclude: _pytest/(debugging|hookspec).py
+           language_version: python3
     - repo: https://gitlab.com/pycqa/flake8
       rev: 3.8.3
       hooks:
@@ -22,7 +21,7 @@ repos:
            language_version: python3
            additional_dependencies: [flake8-typing-imports==1.9.0]
     - repo: https://github.com/asottile/reorder_python_imports
-      rev: v2.3.1
+      rev: v2.3.0
       hooks:
          - id: reorder-python-imports
            args: ['--application-directories=.:src', --py3-plus]
@@ -31,13 +30,9 @@ repos:
       hooks:
          - id: pyupgrade
            args: [--py3-plus]
-    - repo: https://github.com/asottile/setup-cfg-fmt
-      rev: v1.10.0
+    - repo: local
       hooks:
-         - id: setup-cfg-fmt
-	- repo: local
-      hooks:
-      	 - id: rst
+         - id: rst
            name: rst
            entry: rst-lint --encoding utf-8
            files: ^(CHANGES.rst|README.rst)$
