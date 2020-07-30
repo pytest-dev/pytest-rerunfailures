@@ -65,7 +65,7 @@ only rerun those errors that match ``AssertionError``:
 .. code-block:: bash
 
    $ pytest --reruns 5 --only-rerun AssertionError
-   
+
 Passing the flag multiple times accumulates the arguments, so the following would only rerun
 those errors that match ``AssertionError`` or ``ValueError``:
 

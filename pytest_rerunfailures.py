@@ -1,14 +1,16 @@
-import pkg_resources
 import re
 import time
 import warnings
 
+import pkg_resources
 import pytest
-
-from _pytest.runner import runtestprotocol
 from _pytest.resultlog import ResultLog
+from _pytest.runner import runtestprotocol
 
-PYTEST_GTE_54 = pkg_resources.parse_version(pytest.__version__) >= pkg_resources.parse_version("5.4")
+PYTEST_GTE_54 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("5.4")
+
 
 def works_with_current_xdist():
     """Returns compatibility with installed pytest-xdist version.
@@ -20,8 +22,8 @@ def works_with_current_xdist():
 
     """
     try:
-        d = pkg_resources.get_distribution('pytest-xdist')
-        return d.parsed_version >= pkg_resources.parse_version('1.20')
+        d = pkg_resources.get_distribution("pytest-xdist")
+        return d.parsed_version >= pkg_resources.parse_version("1.20")
     except pkg_resources.DistributionNotFound:
         return None
 
@@ -29,54 +31,61 @@ def works_with_current_xdist():
 # command line options
 def pytest_addoption(parser):
     group = parser.getgroup(
-        "rerunfailures",
-        "re-run failing tests to eliminate flaky failures")
-    group._addoption(
-        '--only-rerun',
-        action='append',
-        dest='only_rerun',
-        type=str,
-        default=None,
-        help='If passed, only rerun errors matching the regex provided. Pass this flag multiple times to accumulate a list of regexes to match'
+        "rerunfailures", "re-run failing tests to eliminate flaky failures"
     )
     group._addoption(
-        '--reruns',
+        "--only-rerun",
+        action="append",
+        dest="only_rerun",
+        type=str,
+        default=None,
+        help="If passed, only rerun errors matching the regex provided. "
+        "Pass this flag multiple times to accumulate a list of regexes "
+        "to match",
+    )
+    group._addoption(
+        "--reruns",
         action="store",
         dest="reruns",
         type=int,
         default=0,
-        help="number of times to re-run failed tests. defaults to 0.")
+        help="number of times to re-run failed tests. defaults to 0.",
+    )
     group._addoption(
-        '--reruns-delay',
-        action='store',
-        dest='reruns_delay',
+        "--reruns-delay",
+        action="store",
+        dest="reruns_delay",
         type=float,
         default=0,
-        help='add time (seconds) delay between reruns.'
+        help="add time (seconds) delay between reruns.",
     )
 
 
 def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
-        "markers", "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
-                   "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
-                   "between re-runs.")
+        "markers",
+        "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
+        "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
+        "between re-runs.",
+    )
 
 
 def _get_resultlog(config):
     if PYTEST_GTE_54:
         # hack
         from _pytest.resultlog import resultlog_key
+
         return config._store.get(resultlog_key, default=None)
     else:
-        return getattr(config, '_resultlog', None)
+        return getattr(config, "_resultlog", None)
 
 
 def _set_resultlog(config, resultlog):
     if PYTEST_GTE_54:
         # hack
         from _pytest.resultlog import resultlog_key
+
         config._store[resultlog_key] = resultlog
     else:
         config._resultlog = resultlog
@@ -88,9 +97,8 @@ def check_options(config):
     val = config.getvalue
     if not val("collectonly"):
         if config.option.reruns != 0:
-            if config.option.usepdb:   # a core option
+            if config.option.usepdb:  # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
-
 
     resultlog = _get_resultlog(config)
     if resultlog:
@@ -146,8 +154,9 @@ def get_reruns_delay(item):
 
     if delay < 0:
         delay = 0
-        warnings.warn('Delay time between re-runs cannot be < 0. '
-                      'Using default value: 0')
+        warnings.warn(
+            "Delay time between re-runs cannot be < 0. Using default value: 0"
+        )
 
     return delay
 
@@ -156,9 +165,9 @@ def _remove_cached_results_from_failed_fixtures(item):
     """
     Note: remove all cached_result attribute from every fixture
     """
-    cached_result = 'cached_result'
-    fixture_info = getattr(item, '_fixtureinfo', None)
-    for fixture_def_str in getattr(fixture_info, 'name2fixturedefs', ()):
+    cached_result = "cached_result"
+    fixture_info = getattr(item, "_fixtureinfo", None)
+    for fixture_def_str in getattr(fixture_info, "name2fixturedefs", ()):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
             if getattr(fixture_def, cached_result, None) is not None:
@@ -172,10 +181,11 @@ def _remove_cached_results_from_failed_fixtures(item):
 
 def _remove_failed_setup_state_from_session(item):
     """
-    Note: remove all _prepare_exc attribute from every col in stack of _setupstate and cleaning the stack itself
+    Note: remove all _prepare_exc attribute from every col in stack of
+          _setupstate and cleaning the stack itself
     """
     prepare_exc = "_prepare_exc"
-    setup_state = getattr(item.session, '_setupstate')
+    setup_state = getattr(item.session, "_setupstate")
     for col in setup_state.stack:
         if hasattr(col, prepare_exc):
             delattr(col, prepare_exc)
@@ -183,7 +193,7 @@ def _remove_failed_setup_state_from_session(item):
 
 
 def _should_hard_fail_on_error(session_config, report):
-    if report.outcome != 'failed':
+    if report.outcome != "failed":
         return False
 
     rerun_errors = session_config.option.only_rerun
@@ -213,26 +223,30 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
     delay = get_reruns_delay(item)
-    parallel = hasattr(item.config, 'slaveinput')
+    parallel = hasattr(item.config, "slaveinput")
     item.execution_count = 0
 
     need_to_run = True
     while need_to_run:
         item.execution_count += 1
-        item.ihook.pytest_runtest_logstart(nodeid=item.nodeid,
-                                           location=item.location)
+        item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
         for report in reports:  # 3 reports: setup, call, teardown
             is_terminal_error = _should_hard_fail_on_error(item.session.config, report)
             report.rerun = item.execution_count - 1
-            xfail = hasattr(report, 'wasxfail')
-            if item.execution_count > reruns or not report.failed or xfail or is_terminal_error:
+            xfail = hasattr(report, "wasxfail")
+            if (
+                item.execution_count > reruns
+                or not report.failed
+                or xfail
+                or is_terminal_error
+            ):
                 # last run or no failure detected, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
-                report.outcome = 'rerun'
+                report.outcome = "rerun"
                 time.sleep(delay)
 
                 if not parallel or works_with_current_xdist():
@@ -247,8 +261,7 @@ def pytest_runtest_protocol(item, nextitem):
         else:
             need_to_run = False
 
-        item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid,
-                                            location=item.location)
+        item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
 
     return True
 
@@ -256,8 +269,8 @@ def pytest_runtest_protocol(item, nextitem):
 def pytest_report_teststatus(report):
     """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     """
-    if report.outcome == 'rerun':
-        return 'rerun', 'R', ('RERUN', {'yellow': True})
+    if report.outcome == "rerun":
+        return "rerun", "R", ("RERUN", {"yellow": True})
 
 
 def pytest_terminal_summary(terminalreporter):
@@ -269,7 +282,7 @@ def pytest_terminal_summary(terminalreporter):
 
     lines = []
     for char in tr.reportchars:
-        if char in 'rR':
+        if char in "rR":
             show_rerun(terminalreporter, lines)
 
     if lines:
@@ -283,7 +296,7 @@ def show_rerun(terminalreporter, lines):
     if rerun:
         for rep in rerun:
             pos = rep.nodeid
-            lines.append("RERUN %s" % (pos,))
+            lines.append("RERUN {}".format(pos))
 
 
 class RerunResultLog(ResultLog):
@@ -299,17 +312,17 @@ class RerunResultLog(ResultLog):
             return
         res = self.config.hook.pytest_report_teststatus(report=report)
         code = res[1]
-        if code == 'x':
+        if code == "x":
             longrepr = str(report.longrepr)
-        elif code == 'X':
-            longrepr = ''
+        elif code == "X":
+            longrepr = ""
         elif report.passed:
             longrepr = ""
         elif report.failed:
             longrepr = str(report.longrepr)
         elif report.skipped:
             longrepr = str(report.longrepr[2])
-        elif report.outcome == 'rerun':
+        elif report.outcome == "rerun":
             longrepr = str(report.longrepr)
         else:
             longrepr = str(report.longrepr)
