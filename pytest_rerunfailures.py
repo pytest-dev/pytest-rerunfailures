@@ -246,7 +246,7 @@ def pytest_runtest_protocol(item, nextitem):
                 or need_to_rerun
             ):
                 # out of rerun attempts, no errors detected, or we're finishing off
-                # the reports of a filed test log normally
+                # the reports of a failed test, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
@@ -258,7 +258,8 @@ def pytest_runtest_protocol(item, nextitem):
                     item.ihook.pytest_runtest_logreport(report=report)
 
         if need_to_rerun:
-            # at least one report failed and we have reruns rerun the test
+            # at least one report failed and we have reruns left
+            # prepare to rerun the test
             time.sleep(delay)
 
             # cleanin item's cashed results from any level of setups
