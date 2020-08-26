@@ -1,7 +1,7 @@
 Changelog
 =========
 
-9.1 (unreleased)
+9.1 (2020-08-26)
 ----------------
 
 Features
