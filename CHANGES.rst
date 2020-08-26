@@ -4,9 +4,16 @@ Changelog
 9.1 (unreleased)
 ----------------
 
-- Drop dependency on ``mock``.
+Features
+++++++++
 
-- Add in new flag ``--only-rerun`` to allow for users to rerun only certain errors.
+- Add a new flag ``--only-rerun`` to allow for users to rerun only certain
+  errors.
+
+Other changes
++++++++++++++
+
+- Drop dependency on ``mock``.
 
 - Add support for pre-commit and add a linting tox target.
   (`#117 <https://github.com/pytest-dev/pytest-rerunfailures/pull/117>`_)
