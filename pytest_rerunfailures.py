@@ -4,12 +4,15 @@ import warnings
 
 import pkg_resources
 import pytest
-from _pytest.resultlog import ResultLog
 from _pytest.runner import runtestprotocol
 
 PYTEST_GTE_54 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("5.4")
+
+PYTEST_GTE_61 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("6.1")
 
 
 def works_with_current_xdist():
@@ -72,7 +75,9 @@ def pytest_configure(config):
 
 
 def _get_resultlog(config):
-    if PYTEST_GTE_54:
+    if PYTEST_GTE_61:
+        return None
+    elif PYTEST_GTE_54:
         # hack
         from _pytest.resultlog import resultlog_key
 
@@ -82,7 +87,9 @@ def _get_resultlog(config):
 
 
 def _set_resultlog(config, resultlog):
-    if PYTEST_GTE_54:
+    if PYTEST_GTE_61:
+        pass
+    elif PYTEST_GTE_54:
         # hack
         from _pytest.resultlog import resultlog_key
 
@@ -299,32 +306,35 @@ def show_rerun(terminalreporter, lines):
             lines.append("RERUN {}".format(pos))
 
 
-class RerunResultLog(ResultLog):
-    def __init__(self, config, logfile):
-        ResultLog.__init__(self, config, logfile)
+if not PYTEST_GTE_61:
+    from _pytest.resultlog import ResultLog
 
-    def pytest_runtest_logreport(self, report):
-        """
-        Adds support for rerun report fix for issue:
-        https://github.com/pytest-dev/pytest-rerunfailures/issues/28
-        """
-        if report.when != "call" and report.passed:
-            return
-        res = self.config.hook.pytest_report_teststatus(report=report)
-        code = res[1]
-        if code == "x":
-            longrepr = str(report.longrepr)
-        elif code == "X":
-            longrepr = ""
-        elif report.passed:
-            longrepr = ""
-        elif report.failed:
-            longrepr = str(report.longrepr)
-        elif report.skipped:
-            longrepr = str(report.longrepr[2])
-        elif report.outcome == "rerun":
-            longrepr = str(report.longrepr)
-        else:
-            longrepr = str(report.longrepr)
+    class RerunResultLog(ResultLog):
+        def __init__(self, config, logfile):
+            ResultLog.__init__(self, config, logfile)
 
-        self.log_outcome(report, code, longrepr)
+        def pytest_runtest_logreport(self, report):
+            """
+            Adds support for rerun report fix for issue:
+            https://github.com/pytest-dev/pytest-rerunfailures/issues/28
+            """
+            if report.when != "call" and report.passed:
+                return
+            res = self.config.hook.pytest_report_teststatus(report=report)
+            code = res[1]
+            if code == "x":
+                longrepr = str(report.longrepr)
+            elif code == "X":
+                longrepr = ""
+            elif report.passed:
+                longrepr = ""
+            elif report.failed:
+                longrepr = str(report.longrepr)
+            elif report.skipped:
+                longrepr = str(report.longrepr[2])
+            elif report.outcome == "rerun":
+                longrepr = str(report.longrepr)
+            else:
+                longrepr = str(report.longrepr)
+
+            self.log_outcome(report, code, longrepr)
