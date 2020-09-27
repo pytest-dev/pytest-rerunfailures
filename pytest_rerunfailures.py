@@ -92,7 +92,7 @@ def _set_resultlog(config, resultlog):
 
 
 # making sure the options make sense
-# should run before / at the begining of pytest_cmdline_main
+# should run before / at the beginning of pytest_cmdline_main
 def check_options(config):
     val = config.getvalue
     if not val("collectonly"):
