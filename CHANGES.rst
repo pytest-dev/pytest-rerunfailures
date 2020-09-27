@@ -4,7 +4,10 @@ Changelog
 9.2 (unreleased)
 ----------------
 
-- Nothing changed yet.
+Other changes
++++++++++++++
+
+- Deprecated `--result-log` was removed in pytest 6.1.0.
 
 
 9.1 (2020-08-26)
