@@ -1,3 +1,4 @@
+---
 repos:
     - repo: https://github.com/psf/black
       rev: 19.10b0
@@ -7,34 +8,34 @@ repos:
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v3.1.0
       hooks:
-         - id: trailing-whitespace
-         - id: end-of-file-fixer
-         - id: fix-encoding-pragma
-           args: [--remove]
-         - id: check-yaml
-         - id: debug-statements
-           language_version: python3
+          - id: trailing-whitespace
+          - id: end-of-file-fixer
+          - id: fix-encoding-pragma
+            args: [--remove]
+          - id: check-yaml
+          - id: debug-statements
+            language_version: python3
     - repo: https://gitlab.com/pycqa/flake8
       rev: 3.8.3
       hooks:
-         - id: flake8
-           language_version: python3
-           additional_dependencies: [flake8-typing-imports==1.9.0]
+          - id: flake8
+            language_version: python3
+            additional_dependencies: [flake8-typing-imports==1.9.0]
     - repo: https://github.com/asottile/reorder_python_imports
       rev: v2.3.2
       hooks:
-         - id: reorder-python-imports
-           args: ['--application-directories=.:src', --py3-plus]
+          - id: reorder-python-imports
+            args: ['--application-directories=.:src', --py3-plus]
     - repo: https://github.com/asottile/pyupgrade
       rev: v2.7.1
       hooks:
-         - id: pyupgrade
-           args: [--py3-plus]
+          - id: pyupgrade
+            args: [--py3-plus]
     - repo: local
       hooks:
-         - id: rst
-           name: rst
-           entry: rst-lint --encoding utf-8
-           files: ^(CHANGES.rst|README.rst)$
-           language: python
-           additional_dependencies: [pygments, restructuredtext_lint]
+          - id: rst
+            name: rst
+            entry: rst-lint --encoding utf-8
+            files: ^(CHANGES.rst|README.rst)$
+            language: python
+            additional_dependencies: [pygments, restructuredtext_lint]
