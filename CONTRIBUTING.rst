@@ -27,7 +27,7 @@ Preparing Pull Requests
    https://pre-commit.com/ is a framework for managing and maintaining multi-language pre-commit hooks
    to ensure code-style and code formatting is consistent.
 
-#. Install `tox <https://tox.readthedocs.io/en/latest/>`_::
+#. Install `tox <https://tox.readthedocs.io/en/latest/>`_:
 
    Tox is used to run all the tests and will automatically setup virtualenvs
    to run the tests in. Implicitly https://virtualenv.pypa.io/ is used::
