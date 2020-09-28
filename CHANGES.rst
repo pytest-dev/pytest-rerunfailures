@@ -9,6 +9,8 @@ Other changes
 
 - Deprecate ``--result-log``, as it was removed in pytest 6.1.0
 
+- Support up to pytest 6.1.0.
+
 
 9.1 (2020-08-26)
 ----------------
