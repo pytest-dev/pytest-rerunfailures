@@ -2,10 +2,15 @@ import random
 import time
 from unittest import mock
 
+import pkg_resources
 import pytest
 
 
 pytest_plugins = "pytester"
+
+PYTEST_GTE_61 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("6.1")
 
 
 def temporary_failure(count=1):
@@ -278,6 +283,7 @@ def test_rerun_on_class_setup_error_with_reruns(testdir):
     assert_outcomes(result, passed=0, error=1, rerun=1)
 
 
+@pytest.mark.skipif(PYTEST_GTE_61, reason="--result-log removed in pytest>=6.1")
 def test_rerun_with_resultslog(testdir):
     testdir.makepyfile(
         """
