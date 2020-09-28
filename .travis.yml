@@ -18,4 +18,4 @@ install:
   - pre-commit install
 script:
   - if [[ "$TRAVIS_PYTHON_VERSION" > "3.5" ]] && [[ "$TRAVIS_PYTHON_VERSION" != pypy* ]]; then pre-commit run --all-files --show-diff-on-failure; fi
-  - py.test
+  - pytest
