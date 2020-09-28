@@ -1,7 +1,7 @@
 pytest-rerunfailures
 ====================
 
-pytest-rerunfailures is a plugin for `py.test <https://pytest.org>`_ that
+pytest-rerunfailures is a plugin for `pytest <https://pytest.org>`_ that
 re-runs tests to eliminate intermittent failures.
 
 .. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
