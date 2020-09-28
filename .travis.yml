@@ -22,4 +22,4 @@ script:
        [[ "$TRAVIS_PYTHON_VERSION" != pypy* ]]; then
       pre-commit run --all-files --show-diff-on-failure;
     fi
-  - py.test
+  - pytest
