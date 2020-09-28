@@ -4,7 +4,7 @@ Changelog
 9.2 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Add support for pytest version 6.0 and 6.1.
 
 
 9.1 (2020-08-26)

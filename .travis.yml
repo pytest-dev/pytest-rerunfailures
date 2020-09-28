@@ -13,6 +13,9 @@ env:
   - PYTEST=5.4.1
   - PYTEST=6.0.2
   - PYTEST=6.1.0
+jobs:
+  allow_failures:
+  - env: PYTEST=6.1.0
 install:
   - pip install -q pytest==$PYTEST
   - pip install -q -e .
