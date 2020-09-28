@@ -303,7 +303,7 @@ def show_rerun(terminalreporter, lines):
     if rerun:
         for rep in rerun:
             pos = rep.nodeid
-            lines.append("RERUN {}".format(pos))
+            lines.append(f"RERUN {pos}")
 
 
 if not PYTEST_GTE_61:
