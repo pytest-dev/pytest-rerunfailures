@@ -10,8 +10,11 @@ Compatibility fix.
 - Ignore ``--result-log`` command line option when used together with ``pytest
   >= 6.1.0``, as it was removed there. This is a quick fix, use an older
   version of pytest, if you want to keep this feature for now.
+  (Thanks to `@ntessore`_ for the PR)
 
 - Support up to pytest 6.1.0.
+
+.. _@ntessore: https://github.com/ntessore
 
 
 9.1 (2020-08-26)
