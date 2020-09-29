@@ -1,10 +1,13 @@
 Changelog
 =========
 
-9.2 (unreleased)
-----------------
+10.0 (unreleased)
+-----------------
 
-- Nothing changed yet.
+Backwards incompatible changes
+++++++++++++++++++++++++++++++
+
+- Drop support for Python 3.5.
 
 
 9.1.1 (2020-09-29)
