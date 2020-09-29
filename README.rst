@@ -10,9 +10,9 @@ re-runs tests to eliminate intermittent failures.
 .. image:: https://img.shields.io/pypi/v/pytest-rerunfailures.svg
    :target: https://pypi.python.org/pypi/pytest-rerunfailures/
    :alt: PyPI
-.. image:: https://img.shields.io/travis/pytest-dev/pytest-rerunfailures.svg
-   :target: https://travis-ci.org/pytest-dev/pytest-rerunfailures/
-   :alt: Travis
+.. image:: https://github.com/pytest-dev/pytest-rerunfailures/workflows/Test/badge.svg
+   :target: https://github.com/pytest-dev/pytest-rerunfailures/actions
+   :alt: GitHub Actions
 
 Requirements
 ------------
