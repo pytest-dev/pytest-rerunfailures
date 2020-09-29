@@ -7,7 +7,7 @@ Changelog
 Other changes
 +++++++++++++
 
-- Deprecate ``--result-log``, as it was removed in pytest 6.1.0
+- Remove ``--result-log`` command line option when used togehter with pytest >= 6.1.
 
 - Support up to pytest 6.1.0.
 
