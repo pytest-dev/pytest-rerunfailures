@@ -14,23 +14,20 @@ PYTEST_GTE_61 = pkg_resources.parse_version(
 
 
 def temporary_failure(count=1):
-    return """
+    return f"""
             import py
             path = py.path.local(__file__).dirpath().ensure('test.res')
             count = path.read() or 1
-            if int(count) <= {0}:
+            if int(count) <= {count}:
                 path.write(int(count) + 1)
-                raise Exception('Failure: {{0}}'.format(count))""".format(
-        count
-    )
+                raise Exception('Failure: {{0}}'.format(count))"""
 
 
 def check_outcome_field(outcomes, field_name, expected_value):
     field_value = outcomes.get(field_name, 0)
-    assert (
-        field_value == expected_value
-    ), "outcomes.{} has unexpected value. Expected '{}' but got '{}'".format(
-        field_name, expected_value, field_value
+    assert field_value == expected_value, (
+        f"outcomes.{field_name} has unexpected value. "
+        f"Expected '{expected_value}' but got '{field_value}'"
     )
 
 
@@ -61,14 +58,12 @@ def test_no_rerun_on_pass(testdir):
 def test_no_rerun_on_skipif_mark(testdir):
     reason = str(random.random())
     testdir.makepyfile(
-        """
+        f"""
         import pytest
-        @pytest.mark.skipif(reason='{}')
+        @pytest.mark.skipif(reason='{reason}')
         def test_skip():
             pass
-    """.format(
-            reason
-        )
+    """
     )
     result = testdir.runpytest("--reruns", "1")
     assert_outcomes(result, passed=0, skipped=1)
@@ -77,13 +72,11 @@ def test_no_rerun_on_skipif_mark(testdir):
 def test_no_rerun_on_skip_call(testdir):
     reason = str(random.random())
     testdir.makepyfile(
-        """
+        f"""
         import pytest
         def test_skip():
-            pytest.skip('{}')
-    """.format(
-            reason
-        )
+            pytest.skip('{reason}')
+    """
     )
     result = testdir.runpytest("--reruns", "1")
     assert_outcomes(result, passed=0, skipped=1)
@@ -105,13 +98,11 @@ def test_no_rerun_on_xfail_mark(testdir):
 def test_no_rerun_on_xfail_call(testdir):
     reason = str(random.random())
     testdir.makepyfile(
-        """
+        f"""
         import pytest
         def test_xfail():
-            pytest.xfail('{}')
-    """.format(
-            reason
-        )
+            pytest.xfail('{reason}')
+    """
     )
     result = testdir.runpytest("--reruns", "1")
     assert_outcomes(result, passed=0, xfailed=1)
@@ -144,11 +135,9 @@ def test_rerun_fails_after_consistent_setup_failure(testdir):
 def test_rerun_passes_after_temporary_setup_failure(testdir):
     testdir.makepyfile("def test_pass(): pass")
     testdir.makeconftest(
-        """
+        f"""
         def pytest_runtest_setup(item):
-            {}""".format(
-            temporary_failure()
-        )
+            {temporary_failure()}"""
     )
     result = testdir.runpytest("--reruns", "1", "-r", "R")
     assert_outcomes(result, passed=1, rerun=1)
@@ -162,11 +151,9 @@ def test_rerun_fails_after_consistent_test_failure(testdir):
 
 def test_rerun_passes_after_temporary_test_failure(testdir):
     testdir.makepyfile(
-        """
+        f"""
         def test_pass():
-            {}""".format(
-            temporary_failure()
-        )
+            {temporary_failure()}"""
     )
     result = testdir.runpytest("--reruns", "1", "-r", "R")
     assert_outcomes(result, passed=1, rerun=1)
@@ -174,13 +161,11 @@ def test_rerun_passes_after_temporary_test_failure(testdir):
 
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
     testdir.makepyfile(
-        """
+        f"""
         import pytest
         @pytest.mark.flaky(reruns=2)
         def test_pass():
-            {}""".format(
-            temporary_failure(2)
-        )
+            {temporary_failure(2)}"""
     )
     result = testdir.runpytest("-r", "R")
     assert_outcomes(result, passed=1, rerun=2)
@@ -188,13 +173,11 @@ def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
 
 def test_reruns_if_flaky_mark_is_called_without_options(testdir):
     testdir.makepyfile(
-        """
+        f"""
         import pytest
         @pytest.mark.flaky()
         def test_pass():
-            {}""".format(
-            temporary_failure(1)
-        )
+            {temporary_failure(1)}"""
     )
     result = testdir.runpytest("-r", "R")
     assert_outcomes(result, passed=1, rerun=1)
@@ -202,13 +185,11 @@ def test_reruns_if_flaky_mark_is_called_without_options(testdir):
 
 def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     testdir.makepyfile(
-        """
+        f"""
         import pytest
         @pytest.mark.flaky(2)
         def test_pass():
-            {}""".format(
-            temporary_failure(2)
-        )
+            {temporary_failure(2)}"""
     )
     result = testdir.runpytest("-r", "R")
     assert_outcomes(result, passed=1, rerun=2)
@@ -216,11 +197,9 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
 
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
-        """
+        f"""
         def test_pass():
-            {}""".format(
-            temporary_failure()
-        )
+            {temporary_failure()}"""
     )
     result = testdir.runpytest("--reruns", "1")
     assert "RERUN" not in result.stdout.str()
@@ -229,11 +208,9 @@ def test_no_extra_test_summary_for_reruns_by_default(testdir):
 
 def test_extra_test_summary_for_reruns(testdir):
     testdir.makepyfile(
-        """
+        f"""
         def test_pass():
-            {}""".format(
-            temporary_failure()
-        )
+            {temporary_failure()}"""
     )
     result = testdir.runpytest("--reruns", "1", "-r", "R")
     result.stdout.fnmatch_lines_random(["RERUN test_*:*"])
@@ -242,11 +219,9 @@ def test_extra_test_summary_for_reruns(testdir):
 
 def test_verbose(testdir):
     testdir.makepyfile(
-        """
+        f"""
         def test_pass():
-            {}""".format(
-            temporary_failure()
-        )
+            {temporary_failure()}"""
     )
     result = testdir.runpytest("--reruns", "1", "-v")
     result.stdout.fnmatch_lines_random(["test_*:* RERUN*"])
@@ -323,14 +298,12 @@ def test_reruns_with_delay(testdir, delay_time):
 @pytest.mark.parametrize("delay_time", [-1, 0, 0.0, 1, 2.5])
 def test_reruns_with_delay_marker(testdir, delay_time):
     testdir.makepyfile(
-        """
+        f"""
         import pytest
 
-        @pytest.mark.flaky(reruns=2, reruns_delay={})
+        @pytest.mark.flaky(reruns=2, reruns_delay={delay_time})
         def test_fail_two():
-            assert False""".format(
-            delay_time
-        )
+            assert False"""
     )
 
     time.sleep = mock.MagicMock()
@@ -498,12 +471,10 @@ def test_pytest_runtest_logfinish_is_called(testdir):
     hook_message = "Message from pytest_runtest_logfinish hook"
     testdir.makepyfile("def test_pass(): pass")
     testdir.makeconftest(
-        r"""
+        fr"""
         def pytest_runtest_logfinish(nodeid, location):
-            print("\n{}\n")
-    """.format(
-            hook_message
-        )
+            print("\n{hook_message}\n")
+    """
     )
     result = testdir.runpytest("--reruns", "1", "-s")
     result.stdout.fnmatch_lines(hook_message)
