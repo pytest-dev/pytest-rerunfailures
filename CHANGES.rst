@@ -9,6 +9,12 @@ Backwards incompatible changes
 
 - Drop support for Python 3.5.
 
+Other changes
++++++++++++++
+
+- Check for the resultlog by feature and not by version as pytest master does
+  not provide a consistent version.
+
 
 9.1.1 (2020-09-29)
 ------------------
