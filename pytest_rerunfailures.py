@@ -6,13 +6,20 @@ import pkg_resources
 import pytest
 from _pytest.runner import runtestprotocol
 
+HAS_RESULTLOG = False
+
+try:
+    from _pytest.resultlog import ResultLog
+
+    HAS_RESULTLOG = True
+except ImportError:
+    # We have a pytest >= 6.1
+    pass
+
+
 PYTEST_GTE_54 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("5.4")
-
-PYTEST_GTE_61 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.1")
 
 
 def works_with_current_xdist():
@@ -75,7 +82,7 @@ def pytest_configure(config):
 
 
 def _get_resultlog(config):
-    if PYTEST_GTE_61:
+    if not HAS_RESULTLOG:
         return None
     elif PYTEST_GTE_54:
         # hack
@@ -87,7 +94,7 @@ def _get_resultlog(config):
 
 
 def _set_resultlog(config, resultlog):
-    if PYTEST_GTE_61:
+    if not HAS_RESULTLOG:
         pass
     elif PYTEST_GTE_54:
         # hack
@@ -306,8 +313,7 @@ def show_rerun(terminalreporter, lines):
             lines.append(f"RERUN {pos}")
 
 
-if not PYTEST_GTE_61:
-    from _pytest.resultlog import ResultLog
+if HAS_RESULTLOG:
 
     class RerunResultLog(ResultLog):
         def __init__(self, config, logfile):
