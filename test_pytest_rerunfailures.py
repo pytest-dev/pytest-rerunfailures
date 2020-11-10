@@ -38,6 +38,7 @@ def assert_outcomes(
     check_outcome_field(outcomes, "passed", passed)
     check_outcome_field(outcomes, "skipped", skipped)
     check_outcome_field(outcomes, "failed", failed)
+    check_outcome_field(outcomes, "errors", error)
     check_outcome_field(outcomes, "xfailed", xfailed)
     check_outcome_field(outcomes, "xpassed", xpassed)
     check_outcome_field(outcomes, "rerun", rerun)
@@ -511,3 +512,25 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     assert_outcomes(
         result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual
     )
+
+
+def test_session_scope_fixture_is_torn_down_once(testdir):
+    num_reruns = 3
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        _counter = -1
+        @pytest.fixture(scope="session")
+        def session_fixture():
+            global _counter
+            _counter += 1
+            yield _counter
+            del _counter
+
+        def test_dummy(session_fixture):
+            assert session_fixture == {num_reruns}
+        """
+    )
+    result = testdir.runpytest("--reruns", str(num_reruns))
+    assert_outcomes(result, rerun=num_reruns, passed=0, failed=1)

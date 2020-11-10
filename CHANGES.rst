@@ -9,6 +9,10 @@ Backwards incompatible changes
 
 - Drop support for Python 3.5.
 
+Bug fixes
++++++++++
+- Fix a case where fixture tear down could be executed after each rerun.
+
 Other changes
 +++++++++++++
 
