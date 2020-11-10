@@ -8,9 +8,9 @@ import pytest
 
 pytest_plugins = "pytester"
 
-PYTEST_GTE_61 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.1")
+PYTEST_VERSION = pkg_resources.parse_version(pytest.__version__)
+PYTEST_GTE_60 = PYTEST_VERSION >= pkg_resources.parse_version("6.0")
+PYTEST_GTE_61 = PYTEST_VERSION >= pkg_resources.parse_version("6.1")
 
 
 def temporary_failure(count=1):
@@ -45,7 +45,7 @@ def assert_outcomes(
     check_outcome_field(outcomes, "passed", passed)
     check_outcome_field(outcomes, "skipped", skipped)
     check_outcome_field(outcomes, "failed", failed)
-    check_outcome_field(outcomes, "errors", error)
+    check_outcome_field(outcomes, "errors" if PYTEST_GTE_60 else "error", error)
     check_outcome_field(outcomes, "xfailed", xfailed)
     check_outcome_field(outcomes, "xpassed", xpassed)
     check_outcome_field(outcomes, "rerun", rerun)
