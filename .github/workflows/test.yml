@@ -11,7 +11,7 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  build:
+  tests:
     name: py-${{ matrix.python-version }}:pytest-${{ matrix.pytest-version }}
     runs-on: ubuntu-latest
     strategy:
@@ -25,13 +25,13 @@ jobs:
             "pypy3",
         ]
         pytest-version: [
-            "5.0",
-            "5.1",
-            "5.2",
-            "5.3",
-            "5.4",
-            "6.0",
-            "6.1",
+            "5.0.*",
+            "5.1.*",
+            "5.2.*",
+            "5.3.*",
+            "5.4.*",
+            "6.0.*",
+            "6.1.*",
         ]
     steps:
       - uses: actions/checkout@v2
@@ -58,10 +58,37 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install pytest~=${{ matrix.pytest-version }}
+          python -m pip install pytest==${{ matrix.pytest-version }}
           python -m pip install -e .
 
       - name: Tests
         shell: bash
         run: |
           pytest
+
+  platform:
+    # Test devel setup on different platforms.
+    name: Platform-${{ matrix.os }}
+    needs: [ tests ]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+          architecture: 'x64'
+
+      - name: Development setup on platform ${{ matrix.os }}
+        run: |
+          python -m pip install -U pip
+          python -m pip install pytest
+          python -m pip install -e .
+
+      - name: Tests
+        run: pytest

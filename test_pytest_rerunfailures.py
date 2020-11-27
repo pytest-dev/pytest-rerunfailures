@@ -32,7 +32,14 @@ def check_outcome_field(outcomes, field_name, expected_value):
 
 
 def assert_outcomes(
-    result, passed=1, skipped=0, failed=0, error=0, xfailed=0, xpassed=0, rerun=0,
+    result,
+    passed=1,
+    skipped=0,
+    failed=0,
+    error=0,
+    xfailed=0,
+    xpassed=0,
+    rerun=0,
 ):
     outcomes = result.parseoutcomes()
     check_outcome_field(outcomes, "passed", passed)
