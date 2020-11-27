@@ -32,7 +32,7 @@ def check_outcome_field(outcomes, field_name, expected_value):
 
 
 def assert_outcomes(
-    result, passed=1, skipped=0, failed=0, error=0, xfailed=0, xpassed=0, rerun=0
+    result, passed=1, skipped=0, failed=0, error=0, xfailed=0, xpassed=0, rerun=0,
 ):
     outcomes = result.parseoutcomes()
     check_outcome_field(outcomes, "passed", passed)
@@ -324,7 +324,7 @@ def test_reruns_with_delay_marker(testdir, delay_time):
 
 def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     """
-     Case: setup_class throwing error on the first execution for parametrized test
+    Case: setup_class throwing error on the first execution for parametrized test
     """
     testdir.makepyfile(
         """
