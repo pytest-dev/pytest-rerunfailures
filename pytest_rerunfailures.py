@@ -22,7 +22,7 @@ PYTEST_GTE_54 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("5.4")
 
-listOfFlakyTestCases =[]
+listOfFlakyTestCases = []
 constants.is_flaky_flag_set = 0
 
 def works_with_current_xdist():
@@ -188,7 +188,7 @@ def get_reruns_delay(item):
 
 def get_flaky_flag(item):
     if int(item.session.config.option.flaky_test_finder)>1:
-       warnings.warn("Suggested values: --flaky-test-find=<0 mean disabled, 1 means enabled>")
+       warnings.warn("Suggested values: --flaky-test-find = <0 means disabled, 1 means enabled>.")
     return int(item.session.config.option.flaky_test_finder)
 
 
@@ -330,7 +330,7 @@ def pytest_terminal_summary(terminalreporter):
             tr._tw.line(line)
 
     if constants.is_flaky_flag_set == 1:
-        print("Holaaaaaa Flaky Test List! : ", listOfFlakyTestCases)
+        print("\nList of Flaky testcases in this run: ", listOfFlakyTestCases)
 
 
 def show_rerun(terminalreporter, lines):
