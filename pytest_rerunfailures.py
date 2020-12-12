@@ -187,7 +187,7 @@ def get_reruns_delay(item):
 
 
 def get_flaky_flag(item):
-    if int(item.session.config.option.flaky_test_finder)>1:
+    if int(item.session.config.option.flaky_test_finder) > 1:
        warnings.warn(
            "Suggested values: --flaky-test-find = <0 means disabled, 1 means enabled>."
        )
