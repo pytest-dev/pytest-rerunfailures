@@ -99,6 +99,17 @@ You can also specify the re-run delay time in the marker:
       import random
       assert random.choice([True, False])
 
+You can also specify an optional ``condition`` in the re-run marker:
+
+.. code-block:: python
+
+   @pytest.mark.flaky(reruns=5, condition=sys.platform.startswith("win32"))
+   def test_example():
+      import random
+      assert random.choice([True, False])
+
+Note that the test will re-run for any ``condition`` that is truthy.
+
 Output
 ------
 

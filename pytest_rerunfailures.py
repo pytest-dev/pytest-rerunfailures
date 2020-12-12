@@ -175,6 +175,16 @@ def get_reruns_delay(item):
     return delay
 
 
+def get_reruns_condition(item):
+    rerun_marker = _get_marker(item)
+
+    condition = True
+    if rerun_marker is not None and "condition" in rerun_marker.kwargs:
+        condition = rerun_marker.kwargs["condition"]
+
+    return condition
+
+
 def _remove_cached_results_from_failed_fixtures(item):
     """
     Note: remove all cached_result attribute from every fixture
@@ -221,6 +231,19 @@ def _should_hard_fail_on_error(session_config, report):
     return True
 
 
+def _should_not_rerun(item, report, reruns):
+    xfail = hasattr(report, "wasxfail")
+    is_terminal_error = _should_hard_fail_on_error(item.session.config, report)
+    condition = get_reruns_condition(item)
+    return (
+        item.execution_count > reruns
+        or not report.failed
+        or xfail
+        or is_terminal_error
+        or not condition
+    )
+
+
 def pytest_runtest_protocol(item, nextitem):
     """
     Note: when teardown fails, two reports are generated for the case, one for
@@ -247,15 +270,8 @@ def pytest_runtest_protocol(item, nextitem):
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
         for report in reports:  # 3 reports: setup, call, teardown
-            is_terminal_error = _should_hard_fail_on_error(item.session.config, report)
             report.rerun = item.execution_count - 1
-            xfail = hasattr(report, "wasxfail")
-            if (
-                item.execution_count > reruns
-                or not report.failed
-                or xfail
-                or is_terminal_error
-            ):
+            if _should_not_rerun(item, report, reruns):
                 # last run or no failure detected, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
