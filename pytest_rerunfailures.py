@@ -1,8 +1,8 @@
 import re
 import time
 import warnings
-import constants
 
+import constants
 import pkg_resources
 import pytest
 from _pytest.runner import runtestprotocol
@@ -24,6 +24,7 @@ PYTEST_GTE_54 = pkg_resources.parse_version(
 
 listOfFlakyTestCases = []
 constants.is_flaky_flag_set = 0
+
 
 def works_with_current_xdist():
     """Returns compatibility with installed pytest-xdist version.
@@ -73,12 +74,13 @@ def pytest_addoption(parser):
         help="add time (seconds) delay between reruns.",
     )
     group.addoption(
-        '--flaky-test-finder',
-        action='store',
-        dest='flaky_test_finder',
+        "--flaky-test-finder",
+        action="store",
+        dest="flaky_test_finder",
         type=int,
         default=0,
-        help='To find Flaky tests i.e. A test that passes after retries!',
+        help="To find Flaky tests i.e. A test that passes after retries!",
+
     )
 
 
@@ -188,7 +190,9 @@ def get_reruns_delay(item):
 
 def get_flaky_flag(item):
     if int(item.session.config.option.flaky_test_finder)>1:
-       warnings.warn("Suggested values: --flaky-test-find = <0 means disabled, 1 means enabled>.")
+       warnings.warn(
+           "Suggested values: --flaky-test-find = <0 means disabled, 1 means enabled>."
+       )
     return int(item.session.config.option.flaky_test_finder)
 
 
@@ -277,7 +281,12 @@ def pytest_runtest_protocol(item, nextitem):
                 item.ihook.pytest_runtest_logreport(report=report)
                 if report.when == "call":
                     constants.is_flaky_flag_set = get_flaky_flag(item)
-                if item.execution_count != 1 and not report.failed and report.when == "call" and constants.is_flaky_flag_set == 1:
+                if (
+                    item.execution_count != 1
+                    and not report.failed
+                    and report.when == "call"
+                    and constants.is_flaky_flag_set == 1
+                ):
                     print("\nFLAKY TEST DETECTED: " + str(report.nodeid))
                     listOfFlakyTestCases.append(str(report.nodeid))
             else:
