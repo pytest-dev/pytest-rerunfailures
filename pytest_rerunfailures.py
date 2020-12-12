@@ -78,7 +78,6 @@ def pytest_addoption(parser):
         type=int,
         default=0,
         help="To find Flaky tests i.e. A test that passes after retries!",
-
     )
 
 
@@ -311,15 +310,13 @@ def pytest_runtest_protocol(item, nextitem):
 
 
 def pytest_report_teststatus(report):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
-    """
+    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
     if report.outcome == "rerun":
         return "rerun", "R", ("RERUN", {"yellow": True})
 
 
 def pytest_terminal_summary(terminalreporter, config):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
-    """
+    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
     tr = terminalreporter
     if not tr.reportchars:
         return
