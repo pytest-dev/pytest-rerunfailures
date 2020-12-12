@@ -2,7 +2,6 @@ import re
 import time
 import warnings
 
-import constants
 import pkg_resources
 import pytest
 from _pytest.runner import runtestprotocol
@@ -23,7 +22,6 @@ PYTEST_GTE_54 = pkg_resources.parse_version(
 ) >= pkg_resources.parse_version("5.4")
 
 listOfFlakyTestCases = []
-constants.is_flaky_flag_set = 0
 
 
 def works_with_current_xdist():
@@ -279,13 +277,11 @@ def pytest_runtest_protocol(item, nextitem):
             ):
                 # last run or no failure detected, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
-                if report.when == "call":
-                    constants.is_flaky_flag_set = get_flaky_flag(item)
                 if (
                     item.execution_count != 1
                     and not report.failed
                     and report.when == "call"
-                    and constants.is_flaky_flag_set == 1
+                    and get_flaky_flag(item) == 1
                 ):
                     print("\nFLAKY TEST DETECTED: " + str(report.nodeid))
                     listOfFlakyTestCases.append(str(report.nodeid))
@@ -308,7 +304,7 @@ def pytest_runtest_protocol(item, nextitem):
 
         item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
 
-    if nextitem is None and constants.is_flaky_flag_set == 1:
+    if nextitem is None and get_flaky_flag(item) == 1:
         print("\nList of Flaky testcases in this run: ", listOfFlakyTestCases)
 
     return True
@@ -321,7 +317,7 @@ def pytest_report_teststatus(report):
         return "rerun", "R", ("RERUN", {"yellow": True})
 
 
-def pytest_terminal_summary(terminalreporter):
+def pytest_terminal_summary(terminalreporter, config):
     """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     """
     tr = terminalreporter
@@ -338,7 +334,7 @@ def pytest_terminal_summary(terminalreporter):
         for line in lines:
             tr._tw.line(line)
 
-    if constants.is_flaky_flag_set == 1:
+    if config.option.flaky_test_finder == 1:
         print("\nList of Flaky testcases in this run: ", listOfFlakyTestCases)
 
 
