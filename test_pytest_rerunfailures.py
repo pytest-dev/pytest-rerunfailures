@@ -32,7 +32,7 @@ def check_outcome_field(outcomes, field_name, expected_value):
 
 
 def assert_outcomes(
-    result, passed=1, skipped=0, failed=0, error=0, xfailed=0, xpassed=0, rerun=0,
+    result, passed=1, skipped=0, failed=0, error=0, xfailed=0, xpassed=0, rerun=0
 ):
     outcomes = result.parseoutcomes()
     check_outcome_field(outcomes, "passed", passed)
@@ -511,3 +511,35 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     assert_outcomes(
         result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual
     )
+
+
+@pytest.mark.parametrize(
+    "condition, expected_reruns",
+    [
+        (1 == 1, 2),
+        (1 == 2, 0),
+        (True, 2),
+        (False, 0),
+        (1, 2),
+        (0, 0),
+        ("'non-empty'", 2),
+        ("''", 0),
+        (["list"], 2),
+        ([], 0),
+        ({"dict": 1}, 2),
+        ({}, 0),
+        (None, 0),
+    ],
+)
+def test_reruns_with_condition_marker(testdir, condition, expected_reruns):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky(reruns=2, condition={condition})
+        def test_fail_two():
+            assert False"""
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=expected_reruns)
