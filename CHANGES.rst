@@ -9,15 +9,23 @@ Backwards incompatible changes
 
 - Drop support for Python 3.5.
 
+Features
+++++++++
+
+- Add ``condition`` keyword argument to the re-run marker.
+  (Thanks to `@BeyondEvil`_ for the PR)
+
+- Add support for Python 3.9.
+  (Thanks to `@digitronik`_ for the PR)
+
 Other changes
 +++++++++++++
 
 - Check for the resultlog by feature and not by version as pytest master does
   not provide a consistent version.
 
-- Add ``condition`` keyword argument to the re-run marker. (Thanks to `@BeyondEvil`_ for the PR)
-
 .. _@BeyondEvil: https://github.com/BeyondEvil
+.. _@digitronik: https://github.com/digitronik
 
 9.1.1 (2020-09-29)
 ------------------
