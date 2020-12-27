@@ -19,7 +19,7 @@ Requirements
 
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
-- Python 3.6, up to 3.8, or PyPy3
+- Python 3.6, up to 3.9, or PyPy3
 - pytest 5.0 or newer
 
 This package is currently tested against the last 5 minor pytest releases. In

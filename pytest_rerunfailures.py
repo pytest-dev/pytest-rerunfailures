@@ -297,15 +297,13 @@ def pytest_runtest_protocol(item, nextitem):
 
 
 def pytest_report_teststatus(report):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
-    """
+    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
     if report.outcome == "rerun":
         return "rerun", "R", ("RERUN", {"yellow": True})
 
 
 def pytest_terminal_summary(terminalreporter):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
-    """
+    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
     tr = terminalreporter
     if not tr.reportchars:
         return
