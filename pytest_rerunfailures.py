@@ -260,7 +260,7 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
     delay = get_reruns_delay(item)
-    parallel = hasattr(item.config, "slaveinput")
+    parallel = hasattr(item.config, "slaveinput") or hasattr(item.config, "workerinput")
     item.execution_count = 0
 
     need_to_run = True
