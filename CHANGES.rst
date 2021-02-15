@@ -11,7 +11,9 @@ Backwards incompatible changes
 
 Bug fixes
 +++++++++
+
 - Fix a case where fixture tear down could be executed after each rerun.
+  (Thanks to `@rogalski`_ for the PR)
 
 Features
 ++++++++
@@ -37,6 +39,7 @@ Other changes
 .. _@BeyondEvil: https://github.com/BeyondEvil
 .. _@digitronik: https://github.com/digitronik
 .. _@bluetech: https://github.com/bluetech
+.. _@rogalski: https://github.com/rogalski
 
 9.1.1 (2020-09-29)
 ------------------

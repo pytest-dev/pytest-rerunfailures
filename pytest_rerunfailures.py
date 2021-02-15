@@ -27,6 +27,7 @@ PYTEST_GTE_63 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("6.3.0.dev")
 
+
 class RerunAwareSetupState(SetupState):
     def teardown_exact(self, item, nextitem):
         if item.will_be_rerun:
