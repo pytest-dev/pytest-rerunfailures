@@ -32,6 +32,8 @@ jobs:
             "5.4.*",
             "6.0.*",
             "6.1.*",
+            "6.2.*",
+            "master",
         ]
     steps:
       - uses: actions/checkout@v2
@@ -58,7 +60,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          python -m pip install pytest==${{ matrix.pytest-version }}
+          if [[ '${{ matrix.pytest-version }}' == 'master' ]]; then
+            python -m pip install git+https://github.com/pytest-dev/pytest.git@master#egg=pytest
+          else
+            python -m pip install pytest==${{ matrix.pytest-version }}
+          fi
           python -m pip install -e .
 
       - name: Tests

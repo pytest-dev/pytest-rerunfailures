@@ -21,6 +21,10 @@ PYTEST_GTE_54 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("5.4")
 
+PYTEST_GTE_63 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("6.3.0.dev")
+
 
 def works_with_current_xdist():
     """Returns compatibility with installed pytest-xdist version.
@@ -205,15 +209,17 @@ def _remove_cached_results_from_failed_fixtures(item):
 
 def _remove_failed_setup_state_from_session(item):
     """
-    Note: remove all _prepare_exc attribute from every col in stack of
-          _setupstate and cleaning the stack itself
+    Note: remove all failures from every node in _setupstate stack
+          and clean the stack itself
     """
-    prepare_exc = "_prepare_exc"
-    setup_state = getattr(item.session, "_setupstate")
-    for col in setup_state.stack:
-        if hasattr(col, prepare_exc):
-            delattr(col, prepare_exc)
-    setup_state.stack = list()
+    setup_state = item.session._setupstate
+    if PYTEST_GTE_63:
+        setup_state.stack = {}
+    else:
+        for node in setup_state.stack:
+            if hasattr(node, "_prepare_exc"):
+                del node._prepare_exc
+        setup_state.stack = []
 
 
 def _should_hard_fail_on_error(session_config, report):

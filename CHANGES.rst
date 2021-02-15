@@ -18,6 +18,9 @@ Features
 - Add support for Python 3.9.
   (Thanks to `@digitronik`_ for the PR)
 
+- Add support for pytest 6.3.
+  (Thanks to `@bluetech`_ for the PR)
+
 Other changes
 +++++++++++++
 
@@ -26,6 +29,7 @@ Other changes
 
 .. _@BeyondEvil: https://github.com/BeyondEvil
 .. _@digitronik: https://github.com/digitronik
+.. _@bluetech: https://github.com/bluetech
 
 9.1.1 (2020-09-29)
 ------------------
