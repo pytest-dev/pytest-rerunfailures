@@ -21,6 +21,9 @@ Features
 - Add support for pytest 6.3.
   (Thanks to `@bluetech`_ for the PR)
 
+- Add compatibility with ``pytest-xdist >= 2.0``.
+  (Thanks to `@bluetech`_ for the PR)
+
 Other changes
 +++++++++++++
 
