@@ -5,7 +5,6 @@ test_deps = [
     'pytest<7',
     'pytest-xdist==1.23.2',
     'pytest-forked==1.0.1',
-    'py',
 ]
 
 release_deps = [

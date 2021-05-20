@@ -155,6 +155,8 @@ def test_reruns_junit_after_temporary_setup_failure(testdir):
     assert_outcomes(result, passed=0, error=1, rerun=1)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '1'
         assert artifact_data['testsuite']['@failures'] == '0'
         assert artifact_data['testsuite']['@tests'] == '1'
