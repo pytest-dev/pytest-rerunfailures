@@ -1,3 +1,4 @@
+from __future__ import absolute_import, unicode_literals
 import json
 
 import pytest
@@ -5,7 +6,7 @@ import pytest
 from conftest import make_simple_pytest_suite, assert_outcomes, temporary_failure
 
 
-pytest_plugins = 'pytester'
+pytest_plugins = ['pytester']
 
 
 def test_reruns_stats_all_tests_passed(testdir):
@@ -220,7 +221,7 @@ def test_reruns_stats_after_temporary_setup_resolved(testdir):
     assert_outcomes(result, passed=1, rerun=1)
     with open(artifact_path) as artifact:
         artifact_data = json.load(artifact)
-        assert artifact_data == {
+        compare_dict = {
             'total_reruns': 1,
             'total_failed': 1,
             'total_resolved_by_reruns': 1,
@@ -241,6 +242,7 @@ def test_reruns_stats_after_temporary_setup_resolved(testdir):
                 }
             ]
         }
+        assert artifact_data == compare_dict
 
 
 def test_reruns_stats_after_temporary_setup_failure(testdir):

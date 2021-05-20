@@ -67,8 +67,8 @@ def assert_outcomes(result, passed=1, skipped=0, failed=0, error=0, xfailed=0,
 
 def temporary_failure(count=1):
     return """import py
-    path = py.path.local(__file__).dirpath().ensure('test.res')
-    count = path.read() or 1
-    if int(count) <= {0}:
-        path.write(int(count) + 1)
-        raise Exception('Failure: {{0}}'.format(count))""".format(count)
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = path.read() or 1
+            if int(count) <= {0}:
+                path.write(int(count) + 1)
+                raise Exception('Failure: {{0}}'.format(count))""".format(count)

@@ -216,7 +216,7 @@ def _get_marker(item):
     except AttributeError:
         # pytest < 3.6
         return item.get_marker("flaky")
-        
+
 
 class RerunLogXML(LogXML):
 
@@ -697,7 +697,7 @@ class RerunPlugin(object):
         -------
         reruns : int
         """
-        rerun_marker = item.get_marker("flaky")
+        rerun_marker = _get_marker(item)
 
         if rerun_marker is not None:
             if "reruns_delay" in rerun_marker.kwargs:
