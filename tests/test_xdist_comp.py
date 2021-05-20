@@ -1,7 +1,6 @@
 import os
 import json
 
-import pytest
 import xmltodict
 
 from conftest import make_simple_pytest_suite, assert_outcomes, temporary_failure
@@ -257,6 +256,7 @@ def test_xdist_after_temporary_setup_failure_with_junit(testdir):
         assert artifact_data['testsuite']['@tests'] == '1'
         assert artifact_data['testsuite']['testcase']
         assert artifact_data['testsuite']['testcase']['error']
+
 
 def test_xdist_worker_rerun_stats(testdir):
     artifact_path = testdir.tmpdir.strpath + '/artifact.json'

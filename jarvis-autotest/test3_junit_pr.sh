@@ -3,5 +3,5 @@
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $CURRENT_DIR/..
 
-pip install -e .[test]
-pytest --junitxml results.xml tests/
+python3 -m pip install -e .[test] tox quantum-native-python
+python3 -m tox

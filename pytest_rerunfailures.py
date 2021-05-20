@@ -1,3 +1,4 @@
+from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import copy
 import json
@@ -9,9 +10,27 @@ from collections import defaultdict
 
 import pytest
 
-from _pytest.resultlog import ResultLog
 from _pytest.runner import runtestprotocol
 from _pytest.junitxml import LogXML
+
+HAS_RESULTLOG = False
+
+try:
+    from _pytest.resultlog import ResultLog
+
+    HAS_RESULTLOG = True
+except ImportError:
+    # We have a pytest >= 6.1
+    pass
+
+
+PYTEST_GTE_54 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("5.4")
+
+PYTEST_GTE_63 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("6.3.0.dev")
 
 
 LOWEST_SUPPORTED_XDIST = '1.23.2'
@@ -37,6 +56,30 @@ def works_with_current_xdist():
         return d.parsed_version >= pkg_resources.parse_version(LOWEST_SUPPORTED_XDIST)
     except pkg_resources.DistributionNotFound:
         return None
+
+
+def _get_resultlog(config):
+    if not HAS_RESULTLOG:
+        return None
+    elif PYTEST_GTE_54:
+        # hack
+        from _pytest.resultlog import resultlog_key
+
+        return config._store.get(resultlog_key, default=None)
+    else:
+        return getattr(config, "_resultlog", None)
+
+
+def _set_resultlog(config, resultlog):
+    if not HAS_RESULTLOG:
+        pass
+    elif PYTEST_GTE_54:
+        # hack
+        from _pytest.resultlog import resultlog_key
+
+        config._store[resultlog_key] = resultlog
+    else:
+        config._resultlog = resultlog
 
 
 def check_options(config):
@@ -140,7 +183,7 @@ def pytest_configure(config):
         plugin = XdistRerunsAggregator()
         config.pluginmanager.register(plugin, 'XdistRerunsAggregator')
     else:
-        plugin = RerunPlugin()
+        plugin = RerunPlugin(config)
         config.pluginmanager.register(plugin, 'RerunPlugin')
 
     # If xmlpath provided to config - junit report will be generated
@@ -158,13 +201,22 @@ def pytest_configure(config):
             )
             config.pluginmanager.register(rerun_junit_plugin, 'RerunLogXML')
 
-    resultlog = getattr(config, '_resultlog', None)
+    resultlog = _get_resultlog(config)
     if resultlog:
         logfile = resultlog.logfile
         config.pluginmanager.unregister(resultlog)
-        config._resultlog = RerunResultLog(config, logfile)
-        config.pluginmanager.register(config._resultlog)
+        new_resultlog = RerunResultLog(config, logfile)
+        _set_resultlog(config, new_resultlog)
+        config.pluginmanager.register(new_resultlog)
 
+
+def _get_marker(item):
+    try:
+        return item.get_closest_marker("flaky")
+    except AttributeError:
+        # pytest < 3.6
+        return item.get_marker("flaky")
+        
 
 class RerunLogXML(LogXML):
 
@@ -387,13 +439,13 @@ class XdistRerunsAggregator(object):
 class RerunPlugin(object):
     """Pytest plugin implements rerun failed functionality"""
 
-    def __init__(self):
+    def __init__(self, config):
         self.tests_to_rerun = set([])
         self.rerun_stats = RerunStats()
         # resolving xdist worker object
         self.xdist_worker = next(iter(filter(
             lambda x: x.__class__.__name__ == 'WorkerInteractor',
-            pytest.config.pluginmanager.get_plugins()
+            config.pluginmanager.get_plugins()
         )), None)
         self.reruns_time = 0
         self.test_reports = {}
@@ -459,7 +511,7 @@ class RerunPlugin(object):
         # terminalreporter exists only in xdist master process
         if not terminalreporter:
             msg = '\n[%s] %s' % (self.xdist_worker.workerid, msg)
-            print >> sys.stderr, msg
+            print(msg, file=sys.stderr)
         else:
             markup = {'red': True, "bold": True}
             terminalreporter.write_sep("=", msg, **markup)
@@ -614,8 +666,8 @@ class RerunPlugin(object):
         -------
         reruns : int
         """
-        rerun_marker = item.get_marker("flaky")
-        reruns = None
+        rerun_marker = _get_marker(item)
+        reruns = 0
 
         # use the marker as a priority over the global setting.
         if rerun_marker is not None:
@@ -678,7 +730,6 @@ class RerunPlugin(object):
             path = artifact_path.split('/')
             path[-1] = self.xdist_worker.workerid + '_' + path[-1]
             artifact_path = '/'.join(path)
-
         self.rerun_stats.dump_artifact(artifact_path)
 
     @contextmanager
@@ -696,38 +747,40 @@ class RerunPlugin(object):
             yield
 
 
-class RerunResultLog(ResultLog):
-    """ResultLog wrapper for support rerun capabilities"""
+if HAS_RESULTLOG:
 
-    def __init__(self, config, logfile):
-        ResultLog.__init__(self, config, logfile)
+    class RerunResultLog(ResultLog):
+        """ResultLog wrapper for support rerun capabilities"""
 
-    def pytest_runtest_logreport(self, report):
-        """
-        Pytest hook
+        def __init__(self, config, logfile):
+            ResultLog.__init__(self, config, logfile)
 
-        Adds support for rerun report fix for issue:
-        https://github.com/pytest-dev/pytest-rerunfailures/issues/28
+        def pytest_runtest_logreport(self, report):
+            """
+            Pytest hook
 
-        Parameters
-        ----------
-        report : _pytest.runner.TestReport
-        """
-        if report.when != "call" and report.passed:
-            return
-        res = self.config.hook.pytest_report_teststatus(report=report)
-        code = res[1]
-        if code == 'x':
-            longrepr = str(report.longrepr)
-        elif code == 'X':
-            longrepr = ''
-        elif report.passed:
-            longrepr = ""
-        elif report.failed:
-            longrepr = str(report.longrepr)
-        elif report.skipped:
-            longrepr = str(report.longrepr[2])
-        elif report.outcome == 'rerun':
-            longrepr = str(report.longrepr)
+            Adds support for rerun report fix for issue:
+            https://github.com/pytest-dev/pytest-rerunfailures/issues/28
 
-        self.log_outcome(report, code, longrepr)
+            Parameters
+            ----------
+            report : _pytest.runner.TestReport
+            """
+            if report.when != "call" and report.passed:
+                return
+            res = self.config.hook.pytest_report_teststatus(report=report)
+            code = res[1]
+            if code == 'x':
+                longrepr = str(report.longrepr)
+            elif code == 'X':
+                longrepr = ''
+            elif report.passed:
+                longrepr = ""
+            elif report.failed:
+                longrepr = str(report.longrepr)
+            elif report.skipped:
+                longrepr = str(report.longrepr[2])
+            elif report.outcome == 'rerun':
+                longrepr = str(report.longrepr)
+
+            self.log_outcome(report, code, longrepr)

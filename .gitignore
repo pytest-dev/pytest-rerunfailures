@@ -13,3 +13,4 @@ include/
 lib/
 pip-selfcheck.json
 dist/
+results.xml
