@@ -131,7 +131,7 @@ Update [CHANGES.rst](CHANGES.rst) to make sure changelog is updated for the new 
 
 Update package version in [setup.py](setup.py).
 
-Tag version and jarvis will package and upload it to artifactory, then update quantum-builders
+Tag version with a semver like `v4.1.10` and jarvis will package and upload it to artifactory
 
 Resources
 ---------
