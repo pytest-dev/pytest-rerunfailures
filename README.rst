@@ -125,32 +125,13 @@ Compatibility
 
 Releasing
 ---------
-This repo is currently NOT using Zest.releaser, so you must manually update versions and push built packages to Artifactory.
 
-Create `~/.pypirc` by following [Artifactory configuration](https://datarobot.atlassian.net/wiki/spaces/DEVINFRA/pages/620265499/Uploading+Python+Packages+to+Artifactory).  Make sure to add `datarobot-python-dev` repository.
 
 Update [CHANGES.rst](CHANGES.rst) to make sure changelog is updated for the new version.
 
 Update package version in [setup.py](setup.py).
 
-Setup virtualenv:
-```
-mkvirtualenv rerun
-pip install -e .[dev]
-```
-
-Build new package version (as source distribution):
-```
-python setup.py sdist
-```
-
-Upload package to Artifactory
-```
-twine upload -r datarobot-python-dev dist/*
-```
-
-You should bump the version in [setup.py](setup.py) after your change to prevent overwriting already released versions.
-
+Tag version and jarvis will package and upload it to artifactory
 
 Resources
 ---------

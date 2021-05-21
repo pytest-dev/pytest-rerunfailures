@@ -2,8 +2,9 @@ from setuptools import setup
 
 test_deps = [
     'xmltodict==0.11.0',
-    'pytest==3.5.1',
-    'pytest-xdist==1.23.2'
+    'pytest<7',
+    'pytest-xdist>=1.23.2',
+    'pytest-forked>=1.0.1',
 ]
 
 release_deps = [
@@ -11,7 +12,7 @@ release_deps = [
 ]
 
 setup(name='pytest-rerunfailures',
-      version='4.1.dr7',
+      version='4.1.dr8',
       description='pytest plugin to re-run tests with fixture invalidation to eliminate flaky failures',
       long_description=(
           open('README.rst').read() +
@@ -21,7 +22,7 @@ setup(name='pytest-rerunfailures',
       url='https://github.com/datarobot/pytest-rerunfailures',
       py_modules=['pytest_rerunfailures'],
       entry_points={'pytest11': ['rerunfailures = pytest_rerunfailures']},
-      install_requires=['pytest>=3.5,<3.6', 'mock>=1.0.1'],
+      install_requires=['pytest>=3.5<7', 'mock>=1.0.1'],
       tests_require=test_deps,
       extras_require={
           'test': test_deps,
