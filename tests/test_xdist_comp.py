@@ -13,7 +13,7 @@ def test_xdist_all_tests_passed_with_stats(testdir):
     artifact_path = testdir.tmpdir.strpath + '/artifact.json'
     make_simple_pytest_suite(testdir, expected_reruns=0, has_failure=False)
     result = testdir.runpytest(
-        '--reruns', '1', '-r', 'R',
+        '--reruns', '1', '-r', 'R', '-s',
         '-n', '2',
         '--reruns-artifact-path', artifact_path,
     )
@@ -152,6 +152,8 @@ def test_xdist_all_tests_passed_with_junit(testdir):
     assert_outcomes(result, passed=3, rerun=0)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '0'
         assert artifact_data['testsuite']['@failures'] == '0'
         assert artifact_data['testsuite']['@tests'] == '3'
@@ -169,6 +171,8 @@ def test_xdist_all_tests_resolved_with_junit(testdir):
     assert_outcomes(result, passed=4, rerun=2)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '0'
         assert artifact_data['testsuite']['@failures'] == '0'
         assert artifact_data['testsuite']['@tests'] == '4'
@@ -186,6 +190,8 @@ def test_xdist_all_tests_failed_with_junit(testdir):
     assert_outcomes(result, passed=2, rerun=2, failed=2)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '0'
         assert artifact_data['testsuite']['@failures'] == '2'
         assert artifact_data['testsuite']['@tests'] == '4'
@@ -208,6 +214,8 @@ def test_xdist_all_tests_max_reruns_with_junit(testdir):
     assert_outcomes(result, passed=2, rerun=2, failed=2)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '0'
         assert artifact_data['testsuite']['@failures'] == '2'
         assert artifact_data['testsuite']['@tests'] == '4'
@@ -231,6 +239,8 @@ def test_xdist_after_temporary_setup_resolved_with_junit(testdir):
     assert_outcomes(result, passed=1, rerun=1)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '0'
         assert artifact_data['testsuite']['@failures'] == '0'
         assert artifact_data['testsuite']['@tests'] == '1'
@@ -251,6 +261,8 @@ def test_xdist_after_temporary_setup_failure_with_junit(testdir):
     assert_outcomes(result, passed=0, error=1, rerun=1)
     with open(artifact_path) as artifact:
         artifact_data = xmltodict.parse(artifact.read())
+        if artifact_data.get('testsuites'):
+            artifact_data = artifact_data['testsuites']
         assert artifact_data['testsuite']['@errors'] == '1'
         assert artifact_data['testsuite']['@failures'] == '0'
         assert artifact_data['testsuite']['@tests'] == '1'

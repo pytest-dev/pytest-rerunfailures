@@ -3,8 +3,8 @@ from setuptools import setup
 test_deps = [
     'xmltodict==0.11.0',
     'pytest<7',
-    'pytest-xdist==1.23.2',
-    'pytest-forked==1.0.1',
+    'pytest-xdist>=1.23.2',
+    'pytest-forked>=1.0.1',
 ]
 
 release_deps = [

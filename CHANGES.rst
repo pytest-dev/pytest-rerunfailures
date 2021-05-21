@@ -1,6 +1,10 @@
 Changelog
 ---------
 
+4.1.dr8 (2021-05-21)
+====================
+- [TEST-2081] Python 3 and pytest >3 compatibility
+
 4.1.dr7 (2019-03-18)
 ====================
 - [TEST-362] Use defaultdict for report gathering

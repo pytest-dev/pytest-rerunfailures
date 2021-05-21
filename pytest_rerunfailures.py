@@ -82,6 +82,16 @@ def _set_resultlog(config, resultlog):
         config._resultlog = resultlog
 
 
+def _is_xdist_on(config):
+    """
+    We can't rely on trylast because xdist also does this, so use the
+    same options that xdist itself does.
+    """
+    return (
+        config.getoption("dist", "no") != "no" and not config.getvalue("collectonly")
+    ) or config.getoption("workerinput", False) or config.getoption("slaveinput", False)
+
+
 def check_options(config):
     """
     Making sure the options make sense
@@ -146,7 +156,7 @@ def pytest_addoption(parser):
         type=int,
         default=None,
         help='max amount of failures at which reruns would be executed. ' +\
-             'If xdist used - max amount of failures per worker' 
+             'If xdist used - max amount of failures per worker'
     )
 
 
@@ -179,7 +189,7 @@ def pytest_configure(config):
     check_options(config)
 
     # We should treat usual execution/xdist worker execution and xdist master execution differently
-    if config.pluginmanager.getplugin('dsession'):
+    if _is_xdist_on(config):
         plugin = XdistRerunsAggregator()
         config.pluginmanager.register(plugin, 'XdistRerunsAggregator')
     else:
@@ -187,7 +197,7 @@ def pytest_configure(config):
         config.pluginmanager.register(plugin, 'RerunPlugin')
 
     # If xmlpath provided to config - junit report will be generated
-    # For correct interaction with reruns tests it should be replaced by rerun junit wrapper 
+    # For correct interaction with reruns tests it should be replaced by rerun junit wrapper
     if config.option.xmlpath:
         log_xml_plugins = [p for p in config.pluginmanager.get_plugins() if isinstance(p, LogXML)]
         if log_xml_plugins:
@@ -253,7 +263,7 @@ class RerunLogXML(LogXML):
             -> teardown node2
             -> teardown node1
 
-        Function copies parent implementation with selected rerun status 
+        Function copies parent implementation with selected rerun status
         """
         close_report = None
         # Do not report reruns
@@ -267,7 +277,7 @@ class RerunLogXML(LogXML):
         # Skip finilization if no previous reports were tracked
         elif report.when == "teardown" and not self.was_reported(report):
             return
-        # Continue with usual junit flow 
+        # Continue with usual junit flow
         super(RerunLogXML, self).pytest_runtest_logreport(report)
 
 
@@ -287,12 +297,12 @@ class RerunStats(object):
         """
         Add failure entry
         We assume that failure for test could appear once per run which mean that
-        tests are executed without repetition in main run 
+        tests are executed without repetition in main run
         """
         if nodeid not in self._tracked_nodes:
             self._tracked_nodes[nodeid] = self._stat_entry(nodeid)
             self.rerun_stats['total_failed'] += 1
-        return self._tracked_nodes[nodeid]   
+        return self._tracked_nodes[nodeid]
 
     def _rerun_entry(self, nodeid):
         """
@@ -302,7 +312,7 @@ class RerunStats(object):
         if nodeid not in self._tracked_nodes:
             self._tracked_nodes[nodeid] = self._stat_entry(nodeid)
         self.rerun_stats['total_reruns'] += 1
-        return self._tracked_nodes[nodeid]   
+        return self._tracked_nodes[nodeid]
 
     def _stat_entry(self, nodeid):
         """Default entry structure"""
@@ -412,8 +422,8 @@ class XdistRerunsAggregator(object):
         if not artifact_path:
             return
 
-        uncompleted_tests = [i for i, j in  self.failure_rerun_map.items() if not j]
-    
+        uncompleted_tests = [i for i, j in self.failure_rerun_map.items() if not j]
+
         for t in uncompleted_tests:
             self.rerun_stats.remove_node(t)
             self.rerun_stats.rerun_stats['total_failed'] -= 1
@@ -722,7 +732,6 @@ class RerunPlugin(object):
         artifact_path = session.config.option.reruns_artifact_path
         if not artifact_path:
             return
-
         if self.xdist_worker:
             if not session.config.option.xdist_worker_reruns_artifact:
                 return
