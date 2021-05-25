@@ -9,6 +9,8 @@ Backwards incompatible changes
 
 - Drop support for Python 3.5.
 
+- Drop support for pytest < 5.3.
+
 Features
 ++++++++
 
