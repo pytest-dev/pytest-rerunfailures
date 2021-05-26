@@ -5,7 +5,7 @@ with open("README.rst") as readme, open("CHANGES.rst") as changelog:
 
 setup(
     name="pytest-rerunfailures",
-    version="10.0",
+    version="10.1.dev0",
     description="pytest plugin to re-run tests to eliminate flaky failures",
     long_description=long_description,
     author="Leah Klearman",
