@@ -1,7 +1,7 @@
 Changelog
 =========
 
-10.0 (unreleased)
+10.0 (2021-05-26)
 -----------------
 
 Backwards incompatible changes
