@@ -1,7 +1,11 @@
 Changelog
 ---------
 
-4.1.dr8 (2021-05-21)
+4.1.dr10 (2021-05-21)
+====================
+- [TEST-810] Corrected bug in xdist plugin finder (works with PyCharm now!)
+
+4.1.dr9 (2021-05-21)
 ====================
 - [TEST-2081] Python 3 and pytest >3 compatibility
 
