@@ -458,7 +458,7 @@ class RerunPlugin(object):
             klass = getattr(plugin, '__class__', None)
             if not klass:
                 continue
-            klass_name = getattr(klass, '__name__')
+            klass_name = getattr(klass, '__name__', None)
             if klass_name and klass_name == 'WorkerInteractor':
                 self.xdist_worker = plugin
         self.reruns_time = 0
