@@ -453,10 +453,14 @@ class RerunPlugin(object):
         self.tests_to_rerun = set([])
         self.rerun_stats = RerunStats()
         # resolving xdist worker object
-        self.xdist_worker = next(iter(filter(
-            lambda x: x.__class__.__name__ == 'WorkerInteractor',
-            config.pluginmanager.get_plugins()
-        )), None)
+        self.xdist_worker = None
+        for plugin in config.pluginmanager.get_plugins():
+            klass = getattr(plugin, '__class__', None)
+            if not klass:
+                continue
+            klass_name = getattr(klass, '__name__', None)
+            if klass_name and klass_name == 'WorkerInteractor':
+                self.xdist_worker = plugin
         self.reruns_time = 0
         self.test_reports = {}
 
