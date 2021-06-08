@@ -12,6 +12,15 @@ PYTEST_GTE_61 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("6.1")
 
+try:
+    from xdist.newhooks import pytest_handlecrashitem as _  # noqa: F401
+
+    has_xdist = True
+except ImportError:
+    has_xdist = False
+
+has_xdist = has_xdist and PYTEST_GTE_61
+
 
 def temporary_failure(count=1):
     return f"""
@@ -21,6 +30,17 @@ def temporary_failure(count=1):
             if int(count) <= {count}:
                 path.write(int(count) + 1)
                 raise Exception('Failure: {{0}}'.format(count))"""
+
+
+def temporary_crash(count=1):
+    return f"""
+            import py
+            import os
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = path.read() or 1
+            if int(count) <= {count}:
+                path.write(int(count) + 1)
+                os._exit(1)"""
 
 
 def check_outcome_field(outcomes, field_name, expected_value):
@@ -164,6 +184,23 @@ def test_rerun_passes_after_temporary_test_failure(testdir):
     )
     result = testdir.runpytest("--reruns", "1", "-r", "R")
     assert_outcomes(result, passed=1, rerun=1)
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
+def test_rerun_passes_after_temporary_test_crash(testdir):
+    # note: we need two tests because there is a bug where xdist
+    # cannot rerun the last test if it crashes. the bug exists only
+    # in xdist is there is no error that causes the bug in this plugin.
+    testdir.makepyfile(
+        f"""
+        def test_crash():
+            {temporary_crash()}
+
+        def test_pass():
+            pass"""
+    )
+    result = testdir.runpytest("-n", "1", "--reruns", "1", "-r", "R")
+    assert_outcomes(result, passed=2, rerun=1)
 
 
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
