@@ -1,9 +1,14 @@
+import os
+import platform
 import re
+import sys
 import time
+import traceback
 import warnings
 
 import pkg_resources
 import pytest
+from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
 
 HAS_RESULTLOG = False
@@ -184,9 +189,59 @@ def get_reruns_condition(item):
 
     condition = True
     if rerun_marker is not None and "condition" in rerun_marker.kwargs:
-        condition = rerun_marker.kwargs["condition"]
+        condition = evaluate_condition(
+            item, rerun_marker, rerun_marker.kwargs["condition"]
+        )
 
     return condition
+
+
+def evaluate_condition(item, mark, condition: object) -> bool:
+    """
+    copy from python3.8 _pytest.skipping.py
+    """
+    result = False
+    # String condition.
+    if isinstance(condition, str):
+        globals_ = {
+            "os": os,
+            "sys": sys,
+            "platform": platform,
+            "config": item.config,
+        }
+        if hasattr(item, "obj"):
+            globals_.update(item.obj.__globals__)  # type: ignore[attr-defined]
+        try:
+            filename = f"<{mark.name} condition>"
+            condition_code = compile(condition, filename, "eval")
+            result = eval(condition_code, globals_)
+        except SyntaxError as exc:
+            msglines = [
+                "Error evaluating %r condition" % mark.name,
+                "    " + condition,
+                "    " + " " * (exc.offset or 0) + "^",
+                "SyntaxError: invalid syntax",
+            ]
+            fail("\n".join(msglines), pytrace=False)
+        except Exception as exc:
+            msglines = [
+                "Error evaluating %r condition" % mark.name,
+                "    " + condition,
+                *traceback.format_exception_only(type(exc), exc),
+            ]
+            fail("\n".join(msglines), pytrace=False)
+
+    # Boolean condition.
+    else:
+        try:
+            result = bool(condition)
+        except Exception as exc:
+            msglines = [
+                "Error evaluating %r condition as a boolean" % mark.name,
+                *traceback.format_exception_only(type(exc), exc),
+            ]
+            fail("\n".join(msglines), pytrace=False)
+    return result
 
 
 def _remove_cached_results_from_failed_fixtures(item):

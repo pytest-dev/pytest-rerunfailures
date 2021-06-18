@@ -108,6 +108,20 @@ You can also specify an optional ``condition`` in the re-run marker:
       import random
       assert random.choice([True, False])
 
+You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
+
+.. code-block:: python
+
+    @pytest.mark.flaky(reruns=2,condition="sys.platform.startswith('win32')")
+    def test_example():
+        import random
+        assert random.choice([True, False])
+    # totally same as the above
+    @pytest.mark.flaky(reruns=2,condition=sys.platform.startswith("win32"))
+    def test_example():
+      import random
+      assert random.choice([True, False])
+
 Note that the test will re-run for any ``condition`` that is truthy.
 
 Output
