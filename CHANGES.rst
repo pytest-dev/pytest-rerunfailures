@@ -4,8 +4,13 @@ Changelog
 10.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
 
+- Allow to use a ``str`` as condition for ``@pytest.mark.flaky(condition)``
+  which gets evaluated dynamically similarly to ``@pytest.mark.skipif(condition)``.
+  (`#162 <https://github.com/pytest-dev/pytest-rerunfailures/pull/162>`_
+  provided by `@15klli <https://github.com/15klli>`_)
 
 10.0 (2021-05-26)
 -----------------
