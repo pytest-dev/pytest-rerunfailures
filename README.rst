@@ -59,15 +59,15 @@ Re-run all failures matching certain expressions
 ------------------------------------------------
 
 To re-run only those failures that match a certain list of expressions, use the
-``--only-rerun`` flag and pass it a regular expression. For example, the following would
-only rerun those errors that match ``AssertionError``:
+``--only-rerun`` flag and pass it a regular expression. For example,
+the following would only rerun those errors that match ``AssertionError``:
 
 .. code-block:: bash
 
    $ pytest --reruns 5 --only-rerun AssertionError
 
-Passing the flag multiple times accumulates the arguments, so the following would only rerun
-those errors that match ``AssertionError`` or ``ValueError``:
+Passing the flag multiple times accumulates the arguments, so the following
+would only rerun those errors that match ``AssertionError`` or ``ValueError``:
 
 .. code-block:: bash
 
@@ -166,7 +166,8 @@ Resources
 Development
 -----------
 
-* Test execution count can be retrieved from the ``execution_count`` attribute in test ``item``'s object. Example:
+* Test execution count can be retrieved from the ``execution_count`` attribute
+  in test ``item``'s object. Example:
 
   .. code-block:: python
 
