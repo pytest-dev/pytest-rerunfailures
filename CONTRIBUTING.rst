@@ -2,8 +2,8 @@
 Contribution getting started
 ============================
 
-Contributions are highly welcomed and appreciated. Every little bit of help counts,
-so do not hesitate!
+Contributions are highly welcomed and appreciated.
+Every little bit of help counts, so do not hesitate!
 
 .. contents::
    :depth: 2
@@ -37,4 +37,5 @@ Preparing Pull Requests
 
 #. Follow **PEP-8** for naming and `black <https://github.com/psf/black>`_ for formatting.
 
-#. Add a line item to the current **unreleased** version in ``CHANGES.rst``, unless the change is trivial.
+#. Add a line item to the current **unreleased** version in ``CHANGES.rst``,
+   unless the change is trivial.
