@@ -8,6 +8,10 @@ import pytest
 
 pytest_plugins = "pytester"
 
+PYTEST_GTE_60 = pkg_resources.parse_version(
+    pytest.__version__
+) >= pkg_resources.parse_version("6.0")
+
 PYTEST_GTE_61 = pkg_resources.parse_version(
     pytest.__version__
 ) >= pkg_resources.parse_version("6.1")
@@ -45,6 +49,8 @@ def assert_outcomes(
     check_outcome_field(outcomes, "passed", passed)
     check_outcome_field(outcomes, "skipped", skipped)
     check_outcome_field(outcomes, "failed", failed)
+    field = "errors" if PYTEST_GTE_60 else "error"
+    check_outcome_field(outcomes, field, error)
     check_outcome_field(outcomes, "xfailed", xfailed)
     check_outcome_field(outcomes, "xpassed", xpassed)
     check_outcome_field(outcomes, "rerun", rerun)
