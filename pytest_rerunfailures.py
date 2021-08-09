@@ -6,10 +6,12 @@ import time
 import traceback
 import warnings
 
-import pkg_resources
 import pytest
 from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
+from pkg_resources import DistributionNotFound
+from pkg_resources import get_distribution
+from pkg_resources import parse_version
 
 HAS_RESULTLOG = False
 
@@ -22,13 +24,9 @@ except ImportError:
     pass
 
 
-PYTEST_GTE_54 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("5.4")
+PYTEST_GTE_54 = parse_version(pytest.__version__) >= parse_version("5.4")
 
-PYTEST_GTE_63 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.3.0.dev")
+PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0.dev")
 
 
 def works_with_current_xdist():
@@ -41,9 +39,9 @@ def works_with_current_xdist():
 
     """
     try:
-        d = pkg_resources.get_distribution("pytest-xdist")
-        return d.parsed_version >= pkg_resources.parse_version("1.20")
-    except pkg_resources.DistributionNotFound:
+        d = get_distribution("pytest-xdist")
+        return d.parsed_version >= parse_version("1.20")
+    except DistributionNotFound:
         return None
 
 
