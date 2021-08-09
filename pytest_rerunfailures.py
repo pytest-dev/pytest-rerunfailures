@@ -32,7 +32,7 @@ PYTEST_GTE_63 = pkg_resources.parse_version(
 
 
 def works_with_current_xdist():
-    """Returns compatibility with installed pytest-xdist version.
+    """Return compatibility with installed pytest-xdist version.
 
     When running tests in parallel using pytest-xdist < 1.20.0, the first
     report that is logged will finish and terminate the current node rather
@@ -197,9 +197,8 @@ def get_reruns_condition(item):
 
 
 def evaluate_condition(item, mark, condition: object) -> bool:
-    """
-    copy from python3.8 _pytest.skipping.py
-    """
+    # copy from python3.8 _pytest.skipping.py
+
     result = False
     # String condition.
     if isinstance(condition, str):
@@ -245,9 +244,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
 
 
 def _remove_cached_results_from_failed_fixtures(item):
-    """
-    Note: remove all cached_result attribute from every fixture
-    """
+    """Note: remove all cached_result attribute from every fixture."""
     cached_result = "cached_result"
     fixture_info = getattr(item, "_fixtureinfo", None)
     for fixture_def_str in getattr(fixture_info, "name2fixturedefs", ()):
@@ -264,6 +261,8 @@ def _remove_cached_results_from_failed_fixtures(item):
 
 def _remove_failed_setup_state_from_session(item):
     """
+    Clean up setup state.
+
     Note: remove all failures from every node in _setupstate stack
           and clean the stack itself
     """
@@ -307,10 +306,11 @@ def _should_not_rerun(item, report, reruns):
 
 def pytest_runtest_protocol(item, nextitem):
     """
+    Run the test protocol.
+
     Note: when teardown fails, two reports are generated for the case, one for
     the test case and the other for the teardown error.
     """
-
     reruns = get_reruns_count(item)
     if reruns is None:
         # global setting is not specified, and this test is not marked with
@@ -358,13 +358,13 @@ def pytest_runtest_protocol(item, nextitem):
 
 
 def pytest_report_teststatus(report):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
+    # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     if report.outcome == "rerun":
         return "rerun", "R", ("RERUN", {"yellow": True})
 
 
 def pytest_terminal_summary(terminalreporter):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
+    # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     tr = terminalreporter
     if not tr.reportchars:
         return
@@ -395,10 +395,7 @@ if HAS_RESULTLOG:
             ResultLog.__init__(self, config, logfile)
 
         def pytest_runtest_logreport(self, report):
-            """
-            Adds support for rerun report fix for issue:
-            https://github.com/pytest-dev/pytest-rerunfailures/issues/28
-            """
+            """Add support for rerun report."""
             if report.when != "call" and report.passed:
                 return
             res = self.config.hook.pytest_report_teststatus(report=report)
