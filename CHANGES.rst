@@ -13,7 +13,7 @@ Changelog
 Features
 ++++++++
 
-- Allow to use a ``str`` as condition for
+- Allows using a ``str`` as condition for
   ``@pytest.mark.flaky(condition)``
   which gets evaluated dynamically similarly to
   ``@pytest.mark.skipif(condition)``.
