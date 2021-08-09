@@ -2,19 +2,15 @@ import random
 import time
 from unittest import mock
 
-import pkg_resources
 import pytest
+from pkg_resources import parse_version
 
 
 pytest_plugins = "pytester"
 
-PYTEST_GTE_60 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.0")
+PYTEST_GTE_60 = parse_version(pytest.__version__) >= parse_version("6.0")
 
-PYTEST_GTE_61 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.1")
+PYTEST_GTE_61 = parse_version(pytest.__version__) >= parse_version("6.1")
 
 
 def temporary_failure(count=1):
