@@ -22,19 +22,19 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [
-            "3.6",
-            "3.7",
-            "3.8",
-            "3.9",
-            "pypy3",
+          "3.6",
+          "3.7",
+          "3.8",
+          "3.9",
+          "pypy3",
         ]
         pytest-version: [
-            "5.3.*",
-            "5.4.*",
-            "6.0.*",
-            "6.1.*",
-            "6.2.*",
-            "main",
+          "5.3.*",
+          "5.4.*",
+          "6.0.*",
+          "6.1.*",
+          "6.2.*",
+          "main",
         ]
     steps:
       - uses: actions/checkout@v2
