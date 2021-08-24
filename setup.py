@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from setuptools import setup
 
 with open("README.rst") as readme, open("CHANGES.rst") as changelog:
