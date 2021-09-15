@@ -59,15 +59,15 @@ Re-run all failures matching certain expressions
 ------------------------------------------------
 
 To re-run only those failures that match a certain list of expressions, use the
-``--only-rerun`` flag and pass it a regular expression. For example, the following would
-only rerun those errors that match ``AssertionError``:
+``--only-rerun`` flag and pass it a regular expression. For example,
+the following would only rerun those errors that match ``AssertionError``:
 
 .. code-block:: bash
 
    $ pytest --reruns 5 --only-rerun AssertionError
 
-Passing the flag multiple times accumulates the arguments, so the following would only rerun
-those errors that match ``AssertionError`` or ``ValueError``:
+Passing the flag multiple times accumulates the arguments, so the following
+would only rerun those errors that match ``AssertionError`` or ``ValueError``:
 
 .. code-block:: bash
 
@@ -105,6 +105,20 @@ You can also specify an optional ``condition`` in the re-run marker:
 
    @pytest.mark.flaky(reruns=5, condition=sys.platform.startswith("win32"))
    def test_example():
+      import random
+      assert random.choice([True, False])
+
+You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
+
+.. code-block:: python
+
+    @pytest.mark.flaky(reruns=2,condition="sys.platform.startswith('win32')")
+    def test_example():
+        import random
+        assert random.choice([True, False])
+    # totally same as the above
+    @pytest.mark.flaky(reruns=2,condition=sys.platform.startswith("win32"))
+    def test_example():
       import random
       assert random.choice([True, False])
 
@@ -152,7 +166,8 @@ Resources
 Development
 -----------
 
-* Test execution count can be retrieved from the ``execution_count`` attribute in test ``item``'s object. Example:
+* Test execution count can be retrieved from the ``execution_count`` attribute
+  in test ``item``'s object. Example:
 
   .. code-block:: python
 

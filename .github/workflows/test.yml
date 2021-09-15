@@ -8,7 +8,7 @@ on:
     type: [ "opened", "reopened", "synchronize" ]
   schedule:
     - cron: '0 12 * * 0'  # run once a week on Sunday
-  # Allow to run this workflow manually from the Actions tab
+  # Allows running this workflow manually from the Actions tab
   workflow_dispatch:
 
 env:
@@ -22,19 +22,19 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [
-            "3.6",
-            "3.7",
-            "3.8",
-            "3.9",
-            "pypy3",
+          "3.6",
+          "3.7",
+          "3.8",
+          "3.9",
+          "pypy3",
         ]
         pytest-version: [
-            "5.3.*",
-            "5.4.*",
-            "6.0.*",
-            "6.1.*",
-            "6.2.*",
-            "main",
+          "5.3.*",
+          "5.4.*",
+          "6.0.*",
+          "6.1.*",
+          "6.2.*",
+          "main",
         ]
     steps:
       - uses: actions/checkout@v2
@@ -86,7 +86,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Setup python
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'

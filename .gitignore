@@ -1,5 +1,5 @@
 *.pyc
-*egg*
+pytest_rerunfailures.egg-info/
 .DS_Store
 .Python
 .cache/
@@ -9,6 +9,7 @@
 .tox*
 bin/
 build/*
+dist/
 include/
 lib/
 pip-selfcheck.json

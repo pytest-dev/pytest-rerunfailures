@@ -1,14 +1,21 @@
 import hashlib
+import os
+import platform
 import re
 import socket
+import sys
 import threading
 import time
+import traceback
 import warnings
 from contextlib import suppress
 
-import pkg_resources
 import pytest
+from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
+from pkg_resources import DistributionNotFound
+from pkg_resources import get_distribution
+from pkg_resources import parse_version
 
 HAS_RESULTLOG = False
 
@@ -21,17 +28,13 @@ except ImportError:
     pass
 
 
-PYTEST_GTE_54 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("5.4")
+PYTEST_GTE_54 = parse_version(pytest.__version__) >= parse_version("5.4")
 
-PYTEST_GTE_63 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.3.0.dev")
+PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0.dev")
 
 
 def works_with_current_xdist():
-    """Returns compatibility with installed pytest-xdist version.
+    """Return compatibility with installed pytest-xdist version.
 
     When running tests in parallel using pytest-xdist < 1.20.0, the first
     report that is logged will finish and terminate the current node rather
@@ -40,9 +43,9 @@ def works_with_current_xdist():
 
     """
     try:
-        d = pkg_resources.get_distribution("pytest-xdist")
-        return d.parsed_version >= pkg_resources.parse_version("1.20")
-    except pkg_resources.DistributionNotFound:
+        d = get_distribution("pytest-xdist")
+        return d.parsed_version >= parse_version("1.20")
+    except DistributionNotFound:
         return None
 
 
@@ -178,22 +181,69 @@ def get_reruns_condition(item):
 
     condition = True
     if rerun_marker is not None and "condition" in rerun_marker.kwargs:
-        condition = rerun_marker.kwargs["condition"]
+        condition = evaluate_condition(
+            item, rerun_marker, rerun_marker.kwargs["condition"]
+        )
 
     return condition
 
 
+def evaluate_condition(item, mark, condition: object) -> bool:
+    # copy from python3.8 _pytest.skipping.py
+
+    result = False
+    # String condition.
+    if isinstance(condition, str):
+        globals_ = {
+            "os": os,
+            "sys": sys,
+            "platform": platform,
+            "config": item.config,
+        }
+        if hasattr(item, "obj"):
+            globals_.update(item.obj.__globals__)  # type: ignore[attr-defined]
+        try:
+            filename = f"<{mark.name} condition>"
+            condition_code = compile(condition, filename, "eval")
+            result = eval(condition_code, globals_)
+        except SyntaxError as exc:
+            msglines = [
+                "Error evaluating %r condition" % mark.name,
+                "    " + condition,
+                "    " + " " * (exc.offset or 0) + "^",
+                "SyntaxError: invalid syntax",
+            ]
+            fail("\n".join(msglines), pytrace=False)
+        except Exception as exc:
+            msglines = [
+                "Error evaluating %r condition" % mark.name,
+                "    " + condition,
+                *traceback.format_exception_only(type(exc), exc),
+            ]
+            fail("\n".join(msglines), pytrace=False)
+
+    # Boolean condition.
+    else:
+        try:
+            result = bool(condition)
+        except Exception as exc:
+            msglines = [
+                "Error evaluating %r condition as a boolean" % mark.name,
+                *traceback.format_exception_only(type(exc), exc),
+            ]
+            fail("\n".join(msglines), pytrace=False)
+    return result
+
+
 def _remove_cached_results_from_failed_fixtures(item):
-    """
-    Note: remove all cached_result attribute from every fixture
-    """
+    """Note: remove all cached_result attribute from every fixture."""
     cached_result = "cached_result"
     fixture_info = getattr(item, "_fixtureinfo", None)
     for fixture_def_str in getattr(fixture_info, "name2fixturedefs", ()):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
             if getattr(fixture_def, cached_result, None) is not None:
-                result, cache_key, err = getattr(fixture_def, cached_result)
+                result, _, err = getattr(fixture_def, cached_result)
                 if err:  # Deleting cached results for only failed fixtures
                     if PYTEST_GTE_54:
                         setattr(fixture_def, cached_result, None)
@@ -203,6 +253,8 @@ def _remove_cached_results_from_failed_fixtures(item):
 
 def _remove_failed_setup_state_from_session(item):
     """
+    Clean up setup state.
+
     Note: remove all failures from every node in _setupstate stack
           and clean the stack itself
     """
@@ -410,6 +462,8 @@ class ClientStatusDB(SocketDB):
 
 def pytest_runtest_protocol(item, nextitem):
     """
+    Run the test protocol.
+
     Note: when teardown fails, two reports are generated for the case, one for
     the test case and the other for the teardown error.
     """
@@ -466,13 +520,13 @@ def pytest_runtest_protocol(item, nextitem):
 
 
 def pytest_report_teststatus(report):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
+    # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     if report.outcome == "rerun":
         return "rerun", "R", ("RERUN", {"yellow": True})
 
 
 def pytest_terminal_summary(terminalreporter):
-    """Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html"""
+    # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     tr = terminalreporter
     if not tr.reportchars:
         return
@@ -503,10 +557,7 @@ if HAS_RESULTLOG:
             ResultLog.__init__(self, config, logfile)
 
         def pytest_runtest_logreport(self, report):
-            """
-            Adds support for rerun report fix for issue:
-            https://github.com/pytest-dev/pytest-rerunfailures/issues/28
-            """
+            """Add support for rerun report."""
             if report.when != "call" and report.passed:
                 return
             res = self.config.hook.pytest_report_teststatus(report=report)

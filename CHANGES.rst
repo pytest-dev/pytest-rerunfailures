@@ -1,11 +1,24 @@
 Changelog
 =========
 
-10.1 (unreleased)
+10.2 (unreleased)
 -----------------
 
 - Nothing changed yet.
 
+
+10.1 (2021-07-02)
+-----------------
+
+Features
+++++++++
+
+- Allows using a ``str`` as condition for
+  ``@pytest.mark.flaky(condition)``
+  which gets evaluated dynamically similarly to
+  ``@pytest.mark.skipif(condition)``.
+  (`#162 <https://github.com/pytest-dev/pytest-rerunfailures/pull/162>`_
+  provided by `@15klli <https://github.com/15klli>`_)
 
 10.0 (2021-05-26)
 -----------------
@@ -188,11 +201,11 @@ Bug fixes
 4.2 (2018-10-04)
 ----------------
 
-- Fixed #64 issue related to ``setup_class`` and ``fixture`` executions on rerun (Thanks to
-  `@OlegKuzovkov`_ for the PR).
+- Fixed #64 issue related to ``setup_class`` and ``fixture`` executions on
+  rerun (Thanks to `@OlegKuzovkov`_ for the PR).
 
-- Added new ``execution_count`` attribute to reflect the number of test case executions according to #67 issue.
-  (Thanks to `@OlegKuzovkov`_ for the PR).
+- Added new ``execution_count`` attribute to reflect the number of test case
+  executions according to #67 issue. (Thanks to `@OlegKuzovkov`_ for the PR).
 
 .. _@OlegKuzovkov: https://github.com/OlegKuzovkov
 

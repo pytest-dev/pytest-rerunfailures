@@ -2,15 +2,15 @@ import random
 import time
 from unittest import mock
 
-import pkg_resources
 import pytest
+from pkg_resources import parse_version
 
 
 pytest_plugins = "pytester"
 
-PYTEST_GTE_61 = pkg_resources.parse_version(
-    pytest.__version__
-) >= pkg_resources.parse_version("6.1")
+PYTEST_GTE_60 = parse_version(pytest.__version__) >= parse_version("6.0")
+
+PYTEST_GTE_61 = parse_version(pytest.__version__) >= parse_version("6.1")
 
 try:
     from xdist.newhooks import pytest_handlecrashitem as _  # noqa: F401
@@ -65,6 +65,8 @@ def assert_outcomes(
     check_outcome_field(outcomes, "passed", passed)
     check_outcome_field(outcomes, "skipped", skipped)
     check_outcome_field(outcomes, "failed", failed)
+    field = "errors" if PYTEST_GTE_60 else "error"
+    check_outcome_field(outcomes, field, error)
     check_outcome_field(outcomes, "xfailed", xfailed)
     check_outcome_field(outcomes, "xpassed", xpassed)
     check_outcome_field(outcomes, "rerun", rerun)
@@ -566,8 +568,6 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
         (False, 0),
         (1, 2),
         (0, 0),
-        ("'non-empty'", 2),
-        ("''", 0),
         (["list"], 2),
         ([], 0),
         ({"dict": 1}, 2),
@@ -587,3 +587,37 @@ def test_reruns_with_condition_marker(testdir, condition, expected_reruns):
 
     result = testdir.runpytest()
     assert_outcomes(result, passed=0, failed=1, rerun=expected_reruns)
+
+
+@pytest.mark.parametrize(
+    "condition, expected_reruns",
+    [('sys.platform.startswith("non-exists") == False', 2), ("os.getpid() != -1", 2)],
+)
+# before evaluating the condition expression, sys&os&platform package has been imported
+def test_reruns_with_string_condition(testdir, condition, expected_reruns):
+    testdir.makepyfile(
+        f"""
+           import pytest
+
+           @pytest.mark.flaky(reruns=2, condition='{condition}')
+           def test_fail_two():
+               assert False"""
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_reruns_with_string_condition_with_global_var(testdir):
+    testdir.makepyfile(
+        """
+              import pytest
+
+              rerunBool = False
+              @pytest.mark.flaky(reruns=2, condition='rerunBool')
+              def test_fail_two():
+                  global rerunBool
+                  rerunBool = True
+                  assert False"""
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
