@@ -4,7 +4,10 @@ Changelog
 10.2 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
+
+- Allow recovery from crashed tests with pytest-xdist.
 
 
 10.1 (2021-07-02)
