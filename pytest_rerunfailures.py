@@ -27,9 +27,16 @@ except ImportError:
     # We have a pytest >= 6.1
     pass
 
+try:
+    from xdist.newhooks import pytest_handlecrashitem
+
+    HAS_PYTEST_HANDLECRASHITEM = True
+    del pytest_handlecrashitem
+except ImportError:
+    HAS_PYTEST_HANDLECRASHITEM = False
+
 
 PYTEST_GTE_54 = parse_version(pytest.__version__) >= parse_version("5.4")
-
 PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0.dev")
 
 
@@ -243,7 +250,7 @@ def _remove_cached_results_from_failed_fixtures(item):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
             if getattr(fixture_def, cached_result, None) is not None:
-                result, _, err = getattr(fixture_def, cached_result)  # noqa: F401, F811
+                result, _, err = getattr(fixture_def, cached_result)
                 if err:  # Deleting cached results for only failed fixtures
                     if PYTEST_GTE_54:
                         setattr(fixture_def, cached_result, None)
@@ -309,19 +316,16 @@ def pytest_configure(config):
         "between re-runs.",
     )
 
-    try:
-        from xdist.newhooks import pytest_handlecrashitem as _  # noqa: F401, F811
-
+    if HAS_PYTEST_HANDLECRASHITEM:
         if is_master(config):
             config.failures_db = ServerStatusDB()
         else:
             config.failures_db = ClientStatusDB(config.workerinput["sock_port"])
-    except ImportError:
+    else:
         config.failures_db = StatusDB()  # no-op db
 
 
-with suppress(ImportError):
-    from xdist.newhooks import pytest_handlecrashitem as _  # noqa: F401, F811
+if HAS_PYTEST_HANDLECRASHITEM:
 
     def pytest_configure_node(node):
         """xdist hook"""
@@ -422,7 +426,7 @@ class ServerStatusDB(SocketDB):
     def run_server(self):
         self.sock.listen()
         while True:
-            conn, _ = self.sock.accept()  # noqa: F811
+            conn, _ = self.sock.accept()
             t = threading.Thread(target=self.run_connection, args=(conn,), daemon=True)
             t.start()
 
