@@ -243,7 +243,7 @@ def _remove_cached_results_from_failed_fixtures(item):
         fixture_defs = fixture_info.name2fixturedefs[fixture_def_str]
         for fixture_def in fixture_defs:
             if getattr(fixture_def, cached_result, None) is not None:
-                result, _, err = getattr(fixture_def, cached_result)
+                result, _, err = getattr(fixture_def, cached_result)  # noqa: F401, F811
                 if err:  # Deleting cached results for only failed fixtures
                     if PYTEST_GTE_54:
                         setattr(fixture_def, cached_result, None)
