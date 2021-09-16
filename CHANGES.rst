@@ -8,6 +8,8 @@ Features
 ++++++++
 
 - Allow recovery from crashed tests with pytest-xdist.
+- Add support for Python 3.10 (as of Python 3.10.rc2).
+  (Thanks to `@hugovk <https://github.com/hugovk>`_ for the PR.)
 
 
 10.1 (2021-07-02)
@@ -37,16 +39,16 @@ Features
 ++++++++
 
 - Add ``condition`` keyword argument to the re-run marker.
-  (Thanks to `@BeyondEvil`_ for the PR)
+  (Thanks to `@BeyondEvil`_ for the PR.)
 
 - Add support for Python 3.9.
-  (Thanks to `@digitronik`_ for the PR)
+  (Thanks to `@digitronik`_ for the PR.)
 
 - Add support for pytest 6.3.
-  (Thanks to `@bluetech`_ for the PR)
+  (Thanks to `@bluetech`_ for the PR.)
 
 - Add compatibility with ``pytest-xdist >= 2.0``.
-  (Thanks to `@bluetech`_ for the PR)
+  (Thanks to `@bluetech`_ for the PR.)
 
 Other changes
 +++++++++++++
