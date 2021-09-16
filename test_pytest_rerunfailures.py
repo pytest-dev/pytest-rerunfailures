@@ -5,21 +5,14 @@ from unittest import mock
 import pytest
 from pkg_resources import parse_version
 
+from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
+
 
 pytest_plugins = "pytester"
 
 PYTEST_GTE_60 = parse_version(pytest.__version__) >= parse_version("6.0")
-
 PYTEST_GTE_61 = parse_version(pytest.__version__) >= parse_version("6.1")
-
-try:
-    from xdist.newhooks import pytest_handlecrashitem as _  # noqa: F401
-
-    has_xdist = True
-except ImportError:
-    has_xdist = False
-
-has_xdist = has_xdist and PYTEST_GTE_61
+has_xdist = HAS_PYTEST_HANDLECRASHITEM and PYTEST_GTE_61
 
 
 def temporary_failure(count=1):
