@@ -1,10 +1,14 @@
+import hashlib
 import os
 import platform
 import re
+import socket
 import sys
+import threading
 import time
 import traceback
 import warnings
+from contextlib import suppress
 
 import pytest
 from _pytest.outcomes import fail
@@ -23,9 +27,16 @@ except ImportError:
     # We have a pytest >= 6.1
     pass
 
+try:
+    from xdist.newhooks import pytest_handlecrashitem
+
+    HAS_PYTEST_HANDLECRASHITEM = True
+    del pytest_handlecrashitem
+except ImportError:
+    HAS_PYTEST_HANDLECRASHITEM = False
+
 
 PYTEST_GTE_54 = parse_version(pytest.__version__) >= parse_version("5.4")
-
 PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0.dev")
 
 
@@ -75,16 +86,6 @@ def pytest_addoption(parser):
         type=float,
         default=0,
         help="add time (seconds) delay between reruns.",
-    )
-
-
-def pytest_configure(config):
-    # add flaky marker
-    config.addinivalue_line(
-        "markers",
-        "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
-        "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
-        "between re-runs.",
     )
 
 
@@ -302,6 +303,167 @@ def _should_not_rerun(item, report, reruns):
     )
 
 
+def is_master(config):
+    return not (hasattr(config, "workerinput") or hasattr(config, "slaveinput"))
+
+
+def pytest_configure(config):
+    # add flaky marker
+    config.addinivalue_line(
+        "markers",
+        "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
+        "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
+        "between re-runs.",
+    )
+
+    if HAS_PYTEST_HANDLECRASHITEM:
+        if is_master(config):
+            config.failures_db = ServerStatusDB()
+        else:
+            config.failures_db = ClientStatusDB(config.workerinput["sock_port"])
+    else:
+        config.failures_db = StatusDB()  # no-op db
+
+
+if HAS_PYTEST_HANDLECRASHITEM:
+
+    def pytest_configure_node(node):
+        """xdist hook"""
+        node.workerinput["sock_port"] = node.config.failures_db.sock_port
+
+    def pytest_handlecrashitem(crashitem, report, sched):
+        """
+        Return the crashitem from pending and collection.
+        """
+        db = sched.config.failures_db
+        reruns = db.get_test_reruns(crashitem)
+        if db.get_test_failures(crashitem) < reruns:
+            sched.mark_test_pending(crashitem)
+            report.outcome = "rerun"
+
+        db.add_test_failure(crashitem)
+
+
+# An in-memory db residing in the master that records
+# the number of reruns (set before test setup)
+# and failures (set after each failure or crash)
+# accessible from both the master and worker
+class StatusDB:
+    def __init__(self):
+        self.delim = b"\n"
+        self.hmap = {}
+
+    def _hash(self, crashitem: str) -> str:
+        if crashitem not in self.hmap:
+            self.hmap[crashitem] = hashlib.sha1(
+                crashitem.encode(),
+            ).hexdigest()[:10]
+
+        return self.hmap[crashitem]
+
+    def add_test_failure(self, crashitem):
+        hash = self._hash(crashitem)
+        failures = self._get(hash, "f")
+        failures += 1
+        self._set(hash, "f", failures)
+
+    def get_test_failures(self, crashitem):
+        hash = self._hash(crashitem)
+        return self._get(hash, "f")
+
+    def set_test_reruns(self, crashitem, reruns):
+        hash = self._hash(crashitem)
+        self._set(hash, "r", reruns)
+
+    def get_test_reruns(self, crashitem):
+        hash = self._hash(crashitem)
+        return self._get(hash, "r")
+
+    # i is a hash of the test name, t_f.py::test_t
+    # k is f for failures or r for reruns
+    # v is the number of failures or reruns (an int)
+    def _set(self, i: str, k: str, v: int):
+        pass
+
+    def _get(self, i: str, k: str) -> int:
+        return 0
+
+
+class SocketDB(StatusDB):
+    def __init__(self):
+        super().__init__()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setblocking(1)
+
+    def _sock_recv(self, conn) -> str:
+        buf = b""
+        while True:
+            b = conn.recv(1)
+            if b == self.delim:
+                break
+            buf += b
+
+        return buf.decode()
+
+    def _sock_send(self, conn, msg: str):
+        conn.send(msg.encode() + self.delim)
+
+
+class ServerStatusDB(SocketDB):
+    def __init__(self):
+        super().__init__()
+        self.sock.bind(("", 0))
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        self.rerunfailures_db = {}
+        t = threading.Thread(target=self.run_server, daemon=True)
+        t.start()
+
+    @property
+    def sock_port(self):
+        return self.sock.getsockname()[1]
+
+    def run_server(self):
+        self.sock.listen()
+        while True:
+            conn, _ = self.sock.accept()
+            t = threading.Thread(target=self.run_connection, args=(conn,), daemon=True)
+            t.start()
+
+    def run_connection(self, conn):
+        with suppress(ConnectionError):
+            while True:
+                op, i, k, v = self._sock_recv(conn).split("|")
+                if op == "set":
+                    self._set(i, k, int(v))
+                elif op == "get":
+                    self._sock_send(conn, str(self._get(i, k)))
+
+    def _set(self, i: str, k: str, v: int):
+        if i not in self.rerunfailures_db:
+            self.rerunfailures_db[i] = {}
+        self.rerunfailures_db[i][k] = v
+
+    def _get(self, i: str, k: str) -> int:
+        try:
+            return self.rerunfailures_db[i][k]
+        except KeyError:
+            return 0
+
+
+class ClientStatusDB(SocketDB):
+    def __init__(self, sock_port):
+        super().__init__()
+        self.sock.connect(("localhost", sock_port))
+
+    def _set(self, i: str, k: str, v: int):
+        self._sock_send(self.sock, "|".join(("set", i, k, str(v))))
+
+    def _get(self, i: str, k: str) -> int:
+        self._sock_send(self.sock, "|".join(("get", i, k, "")))
+        return int(self._sock_recv(self.sock))
+
+
 def pytest_runtest_protocol(item, nextitem):
     """
     Run the test protocol.
@@ -319,8 +481,14 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
     delay = get_reruns_delay(item)
-    parallel = hasattr(item.config, "slaveinput") or hasattr(item.config, "workerinput")
-    item.execution_count = 0
+    parallel = not is_master(item.config)
+    item_location = (item.location[0] + "::" + item.location[2]).replace("\\", "/")
+    db = item.session.config.failures_db
+    item.execution_count = db.get_test_failures(item_location)
+    db.set_test_reruns(item_location, reruns)
+
+    if item.execution_count > reruns:
+        return True
 
     need_to_run = True
     while need_to_run:

@@ -22,6 +22,11 @@ You will need the following prerequisites in order to use pytest-rerunfailures:
 - Python 3.6, up to 3.10, or PyPy3
 - pytest 5.3 or newer
 
+This plugin can recover from a hard crash with the following optional
+prerequisites:
+
+- pytest-xdist 2.3.0 or newer
+
 This package is currently tested against the last 5 minor pytest releases. In
 case you work with an older version of pytest you should consider updating or
 use one of the earlier versions of this package.
@@ -34,6 +39,17 @@ To install pytest-rerunfailures:
 .. code-block:: bash
 
   $ pip install pytest-rerunfailures
+
+Recover from hard crashes
+-------------------------
+
+If one or more tests trigger a hard crash (for example: segfault), this plugin
+will ordinarily be unable to rerun the test. However, if a compatible version of
+pytest-xdist is installed, and the tests are run within pytest-xdist using the `-n`
+flag, this plugin will be able to rerun crashed tests, assuming the workers and
+controller are on the same LAN (this assumption is valid for almost all cases
+because most of the time the workers and controller are on the same computer).
+If this assumption is not the case, then this functionality may not operate.
 
 Re-run all failures
 -------------------

@@ -4,6 +4,10 @@ Changelog
 10.2 (unreleased)
 -----------------
 
+Features
+++++++++
+
+- Allow recovery from crashed tests with pytest-xdist.
 - Add support for Python 3.10 (as of Python 3.10.rc2).
   (Thanks to `@hugovk <https://github.com/hugovk>`_ for the PR.)
 
