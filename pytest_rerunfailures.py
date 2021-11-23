@@ -482,10 +482,9 @@ def pytest_runtest_protocol(item, nextitem):
     check_options(item.session.config)
     delay = get_reruns_delay(item)
     parallel = not is_master(item.config)
-    item_location = (item.location[0] + "::" + item.location[2]).replace("\\", "/")
     db = item.session.config.failures_db
-    item.execution_count = db.get_test_failures(item_location)
-    db.set_test_reruns(item_location, reruns)
+    item.execution_count = db.get_test_failures(item.nodeid)
+    db.set_test_reruns(item.nodeid, reruns)
 
     if item.execution_count > reruns:
         return True
