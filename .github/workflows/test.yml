@@ -26,8 +26,8 @@ jobs:
           "3.7",
           "3.8",
           "3.9",
-          "3.10-dev",
-          "pypy3",
+          "3.10",
+          "pypy-3.7",
         ]
         pytest-version: [
           "5.3.*",
@@ -39,10 +39,12 @@ jobs:
         ]
         exclude:
           # Only pytest 6.2+ supports Python 3.10
-          - { python-version: "3.10-dev", pytest-version: "5.3.*" }
-          - { python-version: "3.10-dev", pytest-version: "5.4.*" }
-          - { python-version: "3.10-dev", pytest-version: "6.0.*" }
-          - { python-version: "3.10-dev", pytest-version: "6.1.*" }
+          - { python-version: "3.10", pytest-version: "5.3.*" }
+          - { python-version: "3.10", pytest-version: "5.4.*" }
+          - { python-version: "3.10", pytest-version: "6.0.*" }
+          - { python-version: "3.10", pytest-version: "6.1.*" }
+          # Main requires Python >= 3.7
+          - { python-version: "3.6", pytest-version: "main" }
     steps:
       - uses: actions/checkout@v2
 
