@@ -194,7 +194,7 @@ def test_rerun_passes_after_temporary_test_crash(testdir):
         def test_pass():
             pass"""
     )
-    result = testdir.runpytest("-n", "1", "--reruns", "1", "-r", "R")
+    result = testdir.runpytest("-p", "xdist", "-n", "1", "--reruns", "1", "-r", "R")
     assert_outcomes(result, passed=2, rerun=1)
 
 
