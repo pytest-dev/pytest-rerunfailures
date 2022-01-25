@@ -316,7 +316,8 @@ def pytest_configure(config):
         "between re-runs.",
     )
 
-    if HAS_PYTEST_HANDLECRASHITEM:
+    if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
+        config.pluginmanager.register(XDistHooks())
         if is_master(config):
             config.failures_db = ServerStatusDB()
         else:
@@ -325,13 +326,12 @@ def pytest_configure(config):
         config.failures_db = StatusDB()  # no-op db
 
 
-if HAS_PYTEST_HANDLECRASHITEM:
-
-    def pytest_configure_node(node):
+class XDistHooks:
+    def pytest_configure_node(self, node):
         """xdist hook"""
         node.workerinput["sock_port"] = node.config.failures_db.sock_port
 
-    def pytest_handlecrashitem(crashitem, report, sched):
+    def pytest_handlecrashitem(self, crashitem, report, sched):
         """
         Return the crashitem from pending and collection.
         """
