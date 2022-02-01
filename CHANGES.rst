@@ -4,7 +4,11 @@ Changelog
 10.3 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Bug fixes
++++++++++
+
+- Fix crash when pytest-xdist is installed but disabled.
+  (Thanks to `@mgorny <https://github.com/mgorny>`_ for the PR.)
 
 
 10.2 (2021-09-17)
