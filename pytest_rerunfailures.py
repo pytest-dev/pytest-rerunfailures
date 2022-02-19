@@ -308,7 +308,6 @@ def _should_hard_fail_on_error(session_config, report):
 
                 return False
 
-
     return True
 
 

@@ -553,6 +553,36 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
 
 
 @pytest.mark.parametrize(
+    "rerun_except_texts, should_rerun",
+    [
+        (["AssertionError"], True),
+        (["Assertion*"], True),
+        (["Assertion"], True),
+        (["ValueError"], False),
+        ([""], True),
+        (["AssertionError: "], True),
+        (["ERR"], False),
+        (["AssertionError", "OSError"], True),
+    ],
+)
+def test_rerun_except_flag(testdir, rerun_except_texts, should_rerun):
+    testdir.makepyfile('def test_rerun_except(): raise ValueError("ERR")')
+
+    num_failed = 1
+    num_passed = 0
+    num_reruns = 1
+    num_reruns_actual = num_reruns if should_rerun else 0
+
+    pytest_args = ["--reruns", str(num_reruns)]
+    for rerun_except_text in rerun_except_texts:
+        pytest_args.extend(["--rerun-except", rerun_except_text])
+    result = testdir.runpytest(*pytest_args)
+    assert_outcomes(
+        result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual
+    )
+
+
+@pytest.mark.parametrize(
     "condition, expected_reruns",
     [
         (1 == 1, 2),
