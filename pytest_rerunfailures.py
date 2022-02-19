@@ -87,6 +87,16 @@ def pytest_addoption(parser):
         default=0,
         help="add time (seconds) delay between reruns.",
     )
+    group._addoption(
+        "--rerun-except",
+        action="append",
+        dest="rerun_except",
+        type=str,
+        default=None,
+        help="If passed, only rerun errors other than matching the "
+        "regex provided. Pass this flag multiple times to accumulate a list "
+        "of regexes to match",
+    )
 
 
 def _get_resultlog(config):
@@ -280,12 +290,24 @@ def _should_hard_fail_on_error(session_config, report):
         return False
 
     rerun_errors = session_config.option.only_rerun
-    if not rerun_errors:
+    rerun_except_errors = session_config.option.rerun_except
+
+    if not rerun_errors and not rerun_except_errors:
+
         return False
 
-    for rerun_regex in rerun_errors:
-        if re.search(rerun_regex, report.longrepr.reprcrash.message):
-            return False
+    if rerun_errors:
+        for rerun_regex in rerun_errors:
+            if re.search(rerun_regex, report.longrepr.reprcrash.message):
+
+                return False
+
+    if rerun_except_errors:
+        for rerun_regex in rerun_except_errors:
+            if not re.search(rerun_regex, report.longrepr.reprcrash.message):
+
+                return False
+
 
     return True
 
