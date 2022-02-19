@@ -559,7 +559,6 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
         (["Assertion*"], True),
         (["Assertion"], True),
         (["ValueError"], False),
-        ([""], True),
         (["AssertionError: "], True),
         (["ERR"], False),
         (["AssertionError", "OSError"], True),
@@ -575,6 +574,7 @@ def test_rerun_except_flag(testdir, rerun_except_texts, should_rerun):
 
     pytest_args = ["--reruns", str(num_reruns)]
     for rerun_except_text in rerun_except_texts:
+        print(rerun_except_text)
         pytest_args.extend(["--rerun-except", rerun_except_text])
     result = testdir.runpytest(*pytest_args)
     assert_outcomes(
