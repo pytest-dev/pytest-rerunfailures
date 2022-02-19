@@ -89,6 +89,24 @@ would only rerun those errors that match ``AssertionError`` or ``ValueError``:
 
    $ pytest --reruns 5 --only-rerun AssertionError --only-rerun ValueError
 
+Re-run all failures other than matching certain expressions
+------------------------------------------------
+
+To re-run only those failures that do not match a certain list of expressions, use the
+``--rerun-except`` flag and pass it a regular expression. For example,
+the following would only rerun those errors other than that match ``AssertionError``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --rerun-except AssertionError
+
+Passing the flag multiple times accumulates the arguments, so the following
+would only rerun those errors that match ``AssertionError`` or ``ValueError``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --rerun-except AssertionError --rerun-except OSError
+
 Re-run individual failures
 --------------------------
 
