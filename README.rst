@@ -101,7 +101,7 @@ the following would only rerun those errors other than that match ``AssertionErr
    $ pytest --reruns 5 --rerun-except AssertionError
 
 Passing the flag multiple times accumulates the arguments, so the following
-would only rerun those errors that match ``AssertionError`` or ``ValueError``:
+would only rerun those errors that does not match with ``AssertionError`` or ``OSError``:
 
 .. code-block:: bash
 
