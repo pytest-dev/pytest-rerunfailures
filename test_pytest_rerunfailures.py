@@ -510,7 +510,7 @@ def test_pytest_runtest_logfinish_is_called(testdir):
     hook_message = "Message from pytest_runtest_logfinish hook"
     testdir.makepyfile("def test_pass(): pass")
     testdir.makeconftest(
-        fr"""
+        rf"""
         def pytest_runtest_logfinish(nodeid, location):
             print("\n{hook_message}\n")
     """
