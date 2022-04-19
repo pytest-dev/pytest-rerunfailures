@@ -10,6 +10,8 @@ Bug fixes
 - Fix crash when pytest-xdist is installed but disabled.
   (Thanks to `@mgorny <https://github.com/mgorny>`_ for the PR.)
 
+- Fix crash when xfail(strict=True) mark is used with --rerun-only flag.
+
 Features
 ++++++++
 
