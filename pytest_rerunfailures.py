@@ -298,9 +298,12 @@ def _should_hard_fail_on_error(session_config, report):
 
     if rerun_errors:
         for rerun_regex in rerun_errors:
-            if re.search(rerun_regex, report.longrepr.reprcrash.message):
-
-                return False
+            try:
+                if re.search(rerun_regex, report.longrepr.reprcrash.message):
+                    return False
+            except AttributeError:
+                if re.search(rerun_regex, report.longreprtext):
+                    return False
 
     if rerun_except_errors:
         for rerun_regex in rerun_except_errors:

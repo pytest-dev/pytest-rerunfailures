@@ -552,6 +552,19 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     )
 
 
+def test_no_rerun_on_strict_xfail_with_only_rerun_flag(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+        @pytest.mark.xfail(strict=True)
+        def test_xfail():
+            assert True
+    """
+    )
+    result = testdir.runpytest("--reruns", "1", "--only-rerun", "RuntimeError")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
 @pytest.mark.parametrize(
     "rerun_except_texts, should_rerun",
     [
