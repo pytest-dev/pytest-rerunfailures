@@ -22,7 +22,7 @@ repos:
             language_version: python3
             additional_dependencies: [flake8-typing-imports>=1.9.0]
     - repo: https://github.com/asottile/reorder_python_imports
-      rev: v3.0.1
+      rev: v3.1.0
       hooks:
           - id: reorder-python-imports
             args: ['--application-directories=.:src', --py3-plus]
