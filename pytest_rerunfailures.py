@@ -13,9 +13,12 @@ from contextlib import suppress
 import pytest
 from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
-from pkg_resources import DistributionNotFound
-from pkg_resources import get_distribution
-from pkg_resources import parse_version
+from packaging.version import parse as parse_version
+
+if sys.version_info >= (3, 8):
+    import importlib.metadata as importlib_metadata
+else:
+    import importlib_metadata
 
 HAS_RESULTLOG = False
 
@@ -50,10 +53,11 @@ def works_with_current_xdist():
 
     """
     try:
-        d = get_distribution("pytest-xdist")
-        return d.parsed_version >= parse_version("1.20")
-    except DistributionNotFound:
+        d = importlib_metadata.distribution("pytest-xdist")
+    except importlib_metadata.PackageNotFoundError:
         return None
+    else:
+        return parse_version(d.version) >= parse_version("1.20")
 
 
 # command line options
