@@ -657,3 +657,47 @@ def test_reruns_with_string_condition_with_global_var(testdir):
     )
     result = testdir.runpytest()
     assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_ini_file_parameters(testdir):
+    testdir.makepyfile(
+        """
+        import time
+        def test_foo():
+            assert False
+    """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 2
+        reruns_delay = 3
+    """
+    )
+    time.sleep = mock.MagicMock()
+    result = testdir.runpytest()
+
+    time.sleep.assert_called_with(3)
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_ini_file_parameters_override(testdir):
+    testdir.makepyfile(
+        """
+        import time
+        def test_foo():
+            assert False
+    """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 2
+        reruns_delay = 3
+    """
+    )
+    time.sleep = mock.MagicMock()
+    result = testdir.runpytest("--reruns", "4", "--reruns-delay", "5")
+
+    time.sleep.assert_called_with(5)
+    assert_outcomes(result, passed=0, failed=1, rerun=4)

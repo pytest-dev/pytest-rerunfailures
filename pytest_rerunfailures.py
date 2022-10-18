@@ -60,6 +60,10 @@ def works_with_current_xdist():
         return parse_version(d.version) >= parse_version("1.20")
 
 
+RERUNS_DESC = "number of times to re-run failed tests. defaults to 0."
+RERUNS_DELAY_DESC = "add time (seconds) delay between reruns."
+
+
 # command line options
 def pytest_addoption(parser):
     group = parser.getgroup(
@@ -80,15 +84,13 @@ def pytest_addoption(parser):
         action="store",
         dest="reruns",
         type=int,
-        default=0,
-        help="number of times to re-run failed tests. defaults to 0.",
+        help=RERUNS_DESC,
     )
     group._addoption(
         "--reruns-delay",
         action="store",
         dest="reruns_delay",
         type=float,
-        default=0,
         help="add time (seconds) delay between reruns.",
     )
     group._addoption(
@@ -101,6 +103,8 @@ def pytest_addoption(parser):
         "regex provided. Pass this flag multiple times to accumulate a list "
         "of regexes to match",
     )
+    parser.addini("reruns", RERUNS_DESC, type="string")
+    parser.addini("reruns_delay", RERUNS_DELAY_DESC, type="string")
 
 
 def _get_resultlog(config):
@@ -155,21 +159,23 @@ def _get_marker(item):
 
 def get_reruns_count(item):
     rerun_marker = _get_marker(item)
-    reruns = None
-
     # use the marker as a priority over the global setting.
     if rerun_marker is not None:
         if "reruns" in rerun_marker.kwargs:
             # check for keyword arguments
-            reruns = rerun_marker.kwargs["reruns"]
+            return rerun_marker.kwargs["reruns"]
         elif len(rerun_marker.args) > 0:
             # check for arguments
-            reruns = rerun_marker.args[0]
+            return rerun_marker.args[0]
         else:
-            reruns = 1
-    elif item.session.config.option.reruns:
-        # default to the global setting
-        reruns = item.session.config.option.reruns
+            return 1
+
+    reruns = item.session.config.getvalue("reruns")
+    if reruns is not None:
+        return reruns
+
+    with suppress(TypeError, ValueError):
+        reruns = int(item.session.config.getini("reruns"))
 
     return reruns
 
@@ -186,7 +192,12 @@ def get_reruns_delay(item):
         else:
             delay = 0
     else:
-        delay = item.session.config.option.reruns_delay
+        delay = item.session.config.getvalue("reruns_delay")
+        if delay is None:
+            try:
+                delay = float(item.session.config.getini("reruns_delay"))
+            except (TypeError, ValueError):
+                delay = 0
 
     if delay < 0:
         delay = 0
