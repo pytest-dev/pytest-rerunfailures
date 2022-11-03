@@ -40,6 +40,7 @@ except ImportError:
 
 
 PYTEST_GTE_54 = parse_version(pytest.__version__) >= parse_version("5.4")
+PYTEST_GTE_62 = parse_version(pytest.__version__) >= parse_version("6.2.0")
 PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0.dev")
 
 
@@ -103,8 +104,9 @@ def pytest_addoption(parser):
         "regex provided. Pass this flag multiple times to accumulate a list "
         "of regexes to match",
     )
-    parser.addini("reruns", RERUNS_DESC, type="string")
-    parser.addini("reruns_delay", RERUNS_DELAY_DESC, type="string")
+    arg_type = "string" if PYTEST_GTE_62 else None
+    parser.addini("reruns", RERUNS_DESC, type=arg_type)
+    parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
 
 
 def _get_resultlog(config):
