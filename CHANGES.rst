@@ -9,7 +9,7 @@ Features
 
 - Expose `reruns` and `reruns_delay` through `pytest.ini` file.
 
-10.3 (unreleased)
+10.3 (2022-11-22)
 -----------------
 
 Bug fixes
