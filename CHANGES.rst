@@ -1,6 +1,14 @@
 Changelog
 =========
 
+10.4 (unreleased)
+-----------------
+
+Features
+++++++++
+
+- Expose `reruns` and `reruns_delay` through `pytest.ini` file.
+
 10.3 (unreleased)
 -----------------
 
@@ -17,7 +25,6 @@ Features
 
 - Added option `--rerun-except` to rerun failed tests those are other than the mentioned Error.
 
-- Expose `reruns` and `reruns_delay` through `pytest.ini` file.
 
 10.2 (2021-09-17)
 -----------------
