@@ -22,29 +22,29 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [
-          "3.6",
           "3.7",
           "3.8",
           "3.9",
           "3.10",
+          "3.11",
           "pypy-3.7",
         ]
         pytest-version: [
-          "5.3.*",
-          "5.4.*",
           "6.0.*",
           "6.1.*",
           "6.2.*",
+          "7.0.*",
+          "7.1.*",
+          "7.2.*",
           "main",
         ]
         exclude:
           # Only pytest 6.2+ supports Python 3.10
-          - { python-version: "3.10", pytest-version: "5.3.*" }
-          - { python-version: "3.10", pytest-version: "5.4.*" }
           - { python-version: "3.10", pytest-version: "6.0.*" }
           - { python-version: "3.10", pytest-version: "6.1.*" }
-          # Main requires Python >= 3.7
-          - { python-version: "3.6", pytest-version: "main" }
+          # Only pytest 6.2+ supports Python 3.11
+          - { python-version: "3.11", pytest-version: "6.0.*" }
+          - { python-version: "3.11", pytest-version: "6.1.*" }
     steps:
       - uses: actions/checkout@v2
 
