@@ -440,7 +440,7 @@ class SocketDB(StatusDB):
 class ServerStatusDB(SocketDB):
     def __init__(self):
         super().__init__()
-        self.sock.bind(("", 0))
+        self.sock.bind(("localhost", 0))
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.rerunfailures_db = {}
