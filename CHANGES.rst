@@ -1,8 +1,15 @@
 Changelog
 =========
 
-10.3 (unreleased)
+11.0 (unreleased)
 -----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for Python 3.6.
+
+- Drop support for pytest < 6.
 
 Bug fixes
 +++++++++
@@ -16,6 +23,10 @@ Features
 ++++++++
 
 - Added option `--rerun-except` to rerun failed tests those are other than the mentioned Error.
+
+- Add support for Python 3.11.
+
+- Add support for pytest 7.0, 7.1, 7.2.
 
 
 10.2 (2021-09-17)
