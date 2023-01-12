@@ -1,7 +1,7 @@
 Changelog
 =========
 
-11.0 (unreleased)
+11.0 (2023-01-12)
 -----------------
 
 Breaking changes
