@@ -22,34 +22,34 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [
-          "3.6",
           "3.7",
           "3.8",
           "3.9",
           "3.10",
-          "pypy-3.7",
+          "3.11",
+          "pypy-3.9",
         ]
         pytest-version: [
-          "5.3.*",
-          "5.4.*",
           "6.0.*",
           "6.1.*",
           "6.2.*",
+          "7.0.*",
+          "7.1.*",
+          "7.2.*",
           "main",
         ]
         exclude:
           # Only pytest 6.2+ supports Python 3.10
-          - { python-version: "3.10", pytest-version: "5.3.*" }
-          - { python-version: "3.10", pytest-version: "5.4.*" }
           - { python-version: "3.10", pytest-version: "6.0.*" }
           - { python-version: "3.10", pytest-version: "6.1.*" }
-          # Main requires Python >= 3.7
-          - { python-version: "3.6", pytest-version: "main" }
+          # Only pytest 6.2+ supports Python 3.11
+          - { python-version: "3.11", pytest-version: "6.0.*" }
+          - { python-version: "3.11", pytest-version: "6.1.*" }
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -59,7 +59,7 @@ jobs:
           echo "::set-output name=dir::$(pip cache dir)"
 
       - name: Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key:
@@ -92,10 +92,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.x'
           architecture: 'x64'

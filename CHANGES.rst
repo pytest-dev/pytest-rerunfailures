@@ -1,7 +1,7 @@
 Changelog
 =========
 
-10.4 (unreleased)
+11.1 (unreleased)
 -----------------
 
 Features
@@ -9,8 +9,16 @@ Features
 
 - Expose `reruns` and `reruns_delay` through `pytest.ini` file.
 
-10.3 (2022-11-22)
+
+11.0 (2023-01-12)
 -----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for Python 3.6.
+
+- Drop support for pytest < 6.
 
 Bug fixes
 +++++++++
@@ -24,6 +32,10 @@ Features
 ++++++++
 
 - Added option `--rerun-except` to rerun failed tests those are other than the mentioned Error.
+
+- Add support for Python 3.11.
+
+- Add support for pytest 7.0, 7.1, 7.2.
 
 
 10.2 (2021-09-17)
