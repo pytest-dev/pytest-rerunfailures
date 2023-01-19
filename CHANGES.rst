@@ -4,7 +4,10 @@ Changelog
 11.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
+
+- Expose `reruns` and `reruns_delay` through `pytest.ini` file.
 
 
 11.0 (2023-01-12)
