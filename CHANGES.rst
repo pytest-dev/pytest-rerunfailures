@@ -4,6 +4,11 @@ Changelog
 11.1 (unreleased)
 -----------------
 
+Bug fixes
++++++++++
+
+- Run teardown of session, class, ... scoped fixtures only once after rerunning tests
+
 Features
 ++++++++
 
