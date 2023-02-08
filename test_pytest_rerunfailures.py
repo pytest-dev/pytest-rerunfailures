@@ -701,3 +701,91 @@ def test_ini_file_parameters_override(testdir):
 
     time.sleep.assert_called_with(5)
     assert_outcomes(result, passed=0, failed=1, rerun=4)
+
+
+def test_run_session_teardown_once_after_reruns(testdir):
+    testdir.makepyfile(
+        """
+        import logging
+        import pytest
+
+        @pytest.fixture(scope='session')
+        def session_fixture():
+            logging.info('session setup')
+            yield
+            logging.info('session teardown')
+
+        @pytest.fixture(scope='class')
+        def class_fixture():
+            logging.info('class setup')
+            yield
+            logging.info('class teardown')
+
+        @pytest.fixture(scope='function')
+        def function_fixture():
+            logging.info('function setup')
+            yield
+            logging.info('function teardown')
+
+        class TestFoo:
+            @staticmethod
+            def test_foo_1(session_fixture, class_fixture, function_fixture):
+                pass
+
+            @staticmethod
+            def test_foo_2(session_fixture, class_fixture, function_fixture):
+                assert False
+
+        class TestBar:
+            @staticmethod
+            def test_bar_1(session_fixture, class_fixture, function_fixture):
+                assert False
+
+            @staticmethod
+            def test_bar_2(session_fixture, class_fixture, function_fixture):
+                assert False
+
+            @staticmethod
+            def test_bar_3(session_fixture, class_fixture, function_fixture):
+                pass"""
+    )
+    import logging
+
+    logging.info = mock.MagicMock()
+
+    result = testdir.runpytest("--reruns", "2")
+    expected_calls = [
+        mock.call("session setup"),
+        # class TestFoo
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # class TestBar
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        mock.call("session teardown"),
+    ]
+
+    logging.info.assert_has_calls(expected_calls, any_order=False)
+    assert_outcomes(result, failed=3, passed=2, rerun=6)
