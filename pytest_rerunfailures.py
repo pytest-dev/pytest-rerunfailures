@@ -519,9 +519,16 @@ def pytest_runtest_teardown(item, nextitem):
     else:
         # clean cashed results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
-        for key in list(item.session._setupstate.stack.keys()):
-            if type(key) != Function:
-                del item.session._setupstate.stack[key]
+
+        if PYTEST_GTE_63:
+            for key in list(item.session._setupstate.stack.keys()):
+                if type(key) != Function:
+                    del item.session._setupstate.stack[key]
+        else:
+            for node in list(item.session._setupstate.stack):
+                if type(node) != Function:
+                    item.session._setupstate.stack.remove(node)
+
         item.teardown()
 
 
