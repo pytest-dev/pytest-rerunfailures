@@ -12,6 +12,7 @@ from contextlib import suppress
 
 import pytest
 from _pytest.outcomes import fail
+from _pytest.python import Function
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
 
@@ -503,6 +504,40 @@ class ClientStatusDB(SocketDB):
     def _get(self, i: str, k: str) -> int:
         self._sock_send(self.sock, "|".join(("get", i, k, "")))
         return int(self._sock_recv(self.sock))
+
+
+def pytest_runtest_teardown(item, nextitem):
+    reruns = get_reruns_count(item)
+    if reruns is None:
+        # global setting is not specified, and this test is not marked with
+        # flaky
+        return
+
+    # teardown when test not failed or rerun limit exceeded
+    if item.execution_count > reruns or getattr(item, "test_failed", None) is False:
+        item.teardown()
+    else:
+        # clean cashed results from any level of setups
+        _remove_cached_results_from_failed_fixtures(item)
+
+        if PYTEST_GTE_63:
+            for key in list(item.session._setupstate.stack.keys()):
+                if type(key) != Function:
+                    del item.session._setupstate.stack[key]
+        else:
+            for node in list(item.session._setupstate.stack):
+                if type(node) != Function:
+                    item.session._setupstate.stack.remove(node)
+
+        item.teardown()
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    result = outcome.get_result()
+    if call.when == "call":
+        item.test_failed = result.failed
 
 
 def pytest_runtest_protocol(item, nextitem):
