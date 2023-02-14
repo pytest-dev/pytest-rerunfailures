@@ -4,6 +4,11 @@ Changelog
 11.2 (unreleased)
 -----------------
 
+Bug fixes
++++++++++
+
+- Fix crash during teardown when runtest protocol hook is overwritten by another plugin
+
 11.1 (2023-02-09)
 -----------------
 

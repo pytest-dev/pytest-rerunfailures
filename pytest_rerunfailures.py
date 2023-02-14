@@ -513,6 +513,11 @@ def pytest_runtest_teardown(item, nextitem):
         # flaky
         return
 
+    if hasattr(item, "execution_count") is False:
+        # pytest_runtest_protocol hook of this plugin was not executed
+        # -> teardown needs to be skipped as well
+        return
+
     # teardown when test not failed or rerun limit exceeded
     if item.execution_count > reruns or getattr(item, "test_failed", None) is False:
         item.teardown()
