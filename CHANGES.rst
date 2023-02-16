@@ -8,6 +8,7 @@ Bug fixes
 +++++++++
 
 - Fix crash during teardown when runtest protocol hook is overwritten by another plugin
+- Fix crash during teardown when TestCase class is used as base class
 
 11.1 (2023-02-09)
 -----------------
