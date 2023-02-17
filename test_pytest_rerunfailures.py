@@ -709,45 +709,109 @@ def test_run_session_teardown_once_after_reruns(testdir):
         import logging
         import pytest
 
-        @pytest.fixture(scope='session')
+        from unittest import TestCase
+
+        @pytest.fixture(scope='session', autouse=True)
         def session_fixture():
             logging.info('session setup')
             yield
             logging.info('session teardown')
 
-        @pytest.fixture(scope='class')
+        @pytest.fixture(scope='class', autouse=True)
         def class_fixture():
             logging.info('class setup')
             yield
             logging.info('class teardown')
 
-        @pytest.fixture(scope='function')
+        @pytest.fixture(scope='function', autouse=True)
         def function_fixture():
             logging.info('function setup')
             yield
             logging.info('function teardown')
 
-        class TestFoo:
-            @staticmethod
-            def test_foo_1(session_fixture, class_fixture, function_fixture):
-                pass
+        class TestFirstPassLastFail:
 
             @staticmethod
-            def test_foo_2(session_fixture, class_fixture, function_fixture):
+            def test_1():
+                logging.info("TestFirstPassLastFail 1")
+
+            @staticmethod
+            def test_2():
+                logging.info("TestFirstPassLastFail 2")
                 assert False
 
-        class TestBar:
+        class TestFirstFailLastPass:
+
             @staticmethod
-            def test_bar_1(session_fixture, class_fixture, function_fixture):
+            def test_1():
+                logging.info("TestFirstFailLastPass 1")
                 assert False
 
             @staticmethod
-            def test_bar_2(session_fixture, class_fixture, function_fixture):
+            def test_2():
+                logging.info("TestFirstFailLastPass 2")
+
+        class TestSkipFirst:
+            @staticmethod
+            @pytest.mark.skipif(True, reason='Some reason')
+            def test_1():
+                logging.info("TestSkipFirst 1")
                 assert False
 
             @staticmethod
-            def test_bar_3(session_fixture, class_fixture, function_fixture):
-                pass"""
+            def test_2():
+                logging.info("TestSkipFirst 2")
+                assert False
+
+        class TestSkipLast:
+            @staticmethod
+            def test_1():
+                logging.info("TestSkipLast 1")
+                assert False
+
+            @staticmethod
+            @pytest.mark.skipif(True, reason='Some reason')
+            def test_2():
+                logging.info("TestSkipLast 2")
+                assert False
+
+        class TestTestCaseFailFirstFailLast(TestCase):
+
+            @staticmethod
+            def test_1():
+                logging.info("TestTestCaseFailFirstFailLast 1")
+                assert False
+
+            @staticmethod
+            def test_2():
+                logging.info("TestTestCaseFailFirstFailLast 2")
+                assert False
+
+        class TestTestCaseSkipFirst(TestCase):
+
+            @staticmethod
+            @pytest.mark.skipif(True, reason='Some reason')
+            def test_1():
+                logging.info("TestTestCaseSkipFirst 1")
+                assert False
+
+            @staticmethod
+            def test_2():
+                logging.info("TestTestCaseSkipFirst 2")
+                assert False
+
+        class TestTestCaseSkipLast(TestCase):
+
+            @staticmethod
+            def test_1():
+                logging.info("TestTestCaseSkipLast 1")
+                assert False
+
+            @staticmethod
+            @pytest.mark.skipif(True, reason="Some reason")
+            def test_2():
+                logging.info("TestTestCaseSkipLast 2")
+                assert False"""
     )
     import logging
 
@@ -756,36 +820,107 @@ def test_run_session_teardown_once_after_reruns(testdir):
     result = testdir.runpytest("--reruns", "2")
     expected_calls = [
         mock.call("session setup"),
-        # class TestFoo
+        # TestFirstPassLastFail
         mock.call("class setup"),
         mock.call("function setup"),
+        mock.call("TestFirstPassLastFail 1"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestFirstPassLastFail 2"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestFirstPassLastFail 2"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestFirstPassLastFail 2"),
         mock.call("function teardown"),
         mock.call("class teardown"),
-        # class TestBar
+        # TestFirstFailLastPass
         mock.call("class setup"),
         mock.call("function setup"),
+        mock.call("TestFirstFailLastPass 1"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestFirstFailLastPass 1"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestFirstFailLastPass 1"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestFirstFailLastPass 2"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # TestSkipFirst
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("TestSkipFirst 2"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestSkipFirst 2"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestSkipFirst 2"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # TestSkipLast
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("TestSkipLast 1"),
         mock.call("function teardown"),
         mock.call("function setup"),
+        mock.call("TestSkipLast 1"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestSkipLast 1"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # TestTestCaseFailFirstFailLast
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseFailFirstFailLast 1"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseFailFirstFailLast 1"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseFailFirstFailLast 1"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseFailFirstFailLast 2"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseFailFirstFailLast 2"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseFailFirstFailLast 2"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # TestTestCaseSkipFirst
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseSkipFirst 2"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseSkipFirst 2"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseSkipFirst 2"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # TestTestCaseSkipLast
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseSkipLast 1"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseSkipLast 1"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("TestTestCaseSkipLast 1"),
         mock.call("function teardown"),
         mock.call("class teardown"),
         mock.call("session teardown"),
     ]
 
     logging.info.assert_has_calls(expected_calls, any_order=False)
-    assert_outcomes(result, failed=3, passed=2, rerun=6)
+    assert_outcomes(result, failed=8, passed=2, rerun=16, skipped=4)
