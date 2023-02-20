@@ -517,10 +517,8 @@ def pytest_runtest_teardown(item, nextitem):
         # -> teardown needs to be skipped as well
         return
 
-    # teardown when test not failed or rerun limit exceeded
-    if item.execution_count > reruns or getattr(item, "test_failed", None) is False:
-        item.teardown()
-    else:
+    _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
+    if item.execution_count <= reruns and any(_test_failed_statuses.values()):
         # clean cashed results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
 
@@ -534,15 +532,17 @@ def pytest_runtest_teardown(item, nextitem):
                     if node != item:
                         item.session._setupstate.stack.remove(node)
 
-            item.teardown()
-
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
     result = outcome.get_result()
-    if call.when == "call":
-        item.test_failed = result.failed
+    if result.when == "setup":
+        # clean failed statuses at the beginning of each test/rerun
+        setattr(item, "_test_failed_statuses", {})
+    _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
+    _test_failed_statuses[result.when] = result.failed
+    item._test_failed_statuses = _test_failed_statuses
 
 
 def pytest_runtest_protocol(item, nextitem):

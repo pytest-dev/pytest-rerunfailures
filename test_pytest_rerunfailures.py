@@ -729,6 +729,20 @@ def test_run_session_teardown_once_after_reruns(testdir):
             yield
             logging.info('function teardown')
 
+        @pytest.fixture(scope='function')
+        def function_skip_fixture():
+            logging.info('skip fixture setup')
+            pytest.skip('some reason')
+            yield
+            logging.info('skip fixture teardown')
+
+        @pytest.fixture(scope='function')
+        def function_setup_fail_fixture():
+            logging.info('fail fixture setup')
+            assert False
+            yield
+            logging.info('fail fixture teardown')
+
         class TestFirstPassLastFail:
 
             @staticmethod
@@ -774,6 +788,16 @@ def test_run_session_teardown_once_after_reruns(testdir):
             def test_2():
                 logging.info("TestSkipLast 2")
                 assert False
+
+        class TestSkipFixture:
+            @staticmethod
+            def test_1(function_skip_fixture):
+                logging.info("TestSkipFixture 1")
+
+        class TestSetupFailed:
+            @staticmethod
+            def test_1(function_setup_fail_fixture):
+                logging.info("TestSetupFailed 1")
 
         class TestTestCaseFailFirstFailLast(TestCase):
 
@@ -874,6 +898,24 @@ def test_run_session_teardown_once_after_reruns(testdir):
         mock.call("TestSkipLast 1"),
         mock.call("function teardown"),
         mock.call("class teardown"),
+        # TestSkipFixture
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("skip fixture setup"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
+        # TestSetupFailed
+        mock.call("class setup"),
+        mock.call("function setup"),
+        mock.call("fail fixture setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("fail fixture setup"),
+        mock.call("function teardown"),
+        mock.call("function setup"),
+        mock.call("fail fixture setup"),
+        mock.call("function teardown"),
+        mock.call("class teardown"),
         # TestTestCaseFailFirstFailLast
         mock.call("class setup"),
         mock.call("function setup"),
@@ -923,4 +965,4 @@ def test_run_session_teardown_once_after_reruns(testdir):
     ]
 
     logging.info.assert_has_calls(expected_calls, any_order=False)
-    assert_outcomes(result, failed=8, passed=2, rerun=16, skipped=4)
+    assert_outcomes(result, failed=8, passed=2, rerun=18, skipped=5, error=1)
