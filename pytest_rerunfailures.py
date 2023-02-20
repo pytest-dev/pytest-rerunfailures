@@ -12,7 +12,6 @@ from contextlib import suppress
 
 import pytest
 from _pytest.outcomes import fail
-from _pytest.python import Function
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
 
@@ -513,6 +512,11 @@ def pytest_runtest_teardown(item, nextitem):
         # flaky
         return
 
+    if not hasattr(item, "execution_count"):
+        # pytest_runtest_protocol hook of this plugin was not executed
+        # -> teardown needs to be skipped as well
+        return
+
     # teardown when test not failed or rerun limit exceeded
     if item.execution_count > reruns or getattr(item, "test_failed", None) is False:
         item.teardown()
@@ -520,16 +524,17 @@ def pytest_runtest_teardown(item, nextitem):
         # clean cashed results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
 
-        if PYTEST_GTE_63:
-            for key in list(item.session._setupstate.stack.keys()):
-                if type(key) != Function:
-                    del item.session._setupstate.stack[key]
-        else:
-            for node in list(item.session._setupstate.stack):
-                if type(node) != Function:
-                    item.session._setupstate.stack.remove(node)
+        if item in item.session._setupstate.stack:
+            if PYTEST_GTE_63:
+                for key in list(item.session._setupstate.stack.keys()):
+                    if key != item:
+                        del item.session._setupstate.stack[key]
+            else:
+                for node in list(item.session._setupstate.stack):
+                    if node != item:
+                        item.session._setupstate.stack.remove(node)
 
-        item.teardown()
+            item.teardown()
 
 
 @pytest.hookimpl(hookwrapper=True)
