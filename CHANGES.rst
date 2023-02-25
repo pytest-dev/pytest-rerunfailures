@@ -4,7 +4,10 @@ Changelog
 11.2 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Bug fixes
++++++++++
+
+- Execute teardown when test was skipped in setup phase of a fixture.
 
 
 11.1.1 (2023-02-17)
