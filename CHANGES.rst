@@ -4,6 +4,12 @@ Changelog
 11.2 (unreleased)
 -----------------
 
+- Nothing changed yet.
+
+
+11.1.2 (2023-03-09)
+-------------------
+
 Bug fixes
 +++++++++
 
@@ -20,6 +26,7 @@ Bug fixes
   another plugin.
 
 - Fix crash during teardown when TestCase class is used as base class.
+
 
 11.1 (2023-02-09)
 -----------------
