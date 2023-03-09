@@ -4,17 +4,11 @@ Changelog
 11.2 (unreleased)
 -----------------
 
-Bug fixes
-+++++++++
-
 - Execute teardown when test was skipped in setup phase of a fixture.
 
 
 11.1.1 (2023-02-17)
 -------------------
-
-Bug fixes
-+++++++++
 
 - Fix crash during teardown when runtest protocol hook is overwritten by
   another plugin.
