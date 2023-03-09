@@ -1,8 +1,8 @@
 Changelog
 =========
 
-11.2 (unreleased)
------------------
+11.1.2 (2023-03-09)
+-------------------
 
 - Execute teardown when test was skipped in setup phase of a fixture.
 
