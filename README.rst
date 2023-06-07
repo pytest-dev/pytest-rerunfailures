@@ -1,20 +1,35 @@
 pytest-rerunfailures
 ====================
 
-pytest-rerunfailures is a plugin for `py.test <http://pytest.org>`_ that
-re-runs tests to eliminate intermittent failures with failed tests related fixture invalidation.
-Added all scoped fixtures invalidation for current test item in case of test failure before rerun occurs.
-Plugin able to track all related fixtures: direct injects, autouse, usefixture mark.
-Fixtures invalidated gracefully with executing finalizer.
-All reruns schedule to be executed at testrun end
+pytest-rerunfailures is a plugin for `pytest <https://pytest.org>`_ that
+re-runs tests to eliminate intermittent failures.
+
+.. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
+   :target: https://github.com/pytest-dev/pytest-rerunfailures/blob/master/LICENSE
+   :alt: License
+.. image:: https://img.shields.io/pypi/v/pytest-rerunfailures.svg
+   :target: https://pypi.python.org/pypi/pytest-rerunfailures/
+   :alt: PyPI
+.. image:: https://github.com/pytest-dev/pytest-rerunfailures/workflows/Test/badge.svg
+   :target: https://github.com/pytest-dev/pytest-rerunfailures/actions
+   :alt: GitHub Actions
 
 Requirements
 ------------
 
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
-- Python 2.7, 3.4, 3.5, 3.6, PyPy, or PyPy3
-- pytest 2.8.7 or newer
+- Python 3.7, up to 3.11, or PyPy3
+- pytest 6.0 or newer
+
+This plugin can recover from a hard crash with the following optional
+prerequisites:
+
+- pytest-xdist 2.3.0 or newer
+
+This package is currently tested against the last 5 minor pytest releases. In
+case you work with an older version of pytest you should consider updating or
+use one of the earlier versions of this package.
 
 Installation
 ------------
@@ -24,6 +39,17 @@ To install pytest-rerunfailures:
 .. code-block:: bash
 
   $ pip install pytest-rerunfailures
+
+Recover from hard crashes
+-------------------------
+
+If one or more tests trigger a hard crash (for example: segfault), this plugin
+will ordinarily be unable to rerun the test. However, if a compatible version of
+pytest-xdist is installed, and the tests are run within pytest-xdist using the `-n`
+flag, this plugin will be able to rerun crashed tests, assuming the workers and
+controller are on the same LAN (this assumption is valid for almost all cases
+because most of the time the workers and controller are on the same computer).
+If this assumption is not the case, then this functionality may not operate.
 
 Re-run all failures
 -------------------
@@ -35,6 +61,8 @@ maximum number of times you'd like the tests to run:
 
   $ pytest --reruns 5
 
+Failed fixture or setup_class will also be re-executed.
+
 To add a delay time between re-runs use the ``--reruns-delay`` command line
 option with the amount of seconds that you would like wait before the next
 test re-run is launched:
@@ -42,6 +70,42 @@ test re-run is launched:
 .. code-block:: bash
 
    $ pytest --reruns 5 --reruns-delay 1
+
+Re-run all failures matching certain expressions
+------------------------------------------------
+
+To re-run only those failures that match a certain list of expressions, use the
+``--only-rerun`` flag and pass it a regular expression. For example,
+the following would only rerun those errors that match ``AssertionError``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --only-rerun AssertionError
+
+Passing the flag multiple times accumulates the arguments, so the following
+would only rerun those errors that match ``AssertionError`` or ``ValueError``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --only-rerun AssertionError --only-rerun ValueError
+
+Re-run all failures other than matching certain expressions
+-----------------------------------------------------------
+
+To re-run only those failures that do not match a certain list of expressions, use the
+``--rerun-except`` flag and pass it a regular expression. For example,
+the following would only rerun errors other than that match ``AssertionError``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --rerun-except AssertionError
+
+Passing the flag multiple times accumulates the arguments, so the following
+would only rerun those errors that does not match with ``AssertionError`` or ``OSError``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 5 --rerun-except AssertionError --rerun-except OSError
 
 Re-run individual failures
 --------------------------
@@ -69,6 +133,31 @@ You can also specify the re-run delay time in the marker:
       import random
       assert random.choice([True, False])
 
+You can also specify an optional ``condition`` in the re-run marker:
+
+.. code-block:: python
+
+   @pytest.mark.flaky(reruns=5, condition=sys.platform.startswith("win32"))
+   def test_example():
+      import random
+      assert random.choice([True, False])
+
+You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
+
+.. code-block:: python
+
+    @pytest.mark.flaky(reruns=2,condition="sys.platform.startswith('win32')")
+    def test_example():
+        import random
+        assert random.choice([True, False])
+    # totally same as the above
+    @pytest.mark.flaky(reruns=2,condition=sys.platform.startswith("win32"))
+    def test_example():
+      import random
+      assert random.choice([True, False])
+
+Note that the test will re-run for any ``condition`` that is truthy.
+
 Output
 ------
 
@@ -95,46 +184,30 @@ Here's an example of the output provided by the plugin when run with
 Note that output will show all re-runs. Tests that fail on all the re-runs will
 be marked as failed.
 
-Persist rerun stats
--------------------
-Plugin provide ability to store rerun stats to standalone json file:
-  ``--reruns-artifact-path {path-to-json}``
-
-Stats file fill consist next fields::
-
-  total_reruns - total rerun performed
-  total_failed - total tests failed during run
-  total_resolved_by_reruns - amount of tests fixed by rerun
-  rerun_tests - List of each test rerun
-    nodeid - pytest test nodeid
-    status - test status after rerun: flake or failed
-    rerun_trace - Test relevant tarces for teardown, setup and test call
-    original_trace - Original test failure tarce appreared during main run 
-
-Skip reruns execution
----------------------
-In case if it is not needed to perform reruns if many tests failed next param could be used:
-  ``--max-tests-rerun {threshold}``
-So if during testrun will occur more failed test then threshold value no reruns would be performed.
-
 Compatibility
 -------------
 
+* This plugin may *not* be used with class, module, and package level fixtures.
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with the core --pdb flag.
-
-Releasing
----------
-
-
-Update [CHANGES.rst](CHANGES.rst) to make sure changelog is updated for the new version.
-
-Update package version in [setup.py](setup.py).
-
-Tag version with a semver like `v4.1.10` and jarvis will package and upload it to artifactory
+* This plugin is *not* compatible with the plugin
+  `flaky <https://pypi.org/project/flaky/>`_, you can only have
+  ``pytest-rerunfailures`` or ``flaky`` but not both.
 
 Resources
 ---------
 
-- `Issue Tracker <https://github.com/datarobot/pytest-rerunfailures>`_
-- `Code <https://github.com/datarobot/pytest-rerunfailures>`_
+- `Issue Tracker <https://github.com/pytest-dev/pytest-rerunfailures/issues>`_
+- `Code <https://github.com/pytest-dev/pytest-rerunfailures/>`_
+
+Development
+-----------
+
+* Test execution count can be retrieved from the ``execution_count`` attribute
+  in test ``item``'s object. Example:
+
+  .. code-block:: python
+
+    @hookimpl(tryfirst=True)
+    def pytest_runtest_makereport(item, call):
+        print(item.execution_count)
