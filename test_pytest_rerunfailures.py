@@ -659,6 +659,76 @@ def test_reruns_with_string_condition_with_global_var(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
+@pytest.mark.parametrize(
+    "marker_only_rerun,cli_only_rerun,should_rerun",
+    [
+        ("AssertionError", None, True),
+        ("AssertionError: ERR", None, True),
+        (["AssertionError"], None, True),
+        (["AssertionError: ABC"], None, False),
+        ("ValueError", None, False),
+        (["ValueError"], None, False),
+        (["AssertionError", "ValueError"], None, True),
+        # CLI override behavior
+        ("AssertionError", "ValueError", True),
+        ("ValueError", "AssertionError", False),
+    ],
+)
+def test_only_rerun_flag_in_flaky_marker(
+    testdir, marker_only_rerun, cli_only_rerun, should_rerun
+):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, only_rerun={marker_only_rerun!r})
+        def test_fail():
+            raise AssertionError("ERR")
+        """
+    )
+    args = []
+    if cli_only_rerun:
+        args.extend(["--only-rerun", cli_only_rerun])
+    result = testdir.runpytest()
+    num_reruns = 1 if should_rerun else 0
+    assert_outcomes(result, passed=0, failed=1, rerun=num_reruns)
+
+
+@pytest.mark.parametrize(
+    "marker_rerun_except,cli_rerun_except,should_rerun",
+    [
+        ("AssertionError", None, False),
+        ("AssertionError: ERR", None, False),
+        (["AssertionError"], None, False),
+        (["AssertionError: ABC"], None, True),
+        ("ValueError", None, True),
+        (["ValueError"], None, True),
+        (["OSError", "ValueError"], None, True),
+        # CLI override behavior
+        ("AssertionError", "ValueError", False),
+        ("ValueError", "AssertionError", True),
+    ],
+)
+def test_rerun_except_flag_in_flaky_marker(
+    testdir, marker_rerun_except, cli_rerun_except, should_rerun
+):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, rerun_except={marker_rerun_except!r})
+        def test_fail():
+            raise AssertionError("ERR")
+        """
+    )
+    args = []
+    if cli_rerun_except:
+        args.extend(["--rerun-except", cli_rerun_except])
+    result = testdir.runpytest(*args)
+    num_reruns = 1 if should_rerun else 0
+    assert_outcomes(result, passed=0, failed=1, rerun=num_reruns)
+
+
 def test_ini_file_parameters(testdir):
     testdir.makepyfile(
         """

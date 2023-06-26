@@ -4,7 +4,10 @@ Changelog
 11.2 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
+
+- Add ``only_rerun`` and ``rerun_except`` arguments to ``@pytest.mark.flaky`` marker.
 
 
 11.1.2 (2023-03-09)

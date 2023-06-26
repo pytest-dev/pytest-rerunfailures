@@ -142,6 +142,27 @@ You can also specify an optional ``condition`` in the re-run marker:
       import random
       assert random.choice([True, False])
 
+Exception filtering can be accomplished by specifying regular expressions for
+``only_rerun`` and ``rerun_except``. They override the ``--only-rerun`` and
+``--rerun-except`` command line arguments, respectively.
+
+Arguments can be a single string:
+
+.. code-block:: python
+
+   @pytest.mark.flaky(rerun_except="AssertionError")
+   def test_example():
+       raise AssertionError()
+
+Or a list of strings:
+
+.. code-block:: python
+
+   @pytest.mark.flaky(only_rerun=["AssertionError", "ValueError"])
+   def test_example():
+       raise AssertionError()
+
+
 You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
 
 .. code-block:: python
