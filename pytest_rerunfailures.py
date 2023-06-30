@@ -302,12 +302,25 @@ def _remove_failed_setup_state_from_session(item):
         setup_state.stack = []
 
 
-def _should_hard_fail_on_error(session_config, report):
+def _get_rerun_filter_regex(item, regex_name):
+    rerun_marker = _get_marker(item)
+
+    if rerun_marker is not None and regex_name in rerun_marker.kwargs:
+        regex = rerun_marker.kwargs[regex_name]
+        if isinstance(regex, str):
+            regex = [regex]
+    else:
+        regex = getattr(item.session.config.option, regex_name)
+
+    return regex
+
+
+def _should_hard_fail_on_error(item, report):
     if report.outcome != "failed":
         return False
 
-    rerun_errors = session_config.option.only_rerun
-    rerun_except_errors = session_config.option.rerun_except
+    rerun_errors = _get_rerun_filter_regex(item, "only_rerun")
+    rerun_except_errors = _get_rerun_filter_regex(item, "rerun_except")
 
     if not rerun_errors and not rerun_except_errors:
 
@@ -333,7 +346,7 @@ def _should_hard_fail_on_error(session_config, report):
 
 def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
-    is_terminal_error = _should_hard_fail_on_error(item.session.config, report)
+    is_terminal_error = _should_hard_fail_on_error(item, report)
     condition = get_reruns_condition(item)
     return (
         item.execution_count > reruns
