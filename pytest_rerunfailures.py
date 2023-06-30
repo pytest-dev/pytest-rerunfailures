@@ -315,6 +315,24 @@ def _get_rerun_filter_regex(item, regex_name):
     return regex
 
 
+def _matches_any_rerun_error(rerun_errors, report):
+    for rerun_regex in rerun_errors:
+        try:
+            if re.search(rerun_regex, report.longrepr.reprcrash.message):
+                return True
+        except AttributeError:
+            if re.search(rerun_regex, report.longreprtext):
+                return True
+    return False
+
+
+def _matches_any_rerun_except_error(rerun_except_errors, report):
+    for rerun_regex in rerun_except_errors:
+        if re.search(rerun_regex, report.longrepr.reprcrash.message):
+            return True
+    return False
+
+
 def _should_hard_fail_on_error(item, report):
     if report.outcome != "failed":
         return False
@@ -322,26 +340,25 @@ def _should_hard_fail_on_error(item, report):
     rerun_errors = _get_rerun_filter_regex(item, "only_rerun")
     rerun_except_errors = _get_rerun_filter_regex(item, "rerun_except")
 
-    if not rerun_errors and not rerun_except_errors:
-
+    if (not rerun_errors) and (not rerun_except_errors):
+        # Using neither --only-rerun nor --rerun-except
         return False
 
-    if rerun_errors:
-        for rerun_regex in rerun_errors:
-            try:
-                if re.search(rerun_regex, report.longrepr.reprcrash.message):
-                    return False
-            except AttributeError:
-                if re.search(rerun_regex, report.longreprtext):
-                    return False
+    elif rerun_errors and (not rerun_except_errors):
+        # Using --only-rerun but not --rerun-except
+        return not _matches_any_rerun_error(rerun_errors, report)
 
-    if rerun_except_errors:
-        for rerun_regex in rerun_except_errors:
-            if not re.search(rerun_regex, report.longrepr.reprcrash.message):
+    elif (not rerun_errors) and rerun_except_errors:
+        # Using --rerun-except but not --only-rerun
+        return _matches_any_rerun_except_error(rerun_except_errors, report)
 
-                return False
-
-    return True
+    else:
+        # Using both --only-rerun and --rerun-except
+        matches_rerun_only = _matches_any_rerun_error(rerun_errors, report)
+        matches_rerun_except = _matches_any_rerun_except_error(
+            rerun_except_errors, report
+        )
+        return (not matches_rerun_only) or matches_rerun_except
 
 
 def _should_not_rerun(item, report, reruns):

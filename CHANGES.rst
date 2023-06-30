@@ -9,6 +9,11 @@ Features
 
 - Add ``only_rerun`` and ``rerun_except`` arguments to ``@pytest.mark.flaky`` marker.
 
+Bug fixes
++++++++++
+
+-- Fix handling of ``--rerun-except`` and ``--only-rerun`` when used together,
+   and multiple instances of ``--rerun-except``.
 
 11.1.2 (2023-03-09)
 -------------------
