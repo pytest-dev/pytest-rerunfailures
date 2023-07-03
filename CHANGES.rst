@@ -1,19 +1,27 @@
 Changelog
 =========
 
-11.2 (unreleased)
+12.0 (unreleased)
 -----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest < 6.2.
 
 Features
 ++++++++
 
 - Add ``only_rerun`` and ``rerun_except`` arguments to ``@pytest.mark.flaky`` marker.
 
+- Add support for pytest 7.3, 7.4.
+
 Bug fixes
 +++++++++
 
 -- Fix handling of ``--rerun-except`` and ``--only-rerun`` when used together,
    and multiple instances of ``--rerun-except``.
+
 
 11.1.2 (2023-03-09)
 -------------------
