@@ -38,6 +38,9 @@ jobs:
           "7.4.*",
           "main",
         ]
+        exclude:
+          # pytest-main opnly supports Python 3.8+
+          - { python-version: "3.7", pytest-version: "main" }
     steps:
       - uses: actions/checkout@v3
 
