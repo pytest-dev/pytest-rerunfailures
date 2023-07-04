@@ -19,8 +19,13 @@ Features
 Bug fixes
 +++++++++
 
--- Fix handling of ``--rerun-except`` and ``--only-rerun`` when used together,
-   and multiple instances of ``--rerun-except``.
+-- Failures are now rerun only if they match at least one ``--only-rerun``
+   pattern (if given) and none of the ``--rerun-except`` patterns. Previously,
+   using both ``--only-rerun`` and ``--rerun-except`` together could cause
+   failures to be rerun even if they did not match any ``--only-rerun``
+   pattern, and when using multiple ``--rerun-except`` patterns, all failures
+   would be rerun unless they matched every pattern.
+   (`#225 <https://github.com/pytest-dev/pytest-rerunfailures/issues/225>`_)
 
 
 11.1.2 (2023-03-09)
