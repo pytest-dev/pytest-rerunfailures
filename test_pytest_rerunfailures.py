@@ -575,6 +575,7 @@ def test_no_rerun_on_strict_xfail_with_only_rerun_flag(testdir):
         (["AssertionError: "], True),
         (["ERR"], False),
         (["AssertionError", "OSError"], True),
+        (["ValueError", "OSError"], False),
     ],
 )
 def test_rerun_except_flag(testdir, rerun_except_texts, should_rerun):
@@ -587,7 +588,44 @@ def test_rerun_except_flag(testdir, rerun_except_texts, should_rerun):
 
     pytest_args = ["--reruns", str(num_reruns)]
     for rerun_except_text in rerun_except_texts:
-        print(rerun_except_text)
+        pytest_args.extend(["--rerun-except", rerun_except_text])
+    result = testdir.runpytest(*pytest_args)
+    assert_outcomes(
+        result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual
+    )
+
+
+@pytest.mark.parametrize(
+    "only_rerun_texts, rerun_except_texts, should_rerun",
+    [
+        # Matches --only-rerun, but not --rerun-except (rerun)
+        (["ValueError"], ["Not a Match"], True),
+        (["ValueError", "AssertionError"], ["Not a match", "OSError"], True),
+        # Matches --only-rerun AND --rerun-except (no rerun)
+        (["ValueError"], ["ERR"], False),
+        (["OSError", "ValueError"], ["Not a match", "ERR"], False),
+        # Matches --rerun-except, but not --only-rerun (no rerun)
+        (["OSError", "AssertionError"], ["TypeError", "ValueError"], False),
+        # Matches neither --only-rerun nor --rerun-except (no rerun)
+        (["AssertionError"], ["OSError"], False),
+        # --rerun-except overrides --only-rerun for same arg (no rerun)
+        (["ValueError"], ["ValueError"], False),
+    ],
+)
+def test_rerun_except_and_only_rerun(
+    testdir, rerun_except_texts, only_rerun_texts, should_rerun
+):
+    testdir.makepyfile('def test_only_rerun_except(): raise ValueError("ERR")')
+
+    num_failed = 1
+    num_passed = 0
+    num_reruns = 1
+    num_reruns_actual = num_reruns if should_rerun else 0
+
+    pytest_args = ["--reruns", str(num_reruns)]
+    for only_rerun_text in only_rerun_texts:
+        pytest_args.extend(["--only-rerun", only_rerun_text])
+    for rerun_except_text in rerun_except_texts:
         pytest_args.extend(["--rerun-except", rerun_except_text])
     result = testdir.runpytest(*pytest_args)
     assert_outcomes(
@@ -704,6 +742,7 @@ def test_only_rerun_flag_in_flaky_marker(
         ("ValueError", None, True),
         (["ValueError"], None, True),
         (["OSError", "ValueError"], None, True),
+        (["OSError", "AssertionError"], None, False),
         # CLI override behavior
         ("AssertionError", "ValueError", False),
         ("ValueError", "AssertionError", True),
