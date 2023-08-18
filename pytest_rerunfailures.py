@@ -399,13 +399,11 @@ def pytest_configure(config):
 
 class XDistHooks:
     def pytest_configure_node(self, node):
-        """xdist hook"""
+        """Configure xdist hook for node sock_port."""
         node.workerinput["sock_port"] = node.config.failures_db.sock_port
 
     def pytest_handlecrashitem(self, crashitem, report, sched):
-        """
-        Return the crashitem from pending and collection.
-        """
+        """Return the crashitem from pending and collection."""
         db = sched.config.failures_db
         reruns = db.get_test_reruns(crashitem)
         if db.get_test_failures(crashitem) < reruns:
