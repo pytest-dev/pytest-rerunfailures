@@ -3,16 +3,13 @@ import time
 from unittest import mock
 
 import pytest
-from packaging.version import parse as parse_version
 
 from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
 
 
 pytest_plugins = "pytester"
 
-PYTEST_GTE_60 = parse_version(pytest.__version__) >= parse_version("6.0")
-PYTEST_GTE_61 = parse_version(pytest.__version__) >= parse_version("6.1")
-has_xdist = HAS_PYTEST_HANDLECRASHITEM and PYTEST_GTE_61
+has_xdist = HAS_PYTEST_HANDLECRASHITEM
 
 
 def temporary_failure(count=1):
@@ -58,7 +55,7 @@ def assert_outcomes(
     check_outcome_field(outcomes, "passed", passed)
     check_outcome_field(outcomes, "skipped", skipped)
     check_outcome_field(outcomes, "failed", failed)
-    field = "errors" if PYTEST_GTE_60 else "error"
+    field = "errors"
     check_outcome_field(outcomes, field, error)
     check_outcome_field(outcomes, "xfailed", xfailed)
     check_outcome_field(outcomes, "xpassed", xpassed)
@@ -295,19 +292,6 @@ def test_rerun_on_class_setup_error_with_reruns(testdir):
     )
     result = testdir.runpytest("--reruns", "1")
     assert_outcomes(result, passed=0, error=1, rerun=1)
-
-
-@pytest.mark.skipif(PYTEST_GTE_61, reason="--result-log removed in pytest>=6.1")
-def test_rerun_with_resultslog(testdir):
-    testdir.makepyfile(
-        """
-        def test_fail():
-            assert False"""
-    )
-
-    result = testdir.runpytest("--reruns", "2", "--result-log", "./pytest.log")
-
-    assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
 @pytest.mark.parametrize("delay_time", [-1, 0, 0.0, 1, 2.5])

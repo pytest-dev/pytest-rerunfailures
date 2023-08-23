@@ -20,15 +20,6 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata
 
-HAS_RESULTLOG = False
-
-try:
-    from _pytest.resultlog import ResultLog
-
-    HAS_RESULTLOG = True
-except ImportError:
-    # We have a pytest >= 6.1
-    pass
 
 try:
     from xdist.newhooks import pytest_handlecrashitem
@@ -39,9 +30,7 @@ except ImportError:
     HAS_PYTEST_HANDLECRASHITEM = False
 
 
-PYTEST_GTE_54 = parse_version(pytest.__version__) >= parse_version("5.4")
-PYTEST_GTE_62 = parse_version(pytest.__version__) >= parse_version("6.2.0")
-PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0.dev")
+PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0")
 
 
 def works_with_current_xdist():
@@ -104,33 +93,9 @@ def pytest_addoption(parser):
         "regex provided. Pass this flag multiple times to accumulate a list "
         "of regexes to match",
     )
-    arg_type = "string" if PYTEST_GTE_62 else None
+    arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
     parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
-
-
-def _get_resultlog(config):
-    if not HAS_RESULTLOG:
-        return None
-    elif PYTEST_GTE_54:
-        # hack
-        from _pytest.resultlog import resultlog_key
-
-        return config._store.get(resultlog_key, default=None)
-    else:
-        return getattr(config, "_resultlog", None)
-
-
-def _set_resultlog(config, resultlog):
-    if not HAS_RESULTLOG:
-        pass
-    elif PYTEST_GTE_54:
-        # hack
-        from _pytest.resultlog import resultlog_key
-
-        config._store[resultlog_key] = resultlog
-    else:
-        config._resultlog = resultlog
 
 
 # making sure the options make sense
@@ -142,21 +107,9 @@ def check_options(config):
             if config.option.usepdb:  # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
 
-    resultlog = _get_resultlog(config)
-    if resultlog:
-        logfile = resultlog.logfile
-        config.pluginmanager.unregister(resultlog)
-        new_resultlog = RerunResultLog(config, logfile)
-        _set_resultlog(config, new_resultlog)
-        config.pluginmanager.register(new_resultlog)
-
 
 def _get_marker(item):
-    try:
-        return item.get_closest_marker("flaky")
-    except AttributeError:
-        # pytest < 3.6
-        return item.get_marker("flaky")
+    return item.get_closest_marker("flaky")
 
 
 def get_reruns_count(item):
@@ -279,10 +232,7 @@ def _remove_cached_results_from_failed_fixtures(item):
             if getattr(fixture_def, cached_result, None) is not None:
                 result, _, err = getattr(fixture_def, cached_result)
                 if err:  # Deleting cached results for only failed fixtures
-                    if PYTEST_GTE_54:
-                        setattr(fixture_def, cached_result, None)
-                    else:
-                        delattr(fixture_def, cached_result)
+                    setattr(fixture_def, cached_result, None)
 
 
 def _remove_failed_setup_state_from_session(item):
@@ -661,33 +611,3 @@ def show_rerun(terminalreporter, lines):
         for rep in rerun:
             pos = rep.nodeid
             lines.append(f"RERUN {pos}")
-
-
-if HAS_RESULTLOG:
-
-    class RerunResultLog(ResultLog):
-        def __init__(self, config, logfile):
-            ResultLog.__init__(self, config, logfile)
-
-        def pytest_runtest_logreport(self, report):
-            """Add support for rerun report."""
-            if report.when != "call" and report.passed:
-                return
-            res = self.config.hook.pytest_report_teststatus(report=report)
-            code = res[1]
-            if code == "x":
-                longrepr = str(report.longrepr)
-            elif code == "X":
-                longrepr = ""
-            elif report.passed:
-                longrepr = ""
-            elif report.failed:
-                longrepr = str(report.longrepr)
-            elif report.skipped:
-                longrepr = str(report.longrepr[2])
-            elif report.outcome == "rerun":
-                longrepr = str(report.longrepr)
-            else:
-                longrepr = str(report.longrepr)
-
-            self.log_outcome(report, code, longrepr)
