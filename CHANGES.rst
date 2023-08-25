@@ -4,7 +4,8 @@ Changelog
 10.3 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Fix crashitem names mismatch between client and server.
+  (`#172 https://github.com/pytest-dev/pytest-rerunfailures/issues/172`_)
 
 
 10.2 (2021-09-17)
