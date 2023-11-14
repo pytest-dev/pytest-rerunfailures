@@ -6,7 +6,6 @@ import pytest
 
 from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
 
-
 pytest_plugins = "pytester"
 
 has_xdist = HAS_PYTEST_HANDLECRASHITEM
@@ -717,31 +716,36 @@ def test_only_rerun_flag_in_flaky_marker(
 
 
 @pytest.mark.parametrize(
-    "marker_rerun_except,cli_rerun_except,should_rerun",
+    "marker_rerun_except,cli_rerun_except,raised_error,should_rerun",
     [
-        ("AssertionError", None, False),
-        ("AssertionError: ERR", None, False),
-        (["AssertionError"], None, False),
-        (["AssertionError: ABC"], None, True),
-        ("ValueError", None, True),
-        (["ValueError"], None, True),
-        (["OSError", "ValueError"], None, True),
-        (["OSError", "AssertionError"], None, False),
+        ("AssertionError", None, "AssertionError", False),
+        ("AssertionError: ERR", None, "AssertionError", False),
+        (["AssertionError"], None, "AssertionError", False),
+        (["AssertionError: ABC"], None, "AssertionError", True),
+        ("ValueError", None, "AssertionError", True),
+        (["ValueError"], None, "AssertionError", True),
+        (["OSError", "ValueError"], None, "AssertionError", True),
+        (["OSError", "AssertionError"], None, "AssertionError", False),
         # CLI override behavior
-        ("AssertionError", "ValueError", False),
-        ("ValueError", "AssertionError", True),
+        ("AssertionError", "ValueError", "AssertionError", False),
+        ("ValueError", "AssertionError", "AssertionError", True),
+        ("CustomFailure", None, "CustomFailure", False),
+        ("CustomFailure", None, "AssertionError", True),
     ],
 )
 def test_rerun_except_flag_in_flaky_marker(
-    testdir, marker_rerun_except, cli_rerun_except, should_rerun
+    testdir, marker_rerun_except, cli_rerun_except, raised_error, should_rerun
 ):
     testdir.makepyfile(
         f"""
         import pytest
 
+        class CustomFailure(Exception):
+            pass
+
         @pytest.mark.flaky(reruns=1, rerun_except={marker_rerun_except!r})
         def test_fail():
-            raise AssertionError("ERR")
+            raise {raised_error}("ERR")
         """
     )
     args = []
