@@ -278,8 +278,12 @@ def _matches_any_rerun_error(rerun_errors, report):
 
 def _matches_any_rerun_except_error(rerun_except_errors, report):
     for rerun_regex in rerun_except_errors:
-        if re.search(rerun_regex, report.longrepr.reprcrash.message):
-            return True
+        try:
+            if re.search(rerun_regex, report.longrepr.reprcrash.message):
+                return True
+        except AttributeError:
+            if re.search(rerun_regex, report.longreprtext):
+                return True
     return False
 
 

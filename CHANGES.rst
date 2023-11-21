@@ -7,6 +7,7 @@ Changelog
 - Fix crashitem names mismatch between client and server.
   (`#172 <https://github.com/pytest-dev/pytest-rerunfailures/issues/172>`_)
 
+- Fix crash when setup fails with --rerun-except flag.
 
 12.0 (2023-07-05)
 -----------------
