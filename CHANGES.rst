@@ -1,8 +1,21 @@
 Changelog
 =========
 
-12.1 (unreleased)
+13.0 (unreleased)
 -----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest < 7.0.
+
+Features
+++++++++
+
+- Add support for Python 3.12.
+
+Bug fixes
++++++++++
 
 - Fix crashitem names mismatch between client and server.
   (`#172 <https://github.com/pytest-dev/pytest-rerunfailures/issues/172>`_)
