@@ -20,7 +20,6 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata
 
-
 try:
     from xdist.newhooks import pytest_handlecrashitem
 
@@ -28,7 +27,6 @@ try:
     del pytest_handlecrashitem
 except ImportError:
     HAS_PYTEST_HANDLECRASHITEM = False
-
 
 PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0")
 
@@ -266,6 +264,14 @@ def _get_rerun_filter_regex(item, regex_name):
 
 
 def _matches_any_rerun_error(rerun_errors, report):
+    return _try_match_reprcrash(rerun_errors, report)
+
+
+def _matches_any_rerun_except_error(rerun_except_errors, report):
+    return _try_match_reprcrash(rerun_except_errors, report)
+
+
+def _try_match_reprcrash(rerun_errors, report):
     for rerun_regex in rerun_errors:
         try:
             if re.search(rerun_regex, report.longrepr.reprcrash.message):
