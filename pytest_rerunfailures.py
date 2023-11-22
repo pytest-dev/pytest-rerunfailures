@@ -20,7 +20,6 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata
 
-
 try:
     from xdist.newhooks import pytest_handlecrashitem
 
@@ -257,6 +256,14 @@ def _get_rerun_filter_regex(item, regex_name):
 
 
 def _matches_any_rerun_error(rerun_errors, report):
+    return _try_match_reprcrash(rerun_errors, report)
+
+
+def _matches_any_rerun_except_error(rerun_except_errors, report):
+    return _try_match_reprcrash(rerun_except_errors, report)
+
+
+def _try_match_reprcrash(rerun_errors, report):
     for rerun_regex in rerun_errors:
         try:
             if re.search(rerun_regex, report.longrepr.reprcrash.message):
@@ -264,13 +271,6 @@ def _matches_any_rerun_error(rerun_errors, report):
         except AttributeError:
             if re.search(rerun_regex, report.longreprtext):
                 return True
-    return False
-
-
-def _matches_any_rerun_except_error(rerun_except_errors, report):
-    for rerun_regex in rerun_except_errors:
-        if re.search(rerun_regex, report.longrepr.reprcrash.message):
-            return True
     return False
 
 
