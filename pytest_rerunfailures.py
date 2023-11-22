@@ -282,17 +282,6 @@ def _try_match_reprcrash(rerun_errors, report):
     return False
 
 
-def _matches_any_rerun_except_error(rerun_except_errors, report):
-    for rerun_regex in rerun_except_errors:
-        try:
-            if re.search(rerun_regex, report.longrepr.reprcrash.message):
-                return True
-        except AttributeError:
-            if re.search(rerun_regex, report.longreprtext):
-                return True
-    return False
-
-
 def _should_hard_fail_on_error(item, report):
     if report.outcome != "failed":
         return False
