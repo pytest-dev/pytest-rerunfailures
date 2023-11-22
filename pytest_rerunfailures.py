@@ -28,8 +28,6 @@ try:
 except ImportError:
     HAS_PYTEST_HANDLECRASHITEM = False
 
-PYTEST_GTE_63 = parse_version(pytest.__version__) >= parse_version("6.3.0")
-
 
 def works_with_current_xdist():
     """Return compatibility with installed pytest-xdist version.
@@ -241,13 +239,7 @@ def _remove_failed_setup_state_from_session(item):
           and clean the stack itself
     """
     setup_state = item.session._setupstate
-    if PYTEST_GTE_63:
-        setup_state.stack = {}
-    else:
-        for node in setup_state.stack:
-            if hasattr(node, "_prepare_exc"):
-                del node._prepare_exc
-        setup_state.stack = []
+    setup_state.stack = {}
 
 
 def _get_rerun_filter_regex(item, regex_name):
@@ -500,14 +492,9 @@ def pytest_runtest_teardown(item, nextitem):
         _remove_cached_results_from_failed_fixtures(item)
 
         if item in item.session._setupstate.stack:
-            if PYTEST_GTE_63:
-                for key in list(item.session._setupstate.stack.keys()):
-                    if key != item:
-                        del item.session._setupstate.stack[key]
-            else:
-                for node in list(item.session._setupstate.stack):
-                    if node != item:
-                        item.session._setupstate.stack.remove(node)
+            for key in list(item.session._setupstate.stack.keys()):
+                if key != item:
+                    del item.session._setupstate.stack[key]
 
 
 @pytest.hookimpl(hookwrapper=True)
