@@ -616,6 +616,26 @@ def test_rerun_except_and_only_rerun(
     )
 
 
+def test_rerun_except_passes_setup_errors(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture()
+        def fixture_setup_fails(non_existent_fixture):
+            return 1
+
+        def test_will_not_run(fixture_setup_fails):
+            assert fixture_setup_fails == 1"""
+    )
+
+    num_reruns = 1
+    pytest_args = ["--reruns", str(num_reruns), "--rerun-except", "ValueError"]
+    result = testdir.runpytest(*pytest_args)
+    assert result.ret != pytest.ExitCode.INTERNAL_ERROR
+    assert_outcomes(result, passed=0, error=1, rerun=num_reruns)
+
+
 @pytest.mark.parametrize(
     "condition, expected_reruns",
     [
