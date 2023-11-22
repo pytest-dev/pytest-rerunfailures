@@ -627,7 +627,7 @@ def test_rerun_except_passes_setup_errors(testdir):
             return 1
 
         def test_will_not_run(fixture_setup_fails):
-            assert fixture_setup_fails==1"""
+            assert fixture_setup_fails == 1"""
     )
 
     num_reruns = 1
