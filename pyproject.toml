@@ -1,8 +1,8 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools>=40",
-  "wheel", # You can include wheel here if you're building wheels
+  "setuptools",
+  "setuptools-scm",
 ]
 
 [tool.check-manifest]
@@ -50,3 +50,8 @@ dependencies = [
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
 [project.scripts]
 pytest-rerunfailures = "pytest_rerunfailures:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+# to disable scanning PEP 420 namespaces (true by default)
+namespaces = false

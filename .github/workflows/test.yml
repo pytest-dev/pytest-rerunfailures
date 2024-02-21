@@ -97,4 +97,4 @@ jobs:
           python -m pip install -e .
 
       - name: Tests
-        run: pytest
+        run: pytest tests/

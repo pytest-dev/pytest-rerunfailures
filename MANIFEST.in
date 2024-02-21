@@ -3,3 +3,6 @@ include *.rst
 include *.toml
 include LICENSE
 include tox.ini
+
+prune .github
+prune tests
