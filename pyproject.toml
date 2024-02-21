@@ -10,7 +10,6 @@ build-backend = "setuptools.build_meta"
 fix = true
 # todo: drop when migrated project metadata from setup.cfg
 target-version = "py38"
-# Enable Pyflakes `E` and `F` codes by default.
 lint.select = [
     "E", # https://pypi.org/project/pyflakes/
     "W", # https://pypi.org/project/pycodestyle/
