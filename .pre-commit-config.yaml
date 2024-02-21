@@ -4,7 +4,7 @@ repos:
       rev: 24.2.0
       hooks:
           - id: black
-            args: [--safe, --quiet, --target-version, py37]
+            args: [--safe, --quiet, --target-version, py38]
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.5.0
       hooks:
@@ -30,7 +30,7 @@ repos:
       rev: v3.15.1
       hooks:
           - id: pyupgrade
-            args: [--py37-plus]
+            args: [--py38-plus]
     - repo: local
       hooks:
           - id: rst
