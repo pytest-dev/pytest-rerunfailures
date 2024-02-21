@@ -1,10 +1,5 @@
 ---
 repos:
-    - repo: https://github.com/psf/black-pre-commit-mirror
-      rev: 24.2.0
-      hooks:
-          - id: black
-            args: [--safe, --quiet, --target-version, py37]
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v4.5.0
       hooks:
@@ -15,17 +10,13 @@ repos:
           - id: check-yaml
           - id: debug-statements
             language_version: python3
-    - repo: https://github.com/PyCQA/flake8
-      rev: 7.0.0
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.2.0
       hooks:
-          - id: flake8
-            language_version: python3
-            additional_dependencies: [flake8-typing-imports>=1.9.0]
-    - repo: https://github.com/asottile/reorder_python_imports
-      rev: v3.12.0
-      hooks:
-          - id: reorder-python-imports
-            args: ['--application-directories=.:src', --py3-plus]
+        - id: ruff-format
+          args: ["--preview"]
+        - id: ruff
+          args: ["--fix"]
     - repo: https://github.com/asottile/pyupgrade
       rev: v3.15.1
       hooks:
