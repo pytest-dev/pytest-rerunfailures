@@ -4,8 +4,10 @@ Changelog
 13.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Breaking changes
+++++++++++++++++
 
+- Drop support for Python 3.7.
 
 13.0 (2023-11-22)
 -----------------
