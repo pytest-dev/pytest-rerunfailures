@@ -11,10 +11,9 @@ updates:
     schedule:
       interval: "monthly"
     groups:
-      production-deps:
-        dependency-type: "production"
-      development-deps:
-        dependency-type: "development"
+      pip:
+        patterns:
+          - "*"
     # Labels on pull requests for version updates only
     labels: ["maintenance"]
     # Allow up to N open pull requests for pip dependencies
@@ -26,6 +25,10 @@ updates:
     # Check for updates once a monthly
     schedule:
       interval: "monthly"
+    groups:
+      actions:
+        patterns:
+          - "*"
     # Labels on pull requests for version updates only
     labels: ["maintenance"]
     # Allow up to N open pull requests for GitHub Actions
