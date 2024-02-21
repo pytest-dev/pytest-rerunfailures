@@ -16,6 +16,7 @@ lint.select = [
     "F", # https://pypi.org/project/pyflakes/
     "I", # https://pypi.org/project/isort/
     "S", # https://pypi.org/project/flake8-bandit/
+    "UP", # https://pypi.org/project/upgrade-checker/
 ]
 
 [tool.ruff.lint.per-file-ignores]

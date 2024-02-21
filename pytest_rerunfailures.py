@@ -1,4 +1,5 @@
 import hashlib
+import importlib.metadata as importlib_metadata
 import os
 import platform
 import re
@@ -14,11 +15,6 @@ import pytest
 from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata as importlib_metadata
-else:
-    import importlib_metadata
 
 try:
     from xdist.newhooks import pytest_handlecrashitem
