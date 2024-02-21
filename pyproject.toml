@@ -18,7 +18,7 @@ authors = [{name = "Leah Klearman", email = "lklrmn@gmail.com"}]
 readme = ["HEADER.rst", "README.rst", "CHANGES.rst"]
 keywords = ["py.test", "pytest", "rerun", "failures", "flaky"]
 license = {text = "Mozilla Public License 2.0 (MPL 2.0)"}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Framework :: Pytest",
