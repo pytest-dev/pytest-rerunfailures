@@ -11,12 +11,11 @@ repos:
           - id: debug-statements
             language_version: python3
     - repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.2.0
+      rev: v0.2.2
       hooks:
         - id: ruff-format
           args: ["--preview"]
         - id: ruff
-          args: ["--fix"]
     - repo: https://github.com/asottile/pyupgrade
       rev: v3.15.1
       hooks:
