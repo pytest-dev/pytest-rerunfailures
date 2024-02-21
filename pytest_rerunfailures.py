@@ -188,7 +188,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
         try:
             filename = f"<{mark.name} condition>"
             condition_code = compile(condition, filename, "eval")
-            result = eval(condition_code, globals_)
+            result = eval(condition_code, globals_)  # noqa: S307
         except SyntaxError as exc:
             msglines = [
                 "Error evaluating %r condition" % mark.name,
@@ -365,9 +365,7 @@ class StatusDB:
 
     def _hash(self, crashitem: str) -> str:
         if crashitem not in self.hmap:
-            self.hmap[crashitem] = hashlib.sha1(
-                crashitem.encode(),
-            ).hexdigest()[:10]
+            self.hmap[crashitem] = hashlib.sha1(crashitem.encode()).hexdigest()[:10]  # noqa: S324
 
         return self.hmap[crashitem]
 
