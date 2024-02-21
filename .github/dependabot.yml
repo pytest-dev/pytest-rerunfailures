@@ -16,8 +16,6 @@ updates:
           - "*"
     # Labels on pull requests for version updates only
     labels: ["maintenance"]
-    # Allow up to N open pull requests for pip dependencies
-    open-pull-requests-limit: 1
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -31,5 +29,3 @@ updates:
           - "*"
     # Labels on pull requests for version updates only
     labels: ["maintenance"]
-    # Allow up to N open pull requests for GitHub Actions
-    open-pull-requests-limit: 1
