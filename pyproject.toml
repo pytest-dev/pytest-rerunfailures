@@ -1,57 +1,52 @@
 [build-system]
-requires = [
-    "setuptools >= 40.0",
-    "wheel"  # You can include wheel here if you're building wheels
-]
 build-backend = "setuptools.build_meta"
-
+requires = [
+  "setuptools>=40",
+  "wheel", # You can include wheel here if you're building wheels
+]
 
 [tool.check-manifest]
 ignore = [".pre-commit-config.yaml"]
-
 
 [project]
 name = "pytest-rerunfailures"
 version = "13.1.dev0"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
-authors = [{name = "Leah Klearman", email = "lklrmn@gmail.com"}]
-readme = ["HEADER.rst", "README.rst", "CHANGES.rst"]
-keywords = ["py.test", "pytest", "rerun", "failures", "flaky"]
+readme = "README.rst"
+keywords = [
+  "failures",
+  "flaky",
+  "py.test",
+  "pytest",
+  "rerun",
+]
 license = {text = "Mozilla Public License 2.0 (MPL 2.0)"}
+authors = [{name = "Leah Klearman", email = "lklrmn@gmail.com"}]
 requires-python = ">=3.8"
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Framework :: Pytest",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
-    "Operating System :: POSIX",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: MacOS :: MacOS X",
-    "Topic :: Software Development :: Quality Assurance",
-    "Topic :: Software Development :: Testing",
-    "Topic :: Utilities",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
+  "Development Status :: 5 - Production/Stable",
+  "Framework :: Pytest",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Utilities",
+]
+dependencies = [
+  "packaging>=17.1",
+  "pytest>=7",
 ]
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
-
-[project.optional-dependencies]
-py37 = ["importlib-metadata>=1"]
-
 [project.scripts]
 pytest-rerunfailures = "pytest_rerunfailures:main"
-
-[project.dependencies]
-requires-python = ">=3.7"
-dependencies = [
-    "packaging >= 17.1",
-    "pytest >= 7",
-]
