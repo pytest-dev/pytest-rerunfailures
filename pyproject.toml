@@ -51,7 +51,7 @@ dependencies = [
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
 
 [tool.setuptools.dynamic]
-readme = {file = ["HEADER.rst", "README.rst", "CHANGES.rst"], format = "rst"}
+readme = {file = ["HEADER.rst", "README.rst", "CHANGES.rst"]}
 
 [project.entry-points.pytest11]
 rerunfailures = "pytest_rerunfailures"
