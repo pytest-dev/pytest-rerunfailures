@@ -90,7 +90,7 @@ Bug fixes
 Features
 ++++++++
 
-- Expose `reruns` and `reruns_delay` through `pytest.ini` file.
+- Expose ``reruns`` and ``reruns_delay`` through ``pytest.ini`` file.
 
 
 11.0 (2023-01-12)
@@ -114,7 +114,7 @@ Bug fixes
 Features
 ++++++++
 
-- Added option `--rerun-except` to rerun failed tests those are other than the mentioned Error.
+- Added option ``--rerun-except`` to rerun failed tests those are other than the mentioned Error.
 
 - Add support for Python 3.11.
 
@@ -319,7 +319,7 @@ Bug fixes
 
 - Add support for Python 3.7.
 
-- Fix issue can occur when used together with `pytest-flake8`
+- Fix issue can occur when used together with ``pytest-flake8``
   (`#73 <https://github.com/pytest-dev/pytest-rerunfailures/issues/73>`_)
 
 
@@ -414,7 +414,7 @@ Bug fixes
 1.0.2 (2016-03-29)
 ------------------
 
-- Add support for `--resultlog` option by parsing reruns accordingly. (#28)
+- Add support for ``--resultlog`` option by parsing reruns accordingly. (#28)
 
 
 1.0.1 (2016-02-02)
