@@ -3,7 +3,6 @@ import time
 from unittest import mock
 
 import pytest
-
 from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
 
 pytest_plugins = "pytester"

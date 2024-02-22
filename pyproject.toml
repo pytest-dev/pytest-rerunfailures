@@ -48,11 +48,8 @@ dependencies = [
   "pytest>=7",
 ]
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
-
 [project.entry-points.pytest11]
 pytest-rerunfailures = "pytest_rerunfailures"
-
-
 
 [tool.ruff]
 fix = true
