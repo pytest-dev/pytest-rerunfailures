@@ -1,8 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools",
-  "setuptools-scm",
+  "setuptools >= 40.0",
 ]
 
 [tool.check-manifest]
@@ -49,7 +48,7 @@ dependencies = [
 ]
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
 [project.entry-points.pytest11]
-pytest-rerunfailures = "pytest_rerunfailures"
+rerunfailures = "pytest_rerunfailures"
 
 [tool.ruff]
 fix = true
