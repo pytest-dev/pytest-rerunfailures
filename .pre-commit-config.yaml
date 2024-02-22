@@ -16,6 +16,7 @@ repos:
         - id: ruff-format
           args: ["--preview"]
         - id: ruff
+          args: ["--exit-non-zero-on-fix"]
     - repo: local
       hooks:
           - id: rst
