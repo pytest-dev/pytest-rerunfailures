@@ -17,11 +17,8 @@ repos:
           args: ["--preview"]
         - id: ruff
           args: ["--exit-non-zero-on-fix"]
-    - repo: local
+    - repo: https://github.com/sphinx-contrib/sphinx-lint
+      rev: v0.9.1
       hooks:
-          - id: rst
-            name: rst
-            entry: rst-lint --encoding utf-8
-            files: ^(CHANGES.rst|README.rst)$
-            language: python
-            additional_dependencies: [pygments, restructuredtext_lint]
+        - id: sphinx-lint
+          args: [--enable=default-role]
