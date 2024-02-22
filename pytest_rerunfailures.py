@@ -1,4 +1,5 @@
 import hashlib
+import importlib.metadata
 import os
 import platform
 import re
@@ -14,11 +15,6 @@ import pytest
 from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata as importlib_metadata
-else:
-    import importlib_metadata
 
 try:
     from xdist.newhooks import pytest_handlecrashitem
@@ -39,8 +35,8 @@ def works_with_current_xdist():
 
     """
     try:
-        d = importlib_metadata.distribution("pytest-xdist")
-    except importlib_metadata.PackageNotFoundError:
+        d = importlib.metadata.distribution("pytest-xdist")
+    except importlib.metadata.PackageNotFoundError:
         return None
     else:
         return parse_version(d.version) >= parse_version("1.20")
@@ -188,7 +184,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
         try:
             filename = f"<{mark.name} condition>"
             condition_code = compile(condition, filename, "eval")
-            result = eval(condition_code, globals_)
+            result = eval(condition_code, globals_)  # noqa: S307
         except SyntaxError as exc:
             msglines = [
                 "Error evaluating %r condition" % mark.name,
@@ -365,9 +361,7 @@ class StatusDB:
 
     def _hash(self, crashitem: str) -> str:
         if crashitem not in self.hmap:
-            self.hmap[crashitem] = hashlib.sha1(
-                crashitem.encode(),
-            ).hexdigest()[:10]
+            self.hmap[crashitem] = hashlib.sha1(crashitem.encode()).hexdigest()[:10]  # noqa: S324
 
         return self.hmap[crashitem]
 

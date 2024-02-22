@@ -3,3 +3,29 @@ requires = [
     "setuptools >= 40.0",
 ]
 build-backend = "setuptools.build_meta"
+
+
+
+[tool.ruff]
+fix = true
+# todo: drop when migrated project metadata from setup.cfg
+target-version = "py38"
+lint.select = [
+    "E", # https://pypi.org/project/pyflakes/
+    "W", # https://pypi.org/project/pycodestyle/
+    "F", # https://pypi.org/project/pyflakes/
+    "I", # https://pypi.org/project/isort/
+    "S", # https://pypi.org/project/flake8-bandit/
+    "UP", # https://pypi.org/project/upgrade-checker/
+]
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["S101", "S311"]
+
+[tool.ruff.lint.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
