@@ -35,3 +35,4 @@ repos:
       rev: v0.9.1
       hooks:
         - id: sphinx-lint
+          args: [--enable=default-role]
