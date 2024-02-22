@@ -16,7 +16,7 @@ readme = "README.rst"
 keywords = [
   "failures",
   "flaky",
-  "py.test",
+  "pytest",
   "pytest",
   "rerun",
 ]
@@ -48,10 +48,6 @@ dependencies = [
   "pytest>=7",
 ]
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
-[project.scripts]
-pytest-rerunfailures = "pytest_rerunfailures:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-# to disable scanning PEP 420 namespaces (true by default)
-namespaces = false
+[project.entry-points.pytest11]
+pytest-rerunfailures = "pytest_rerunfailures"
