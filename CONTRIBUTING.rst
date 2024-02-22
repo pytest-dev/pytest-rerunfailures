@@ -29,13 +29,13 @@ Preparing Pull Requests
 
 #. Install `tox <https://tox.readthedocs.io/en/latest/>`_:
 
-   Tox is used to run all the tests and will automatically setup virtualenvs
+   tox is used to run all the tests and will automatically setup virtualenvs
    to run the tests in. Implicitly https://virtualenv.pypa.io/ is used::
 
     $ pip install tox
-    $ tox -e linting,py37
+    $ tox -e linting,py312
 
-#. Follow **PEP-8** for naming and `black <https://github.com/psf/black>`_ for formatting.
+#. Follow **PEP 8** for naming and `black <https://github.com/psf/black>`_ for formatting.
 
 #. Add a line item to the current **unreleased** version in ``CHANGES.rst``,
    unless the change is trivial.

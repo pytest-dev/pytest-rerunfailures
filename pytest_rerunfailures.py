@@ -1,5 +1,5 @@
 import hashlib
-import importlib.metadata as importlib_metadata
+import importlib.metadata
 import os
 import platform
 import re
@@ -35,8 +35,8 @@ def works_with_current_xdist():
 
     """
     try:
-        d = importlib_metadata.distribution("pytest-xdist")
-    except importlib_metadata.PackageNotFoundError:
+        d = importlib.metadata.distribution("pytest-xdist")
+    except importlib.metadata.PackageNotFoundError:
         return None
     else:
         return parse_version(d.version) >= parse_version("1.20")
