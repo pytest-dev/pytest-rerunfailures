@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools >= 40.0",
+  "setuptools>=40",
 ]
 
 [tool.check-manifest]
@@ -11,7 +11,9 @@ ignore = [".pre-commit-config.yaml"]
 name = "pytest-rerunfailures"
 version = "13.1.dev0"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
-readme = "README.rst"
+dynamic = [
+  "readme",
+]
 keywords = [
   "failures",
   "flaky",
@@ -47,9 +49,12 @@ dependencies = [
   "pytest>=7",
 ]
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
+
+[tool.setuptools.dynamic]
+readme = {file = ["HEADER.rst", "README.rst", "CHANGES.rst"], format = "rst"}
+
 [project.entry-points.pytest11]
 rerunfailures = "pytest_rerunfailures"
-
 [tool.ruff]
 fix = true
 lint.select = [
