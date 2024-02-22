@@ -62,6 +62,9 @@ lint.select = [
     "UP", # https://pypi.org/project/upgrade-checker/
 ]
 
+[tool.ruff.lint.isort]
+known-first-party = ["pytest_rerunfailures"]
+
 [tool.ruff.lint.per-file-ignores]
 "test_*.py" = ["S101", "S311"]
 
