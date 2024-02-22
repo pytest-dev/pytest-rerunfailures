@@ -45,7 +45,7 @@ Recover from hard crashes
 
 If one or more tests trigger a hard crash (for example: segfault), this plugin
 will ordinarily be unable to rerun the test. However, if a compatible version of
-pytest-xdist is installed, and the tests are run within pytest-xdist using the `-n`
+pytest-xdist is installed, and the tests are run within pytest-xdist using the ``-n``
 flag, this plugin will be able to rerun crashed tests, assuming the workers and
 controller are on the same LAN (this assumption is valid for almost all cases
 because most of the time the workers and controller are on the same computer).
