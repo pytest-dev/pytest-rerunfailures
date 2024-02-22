@@ -300,7 +300,7 @@ def _should_hard_fail_on_error(item, report):
 
 def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
-    is_terminal_error = _should_hard_fail_on_error(item, report)
+    is_terminal_error = item._terminal_errors[report.when]
     condition = get_reruns_condition(item)
     return (
         item.execution_count > reruns
@@ -481,7 +481,15 @@ def pytest_runtest_teardown(item, nextitem):
         return
 
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
-    if item.execution_count <= reruns and any(_test_failed_statuses.values()):
+
+    # Only remove non-function level actions from the stack if the test is to be re-run
+    # Exceeding re-run limits, being free of failue statuses, and encountering
+    # allowable exceptions indicate that the test is not to be re-ran.
+    if (
+        item.execution_count <= reruns
+        and any(_test_failed_statuses.values())
+        and not any(item._terminal_errors.values())
+    ):
         # clean cashed results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
 
@@ -498,9 +506,15 @@ def pytest_runtest_makereport(item, call):
     if result.when == "setup":
         # clean failed statuses at the beginning of each test/rerun
         setattr(item, "_test_failed_statuses", {})
+
+        # create a dict to store error-check results for each stage
+        setattr(item, "_terminal_errors", {})
+
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
     _test_failed_statuses[result.when] = result.failed
     item._test_failed_statuses = _test_failed_statuses
+
+    item._terminal_errors[result.when] = _should_hard_fail_on_error(item, result)
 
 
 def pytest_runtest_protocol(item, nextitem):
