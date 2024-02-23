@@ -1,15 +1,62 @@
 [build-system]
-requires = [
-    "setuptools >= 40.0",
-]
 build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=40",
+]
 
+[tool.check-manifest]
+ignore = [".pre-commit-config.yaml"]
 
+[project]
+name = "pytest-rerunfailures"
+version = "13.1.dev0"
+description = "pytest plugin to re-run tests to eliminate flaky failures"
+dynamic = [
+  "readme",
+]
+keywords = [
+  "failures",
+  "flaky",
+  "pytest",
+  "pytest",
+  "rerun",
+]
+license = {text = "Mozilla Public License 2.0 (MPL 2.0)"}
+authors = [{name = "Leah Klearman", email = "lklrmn@gmail.com"}]
+requires-python = ">=3.8"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Framework :: Pytest",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Utilities",
+]
+dependencies = [
+  "packaging>=17.1",
+  "pytest>=7",
+]
+urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
 
+[tool.setuptools.dynamic]
+readme = {file = ["HEADER.rst", "README.rst", "CHANGES.rst"]}
+
+[project.entry-points.pytest11]
+rerunfailures = "pytest_rerunfailures"
 [tool.ruff]
 fix = true
-# todo: drop when migrated project metadata from setup.cfg
-target-version = "py38"
 lint.select = [
     "E", # https://pypi.org/project/pyflakes/
     "W", # https://pypi.org/project/pycodestyle/
@@ -18,6 +65,9 @@ lint.select = [
     "S", # https://pypi.org/project/flake8-bandit/
     "UP", # https://pypi.org/project/upgrade-checker/
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pytest_rerunfailures"]
 
 [tool.ruff.lint.per-file-ignores]
 "test_*.py" = ["S101", "S311"]

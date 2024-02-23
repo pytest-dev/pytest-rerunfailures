@@ -1,5 +1,5 @@
 *.pyc
-pytest_rerunfailures.egg-info/
+*.egg-info
 .DS_Store
 .Python
 .cache/
@@ -8,7 +8,7 @@ pytest_rerunfailures.egg-info/
 .python-version
 .tox*
 bin/
-build/*
+build/
 dist/
 include/
 lib/
