@@ -9,6 +9,12 @@ Breaking changes
 
 - Drop support for Python 3.7.
 
+Bug fixes
++++++++++
+
+- Fix tests reported as failures when rerun happened due to exception raised from fixture teardown when using only_rerun.
+  (`#261 <https://github.com/pytest-dev/pytest-rerunfailures/issues/261>`_)
+
 13.0 (2023-11-22)
 -----------------
 
