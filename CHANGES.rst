@@ -1,13 +1,21 @@
 Changelog
 =========
 
-13.1 (unreleased)
+14.0 (unreleased)
 -----------------
 
 Breaking changes
 ++++++++++++++++
 
 - Drop support for Python 3.7.
+
+- Drop support for pytest 7.0.
+
+Features
+++++++++
+
+- Add support for pytest 8.0.
+
 
 13.0 (2023-11-22)
 -----------------
