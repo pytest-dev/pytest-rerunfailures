@@ -4,6 +4,13 @@ Changelog
 14.0 (unreleased)
 -----------------
 
+Bug fixes
++++++++++
+
+- Fix missing teardown for non-function scoped fixtures when using only_rerun or rerun_except queries.
+  (`#234 <https://github.com/pytest-dev/pytest-rerunfailures/issues/234>`_)
+  and (`#241 <https://github.com/pytest-dev/pytest-rerunfailures/issues/241>`_)
+
 Breaking changes
 ++++++++++++++++
 
