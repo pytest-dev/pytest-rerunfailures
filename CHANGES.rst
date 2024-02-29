@@ -9,7 +9,7 @@ Breaking changes
 
 - Drop support for Python 3.7.
 
-- Drop support for pytest < 7.1.
+- Drop support for pytest 7.0.
 
 Features
 ++++++++
