@@ -9,7 +9,7 @@ ignore = [".pre-commit-config.yaml"]
 
 [project]
 name = "pytest-rerunfailures"
-version = "13.1.dev0"
+version = "14.0.dev0"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
 dynamic = [
   "readme",
@@ -46,7 +46,7 @@ classifiers = [
 ]
 dependencies = [
   "packaging>=17.1",
-  "pytest>=7",
+  "pytest>=7.1",
 ]
 urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
 

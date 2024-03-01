@@ -1083,3 +1083,192 @@ def test_run_session_teardown_once_after_reruns(testdir):
 
     logging.info.assert_has_calls(expected_calls, any_order=False)
     assert_outcomes(result, failed=8, passed=2, rerun=18, skipped=5, error=1)
+
+
+def test_exception_matches_rerun_except_query(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="session", autouse=True)
+        def session_fixture():
+            print("session setup")
+            yield "session"
+            print("session teardown")
+
+        @pytest.fixture(scope="package", autouse=True)
+        def package_fixture():
+            print("package setup")
+            yield "package"
+            print("package teardown")
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            print("module setup")
+            yield "module"
+            print("module teardown")
+
+        @pytest.fixture(scope="class", autouse=True)
+        def class_fixture():
+            print("class setup")
+            yield "class"
+            print("class teardown")
+
+        @pytest.fixture(scope="function", autouse=True)
+        def function_fixture():
+            print("function setup")
+            yield "function"
+            print("function teardown")
+
+        @pytest.mark.flaky(reruns=1, rerun_except=["AssertionError"])
+        class TestStuff:
+            def test_1(self):
+                raise AssertionError("fail")
+
+            def test_2(self):
+                assert False
+
+    """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+    result.stdout.fnmatch_lines("session teardown")
+    result.stdout.fnmatch_lines("package teardown")
+    result.stdout.fnmatch_lines("module teardown")
+    result.stdout.fnmatch_lines("class teardown")
+    result.stdout.fnmatch_lines("function teardown")
+
+
+def test_exception_not_match_rerun_except_query(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="session", autouse=True)
+        def session_fixture():
+            print("session setup")
+            yield "session"
+            print("session teardown")
+
+        @pytest.fixture(scope="function", autouse=True)
+        def function_fixture():
+            print("function setup")
+            yield "function"
+            print("function teardown")
+
+        @pytest.mark.flaky(reruns=1, rerun_except="AssertionError")
+        def test_1(session_fixture, function_fixture):
+            raise ValueError("value")
+    """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    result.stdout.fnmatch_lines("session teardown")
+
+
+def test_exception_matches_only_rerun_query(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="session", autouse=True)
+        def session_fixture():
+            print("session setup")
+            yield "session"
+            print("session teardown")
+
+        @pytest.fixture(scope="function", autouse=True)
+        def function_fixture():
+            print("function setup")
+            yield "function"
+            print("function teardown")
+
+        @pytest.mark.flaky(reruns=1, only_rerun=["AssertionError"])
+        def test_1(session_fixture, function_fixture):
+            raise AssertionError("fail")
+    """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    result.stdout.fnmatch_lines("session teardown")
+
+
+def test_exception_not_match_only_rerun_query(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="session", autouse=True)
+        def session_fixture():
+            print("session setup")
+            yield "session"
+            print("session teardown")
+
+        @pytest.fixture(scope="function", autouse=True)
+        def function_fixture():
+            print("function setup")
+            yield "function"
+            print("function teardown")
+
+        @pytest.mark.flaky(reruns=1, only_rerun=["AssertionError"])
+        def test_1(session_fixture, function_fixture):
+            raise ValueError("fail")
+    """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1)
+    result.stdout.fnmatch_lines("session teardown")
+
+
+def test_exception_match_rerun_except_in_dual_query(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="session", autouse=True)
+        def session_fixture():
+            print("session setup")
+            yield "session"
+            print("session teardown")
+
+        @pytest.fixture(scope="function", autouse=True)
+        def function_fixture():
+            print("function setup")
+            yield "function"
+            print("function teardown")
+
+        @pytest.mark.flaky(reruns=1, rerun_except=["Exception"], only_rerun=["Not"])
+        def test_1(session_fixture, function_fixture):
+            raise Exception("fail")
+    """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1)
+    result.stdout.fnmatch_lines("session teardown")
+
+
+def test_exception_match_only_rerun_in_dual_query(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="session", autouse=True)
+        def session_fixture():
+            print("session setup")
+            yield "session"
+            print("session teardown")
+
+        @pytest.fixture(scope="function", autouse=True)
+        def function_fixture():
+            print("function setup")
+            yield "function"
+            print("function teardown")
+
+        @pytest.mark.flaky(reruns=1, rerun_except=["Not"], only_rerun=["Exception"])
+        def test_1(session_fixture, function_fixture):
+            raise Exception("fail")
+    """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    result.stdout.fnmatch_lines("session teardown")

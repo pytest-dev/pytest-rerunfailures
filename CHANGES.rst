@@ -1,19 +1,30 @@
 Changelog
 =========
 
-13.1 (unreleased)
+14.0 (unreleased)
 -----------------
+
+Bug fixes
++++++++++
+
+- Fix missing teardown for non-function scoped fixtures when using only_rerun or rerun_except queries.
+  (`#234 <https://github.com/pytest-dev/pytest-rerunfailures/issues/234>`_)
+  and (`#241 <https://github.com/pytest-dev/pytest-rerunfailures/issues/241>`_)
+
+- Fix tests reported as failures when rerun happened due to exception raised from fixture teardown when using only_rerun.
+  (`#261 <https://github.com/pytest-dev/pytest-rerunfailures/issues/261>`_)
 
 Breaking changes
 ++++++++++++++++
 
 - Drop support for Python 3.7.
 
-Bug fixes
-+++++++++
+- Drop support for pytest 7.0.
 
-- Fix tests reported as failures when rerun happened due to exception raised from fixture teardown when using only_rerun.
-  (`#261 <https://github.com/pytest-dev/pytest-rerunfailures/issues/261>`_)
+Features
+++++++++
+
+- Add support for pytest 8.0.
 
 13.0 (2023-11-22)
 -----------------
