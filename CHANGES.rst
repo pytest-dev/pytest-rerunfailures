@@ -16,16 +16,12 @@ Breaking changes
 
 - Drop support for Python 3.7.
 
-- Drop support for pytest 7.0.
-
-- Drop support for pytest 7.1.
+- Drop support for pytest < 7.2.
 
 Features
 ++++++++
 
-- Add support for pytest 8.0.
-
-- Add support for pytest 8.1.
+- Add support for pytest 8.0, 8.1.
 
 
 13.0 (2023-11-22)
