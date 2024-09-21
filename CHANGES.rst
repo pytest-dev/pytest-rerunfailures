@@ -4,8 +4,11 @@ Changelog
 14.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
 
+- Add ``--fail-on-flaky`` option to fail the test run with custom exit code
+  when test passed on rerun.
 
 14.0 (2024-03-13)
 -----------------
