@@ -475,6 +475,9 @@ class ClientStatusDB(SocketDB):
         return int(self._sock_recv(self.sock))
 
 
+suspended_finalizers = {}
+
+
 def pytest_runtest_teardown(item, nextitem):
     reruns = get_reruns_count(item)
     if reruns is None:
@@ -497,13 +500,20 @@ def pytest_runtest_teardown(item, nextitem):
         and any(_test_failed_statuses.values())
         and not any(item._terminal_errors.values())
     ):
-        # clean cashed results from any level of setups
+        # clean cached results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
 
         if item in item.session._setupstate.stack:
             for key in list(item.session._setupstate.stack.keys()):
                 if key != item:
+                    # only the first finalizer contains the correct teardowns
+                    if key not in suspended_finalizers:
+                        suspended_finalizers[key] = item.session._setupstate.stack[key]
                     del item.session._setupstate.stack[key]
+    else:
+        # restore suspended finalizers
+        item.session._setupstate.stack.update(suspended_finalizers)
+        suspended_finalizers.clear()
 
 
 @pytest.hookimpl(hookwrapper=True)

@@ -7,6 +7,10 @@ Changelog
 Features
 ++++++++
 
+- Fix compatibility with pytest 8.2.
+  (`#267 <https://github.com/pytest-dev/pytest-rerunfailures/issues/267>`_)
+
+
 - Add ``--fail-on-flaky`` option to fail the test run with custom exit code
   when test passed on rerun.
 
