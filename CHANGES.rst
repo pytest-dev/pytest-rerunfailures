@@ -1,12 +1,23 @@
 Changelog
 =========
 
-14.1 (unreleased)
+15.0 (unreleased)
 -----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for Python 3.8.
+
+- Drop support for pytest < 7.4.
+
+Features
+++++++++
 
 - Fix compatibility with pytest 8.2.
   (`#267 <https://github.com/pytest-dev/pytest-rerunfailures/issues/267>`_)
 
+- Add support for pytest 8.2, 8.3.
 
 14.0 (2024-03-13)
 -----------------

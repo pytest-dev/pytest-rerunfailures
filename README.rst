@@ -19,8 +19,8 @@ Requirements
 
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
-- Python 3.8+ or PyPy3
-- pytest 7.2 or newer
+- Python 3.9+ or PyPy3
+- pytest 7.4 or newer
 
 This plugin can recover from a hard crash with the following optional
 prerequisites:
