@@ -177,6 +177,28 @@ def test_rerun_passes_after_temporary_test_failure(testdir):
     assert_outcomes(result, passed=1, rerun=1)
 
 
+def test_run_with_fail_on_flaky_fails_with_custom_error_code_after_pass_on_rerun(
+    testdir,
+):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    assert_outcomes(result, passed=1, rerun=1)
+    assert result.ret == 7
+
+
+def test_run_fails_with_code_1_after_consistent_test_failure_even_with_fail_on_flaky(
+    testdir,
+):
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    assert result.ret == 1
+
+
 @pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
 def test_rerun_passes_after_temporary_test_crash(testdir):
     # note: we need two tests because there is a bug where xdist
