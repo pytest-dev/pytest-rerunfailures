@@ -4,7 +4,8 @@ Changelog
 14.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Fix compatibility with pytest 8.2.
+  (`#267 <https://github.com/pytest-dev/pytest-rerunfailures/issues/267>`_)
 
 
 14.0 (2024-03-13)
