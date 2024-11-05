@@ -85,6 +85,13 @@ def pytest_addoption(parser):
         "regex provided. Pass this flag multiple times to accumulate a list "
         "of regexes to match",
     )
+    group._addoption(
+        "--fail-on-flaky",
+        action="store_true",
+        dest="fail_on_flaky",
+        help="Fail the test run with exit code 7 if a flaky test passes on a rerun.",
+    )
+
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
     parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
@@ -614,3 +621,13 @@ def show_rerun(terminalreporter, lines):
         for rep in rerun:
             pos = rep.nodeid
             lines.append(f"RERUN {pos}")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session, exitstatus):
+    if exitstatus != 0:
+        return
+
+    if session.config.option.fail_on_flaky:
+        if session.config.getvalue("reruns") > 0:
+            session.exitstatus = 7
