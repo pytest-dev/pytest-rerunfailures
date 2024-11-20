@@ -1,7 +1,13 @@
 Changelog
 =========
 
-15.0 (unreleased)
+15.1 (unreleased)
+-----------------
+
+- Nothing changed yet.
+
+
+15.0 (2024-11-20)
 -----------------
 
 Breaking changes
