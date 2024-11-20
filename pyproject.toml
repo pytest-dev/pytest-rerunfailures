@@ -9,7 +9,7 @@ ignore = [".pre-commit-config.yaml"]
 
 [project]
 name = "pytest-rerunfailures"
-version = "15.0.dev0"
+version = "15.0"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
 dynamic = [
   "readme",
