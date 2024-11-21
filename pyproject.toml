@@ -18,7 +18,6 @@ keywords = [
   "failures",
   "flaky",
   "pytest",
-  "pytest",
   "rerun",
 ]
 license = {text = "Mozilla Public License 2.0 (MPL 2.0)"}
