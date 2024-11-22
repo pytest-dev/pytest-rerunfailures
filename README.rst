@@ -1,8 +1,12 @@
 pytest-rerunfailures
 ====================
 
+.. START-SHORT-DESCRIPTION
+
 pytest-rerunfailures is a plugin for `pytest <https://pytest.org>`_ that
 re-runs tests to eliminate intermittent failures.
+
+.. END-SHORT-DESCRIPTION
 
 .. image:: https://img.shields.io/badge/license-MPL%202.0-blue.svg
    :target: https://github.com/pytest-dev/pytest-rerunfailures/blob/master/LICENSE
@@ -13,6 +17,8 @@ re-runs tests to eliminate intermittent failures.
 .. image:: https://github.com/pytest-dev/pytest-rerunfailures/workflows/Test/badge.svg
    :target: https://github.com/pytest-dev/pytest-rerunfailures/actions
    :alt: GitHub Actions
+
+.. START-INSTALLATION
 
 Requirements
 ------------
@@ -39,6 +45,8 @@ To install pytest-rerunfailures:
 .. code-block:: bash
 
   $ pip install pytest-rerunfailures
+
+.. END-INSTALLATION
 
 Recover from hard crashes
 -------------------------
@@ -212,6 +220,8 @@ Here's an example of the output provided by the plugin when run with
 Note that output will show all re-runs. Tests that fail on all the re-runs will
 be marked as failed.
 
+.. START-COMPATIBILITY
+
 Compatibility
 -------------
 
@@ -221,6 +231,10 @@ Compatibility
 * This plugin is *not* compatible with the plugin
   `flaky <https://pypi.org/project/flaky/>`_, you can only have
   ``pytest-rerunfailures`` or ``flaky`` but not both.
+
+.. END-COMPATIBILITY
+
+.. START-CONTRIBUTING
 
 Resources
 ---------
@@ -239,3 +253,5 @@ Development
     @hookimpl(tryfirst=True)
     def pytest_runtest_makereport(item, call):
         print(item.execution_count)
+
+.. END-CONTRIBUTING
