@@ -53,7 +53,7 @@ jobs:
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key:
-            ${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-${{ hashFiles('**/setup.py') }}
+            ${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
             ${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-
 

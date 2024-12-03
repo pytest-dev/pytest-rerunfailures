@@ -17,6 +17,9 @@ re-runs tests to eliminate intermittent failures.
 .. image:: https://github.com/pytest-dev/pytest-rerunfailures/workflows/Test/badge.svg
    :target: https://github.com/pytest-dev/pytest-rerunfailures/actions
    :alt: GitHub Actions
+.. image:: https://readthedocs.org/projects/pytest-rerunfailures/badge/?version=latest
+    :target: https://pytest-rerunfailures.readthedocs.io/latest/?badge=latest
+    :alt: Documentation Status
 
 .. START-INSTALLATION
 

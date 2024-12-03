@@ -23,7 +23,7 @@ jobs:
             ~/.cache/pip
             ~/.cache/pre-commit
           key:
-            lint-v1-${{ hashFiles('**/setup.py') }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+            lint-v1-${{ hashFiles('**/pyproject.toml') }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
           restore-keys: |
             lint-v1-
 
