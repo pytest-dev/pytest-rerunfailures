@@ -242,7 +242,7 @@ def test_run_with_mark_and_fail_on_flaky_succeeds_if_all_tests_pass_without_reru
         def test_unmarked_pass():
             assert True
     """)
-    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    result = testdir.runpytest("--fail-on-flaky")
     assert_outcomes(result, passed=2, rerun=0)
     assert result.ret == pytest.ExitCode.OK
 
