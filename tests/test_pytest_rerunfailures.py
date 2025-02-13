@@ -199,6 +199,63 @@ def test_run_fails_with_code_1_after_consistent_test_failure_even_with_fail_on_f
     assert result.ret == 1
 
 
+def test_run_mark_and_fail_on_flaky_fails_with_custom_error_code_after_pass_on_rerun(
+    testdir,
+):
+    testdir.makepyfile(f"""
+        import pytest
+
+        @pytest.mark.flaky(reruns=1)
+        def test_fail():
+            {temporary_failure()}
+    """)
+    result = testdir.runpytest("--fail-on-flaky")
+    assert_outcomes(result, passed=1, rerun=1)
+    assert result.ret == 7
+
+
+def test_run_fails_with_code_1_after_test_failure_with_fail_on_flaky_and_mark(
+    testdir,
+):
+    testdir.makepyfile("""
+        import pytest
+
+        @pytest.mark.flaky(reruns=2)
+        def test_fail():
+            assert False
+    """)
+    result = testdir.runpytest("--fail-on-flaky")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+    assert result.ret == 1
+
+
+def test_run_with_mark_and_fail_on_flaky_succeeds_if_all_tests_pass_without_reruns(
+    testdir,
+):
+    testdir.makepyfile("""
+        import pytest
+
+        @pytest.mark.flaky(reruns=2)
+        def test_marked_pass():
+            assert True
+
+        def test_unmarked_pass():
+            assert True
+    """)
+    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    assert_outcomes(result, passed=2, rerun=0)
+    assert result.ret == pytest.ExitCode.OK
+
+
+def test_run_with_fail_on_flaky_succeeds_if_all_tests_pass_without_reruns(
+    testdir,
+):
+    testdir.makepyfile("def test_pass(): assert True")
+    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    assert_outcomes(result, passed=1, rerun=0)
+    assert result.ret == pytest.ExitCode.OK
+
+
 @pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
 def test_rerun_passes_after_temporary_test_crash(testdir):
     # note: we need two tests because there is a bug where xdist
