@@ -4,7 +4,12 @@ Changelog
 15.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Bug fixes
++++++++++
+
+- Fix ``--fail-on-flaky`` option to fail the test run with custom exit code
+  only when reruns are detected.
+  (`#287 <https://github.com/pytest-dev/pytest-rerunfailures/issues/287>`_)
 
 
 15.0 (2024-11-20)
