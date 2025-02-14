@@ -625,12 +625,14 @@ def show_rerun(terminalreporter, lines):
 
 @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
-    # type: (pytest.Session, int) -> None
     if exitstatus != 0:
         return
 
     if session.config.option.fail_on_flaky:
         for item in session.items:
+            if not hasattr(item, "execution_count"):
+                # no rerun requested
+                continue
             if item.execution_count > 1:
                 session.exitstatus = 7
                 break
