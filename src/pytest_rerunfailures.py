@@ -629,5 +629,10 @@ def pytest_sessionfinish(session, exitstatus):
         return
 
     if session.config.option.fail_on_flaky:
-        if session.config.getvalue("reruns") > 0:
-            session.exitstatus = 7
+        for item in session.items:
+            if not hasattr(item, "execution_count"):
+                # no rerun requested
+                continue
+            if item.execution_count > 1:
+                session.exitstatus = 7
+                break
