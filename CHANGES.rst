@@ -11,6 +11,8 @@ Bug fixes
   only when reruns are detected.
   (`#287 <https://github.com/pytest-dev/pytest-rerunfailures/issues/287>`_)
 
+- Switched to using the SPDX license identifier in the project metadata.
+
 
 15.0 (2024-11-20)
 -----------------
