@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools>=77",
+  "setuptools>=40",
 ]
 
 [tool.check-manifest]
@@ -20,7 +20,7 @@ keywords = [
   "pytest",
   "rerun",
 ]
-license = "MPL-2.0"
+license.text = "MPL-2.0"
 authors = [{name = "Leah Klearman", email = "lklrmn@gmail.com"}]
 requires-python = ">=3.9"
 classifiers = [
