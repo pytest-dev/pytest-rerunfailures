@@ -598,12 +598,18 @@ def test_pytest_runtest_logfinish_is_called(testdir):
     ],
 )
 def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
-    testdir.makepyfile('def test_only_rerun(): raise AssertionError("ERR")')
+    testdir.makepyfile("""
+        def test_only_rerun1():
+            raise AssertionError("ERR")
 
-    num_failed = 1
+        def test_only_rerun2():
+            assert False, "ERR"
+    """)
+
+    num_failed = 2
     num_passed = 0
-    num_reruns = 1
-    num_reruns_actual = num_reruns if should_rerun else 0
+    num_reruns = 2
+    num_reruns_actual = num_reruns * 2 if should_rerun else 0
 
     pytest_args = ["--reruns", str(num_reruns)]
     for only_rerun_text in only_rerun_texts:
@@ -1205,7 +1211,7 @@ def test_exception_matches_rerun_except_query(testdir):
                 raise AssertionError("fail")
 
             def test_2(self):
-                assert False
+                raise ValueError("fail")
 
     """
     )

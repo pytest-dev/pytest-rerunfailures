@@ -258,26 +258,24 @@ def _get_rerun_filter_regex(item, regex_name):
     return regex
 
 
-def _matches_any_rerun_error(rerun_errors, report):
-    return _try_match_reprcrash(rerun_errors, report)
+def _matches_any_rerun_error(rerun_errors, excinfo):
+    return _try_match_error(rerun_errors, excinfo)
 
 
-def _matches_any_rerun_except_error(rerun_except_errors, report):
-    return _try_match_reprcrash(rerun_except_errors, report)
+def _matches_any_rerun_except_error(rerun_except_errors, excinfo):
+    return _try_match_error(rerun_except_errors, excinfo)
 
 
-def _try_match_reprcrash(rerun_errors, report):
-    for rerun_regex in rerun_errors:
-        try:
-            if re.search(rerun_regex, report.longrepr.reprcrash.message):
-                return True
-        except AttributeError:
-            if re.search(rerun_regex, report.longreprtext):
+def _try_match_error(rerun_errors, excinfo):
+    if excinfo:
+        err = f"{excinfo.type.__name__}: {excinfo.value}"
+        for rerun_regex in rerun_errors:
+            if re.search(rerun_regex, err):
                 return True
     return False
 
 
-def _should_hard_fail_on_error(item, report):
+def _should_hard_fail_on_error(item, report, excinfo):
     if report.outcome != "failed":
         return False
 
@@ -290,24 +288,24 @@ def _should_hard_fail_on_error(item, report):
 
     elif rerun_errors and (not rerun_except_errors):
         # Using --only-rerun but not --rerun-except
-        return not _matches_any_rerun_error(rerun_errors, report)
+        return not _matches_any_rerun_error(rerun_errors, excinfo)
 
     elif (not rerun_errors) and rerun_except_errors:
         # Using --rerun-except but not --only-rerun
-        return _matches_any_rerun_except_error(rerun_except_errors, report)
+        return _matches_any_rerun_except_error(rerun_except_errors, excinfo)
 
     else:
         # Using both --only-rerun and --rerun-except
-        matches_rerun_only = _matches_any_rerun_error(rerun_errors, report)
+        matches_rerun_only = _matches_any_rerun_error(rerun_errors, excinfo)
         matches_rerun_except = _matches_any_rerun_except_error(
-            rerun_except_errors, report
+            rerun_except_errors, excinfo
         )
         return (not matches_rerun_only) or matches_rerun_except
 
 
 def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
-    is_terminal_error = _should_hard_fail_on_error(item, report)
+    is_terminal_error = item._terminal_errors[report.when]
     condition = get_reruns_condition(item)
     return (
         item.execution_count > reruns
@@ -530,8 +528,9 @@ def pytest_runtest_makereport(item, call):
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
     _test_failed_statuses[result.when] = result.failed
     item._test_failed_statuses = _test_failed_statuses
-
-    item._terminal_errors[result.when] = _should_hard_fail_on_error(item, result)
+    item._terminal_errors[result.when] = _should_hard_fail_on_error(
+        item, result, call.excinfo
+    )
 
 
 def pytest_runtest_protocol(item, nextitem):
