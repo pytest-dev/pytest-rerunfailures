@@ -118,13 +118,6 @@ would only rerun those errors that does not match with ``AssertionError`` or ``O
 
    $ pytest --reruns 5 --rerun-except AssertionError --rerun-except OSError
 
-.. note::
-
-   When the ```AssertionError``` comes from the use of the ``assert`` keyword,
-   use ``--rerun-except assert`` instead::
-
-   $ pytest --reruns 5 --rerun-except assert
-
 Re-run individual failures
 --------------------------
 

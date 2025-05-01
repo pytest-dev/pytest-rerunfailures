@@ -13,6 +13,12 @@ Bug fixes
 
 - Switched to using the SPDX license identifier in the project metadata.
 
+Other changes
++++++++++++++
+
+- Change exception filtering logic to match ``AssertionError`` raised via
+  ``assert`` statements when filtering by "AssertionError".
+  (`#292 <https://github.com/pytest-dev/pytest-rerunfailures/issues/292>`_)
 
 15.0 (2024-11-20)
 -----------------
