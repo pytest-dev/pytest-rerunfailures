@@ -3,3 +3,10 @@ include *.rst
 include *.toml
 include LICENSE
 include tox.ini
+
+include *.yaml
+exclude *.yaml
+
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs *.txt
