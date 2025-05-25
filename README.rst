@@ -230,6 +230,21 @@ Compatibility
 
 .. END-COMPATIBILITY
 
+.. START-PRIORITY
+
+Priority
+-------------
+
+You can specify arguments in three places. So if you set the number of reruns in all three, 
+which one takes priority?
+
+* Top priority is the marker, such as ``@pytest.mark.flaky(reruns=1)``
+* Second priority is what's specified on the command line, like ``--reruns=2``
+* Last priority is the ``pyproject.toml`` (or ``pytest.ini``) file setting, like ``reruns = 3``
+
+.. END-PRIORITY
+
+
 .. START-CONTRIBUTING
 
 Resources
