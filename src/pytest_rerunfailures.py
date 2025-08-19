@@ -162,19 +162,30 @@ def get_reruns_delay(item):
     return delay
 
 
-def get_reruns_condition(item):
+def get_reruns_condition(item, report):
     rerun_marker = _get_marker(item)
 
-    condition = True
     if rerun_marker is not None and "condition" in rerun_marker.kwargs:
-        condition = evaluate_condition(
-            item, rerun_marker, rerun_marker.kwargs["condition"]
+        return evaluate_condition(
+            item, rerun_marker, rerun_marker.kwargs["condition"], report
         )
 
-    return condition
+    return True
 
 
-def evaluate_condition(item, mark, condition: object) -> bool:
+def evaluate_condition(item, mark, condition: object, report) -> bool:
+    if callable(condition):
+        try:
+            exc = getattr(report, "excinfo", None)
+            return bool(condition(exc.value if exc else None))
+        except Exception as exc:
+            msglines = [
+                f"Error evaluating {mark.name!r} condition as a callable",
+                *traceback.format_exception_only(type(exc), exc),
+            ]
+            warnings.warn("\n".join(msglines))
+            return False
+
     # copy from python3.8 _pytest.skipping.py
 
     result = False
@@ -185,6 +196,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             "sys": sys,
             "platform": platform,
             "config": item.config,
+            "error": getattr(report.excinfo, "value", None),
         }
         if hasattr(item, "obj"):
             globals_.update(item.obj.__globals__)  # type: ignore[attr-defined]
@@ -306,14 +318,10 @@ def _should_hard_fail_on_error(item, report, excinfo):
 def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
     is_terminal_error = item._terminal_errors[report.when]
-    condition = get_reruns_condition(item)
-    return (
-        item.execution_count > reruns
-        or not report.failed
-        or xfail
-        or is_terminal_error
-        or not condition
-    )
+    if item.execution_count > reruns or not report.failed or xfail or is_terminal_error:
+        return True
+
+    return not get_reruns_condition(item, report)
 
 
 def is_master(config):
@@ -518,6 +526,7 @@ def pytest_runtest_teardown(item, nextitem):
 def pytest_runtest_makereport(item, call):
     outcome = yield
     result = outcome.get_result()
+    result.excinfo = call.excinfo
     if result.when == "setup":
         # clean failed statuses at the beginning of each test/rerun
         setattr(item, "_test_failed_statuses", {})
