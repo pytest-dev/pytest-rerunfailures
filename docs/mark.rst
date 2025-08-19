@@ -42,8 +42,12 @@ This will retry the test 5 times with a 2-second pause between attempts.
 ``condition``
 ^^^^^^^^^^^^^
 
-Re-run the test only if a specified condition is met.
-The condition can be any expression that evaluates to ``True`` or ``False``.
+Re-run the test only if a specified condition is met. The condition can be a
+boolean, a string to be evaluated, or a callable.
+
+**Boolean condition:**
+
+The simplest condition is a boolean value.
 
 .. code-block:: python
 
@@ -55,6 +59,45 @@ The condition can be any expression that evaluates to ``True`` or ``False``.
        assert random.choice([True, False])
 
 In this example, the test will only be re-run if the operating system is Windows.
+
+**String condition:**
+
+The condition can be a string that will be evaluated. The evaluation context
+contains the following objects: ``os``, ``sys``, ``platform``, ``config`` (the
+pytest config object), and ``error`` (the exception instance that caused the
+test failure).
+
+.. code-block:: python
+
+   class MyError(Exception):
+       def __init__(self, code):
+           self.code = code
+
+   @pytest.mark.flaky(reruns=2, condition="error.code == 123")
+   def test_fail_with_my_error():
+       raise MyError(123)
+
+**Callable condition:**
+
+The condition can be a callable (e.g., a function or a lambda) that will be
+passed the exception instance that caused the test failure. The test will be
+rerun only if the callable returns ``True``.
+
+.. code-block:: python
+
+   def should_rerun(err):
+       return isinstance(err, ValueError)
+
+   @pytest.mark.flaky(reruns=2, condition=should_rerun)
+   def test_fail_with_value_error():
+       raise ValueError("some error")
+
+   @pytest.mark.flaky(reruns=2, condition=lambda e: isinstance(e, NameError))
+   def test_fail_with_name_error():
+       raise NameError("some other error")
+
+If the callable itself raises an exception, it will be caught, a warning
+will be issued, and the test will not be rerun.
 
 
 ``only_rerun``
