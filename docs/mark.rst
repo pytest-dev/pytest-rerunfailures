@@ -79,7 +79,7 @@ test failure).
 
 **Callable condition:**
 
-The condition can be a callable (e.g., a function or a lambda) that will be
+The condition can be a callable (e. g., a function or a lambda) that will be
 passed the exception instance that caused the test failure. The test will be
 rerun only if the callable returns ``True``.
 
