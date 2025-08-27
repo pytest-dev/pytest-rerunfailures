@@ -25,7 +25,8 @@ jobs:
           "3.11",
           "3.12",
           "3.13",
-          "pypy-3.10",
+          "3.14",
+          "pypy-3.11",
         ]
         pytest-version: [
           "8.0.*",
@@ -42,6 +43,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
       - name: Get pip cache dir
         id: pip-cache
