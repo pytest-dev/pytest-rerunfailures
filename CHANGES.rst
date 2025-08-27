@@ -1,8 +1,18 @@
 Changelog
 =========
 
-15.2 (unreleased)
+16.0 (unreleased)
 -----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest < 8.
+
+Features
+++++++++
+
+- Add support for pytest 8.4.x.
 
 - Allow ``@pytest.mark.flaky(condition)`` to accept a callable or a string
   to be evaluated. The evaluated string has access to the exception instance
