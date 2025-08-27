@@ -235,7 +235,7 @@ Compatibility
 Priority
 -------------
 
-You can specify arguments in three places. So if you set the number of reruns in all three, 
+You can specify arguments in three places. So if you set the number of reruns in all three,
 which one takes priority?
 
 * Top priority is the marker, such as ``@pytest.mark.flaky(reruns=1)``
