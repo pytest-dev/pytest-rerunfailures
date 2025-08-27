@@ -4,7 +4,10 @@ Changelog
 15.2 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Allow ``@pytest.mark.flaky(condition)`` to accept a callable or a string
+  to be evaluated. The evaluated string has access to the exception instance
+  via the ``error`` object.
+  (`#230 <https://github.com/pytest-dev/pytest-rerunfailures/issues/230>`_)
 
 
 15.1 (2025-05-08)
