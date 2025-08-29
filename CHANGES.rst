@@ -1,7 +1,7 @@
 Changelog
 =========
 
-16.0 (unreleased)
+16.0 (2025-08-29)
 -----------------
 
 Breaking changes
