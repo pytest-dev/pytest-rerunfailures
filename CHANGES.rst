@@ -14,6 +14,8 @@ Features
 
 - Add support for pytest 8.4.x.
 
+- Add support for upcoming Python 3.14.
+
 - Allow ``@pytest.mark.flaky(condition)`` to accept a callable or a string
   to be evaluated. The evaluated string has access to the exception instance
   via the ``error`` object.
