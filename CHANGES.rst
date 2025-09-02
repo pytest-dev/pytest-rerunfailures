@@ -4,8 +4,10 @@ Changelog
 16.1 (unreleased)
 -----------------
 
-- Reverted the ability to access error attributes because of an incompatibility with ``pytest-xdist`` (https://github.com/pytest-dev/pytest-xdist/issues/843). Closes #302, #303.
-
+- Reverted the ability to access error attributes because of an incompatibility
+  with `pytest-xdist <https://github.com/pytest-dev/pytest-xdist/issues/843>`_.
+  Fixes `#302 <https://github.com/pytest-dev/pytest-rerunfailures/issues/302>`_,
+  `#303 <https://github.com/pytest-dev/pytest-rerunfailures/issues/303>`_.
 
 16.0 (2025-08-29)
 -----------------
