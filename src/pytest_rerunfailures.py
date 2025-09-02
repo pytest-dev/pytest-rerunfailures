@@ -429,7 +429,7 @@ class SocketDB(StatusDB):
 class ServerStatusDB(SocketDB):
     def __init__(self):
         super().__init__()
-        self.sock.bind(("localhost", 0))
+        self.sock.bind(("127.0.0.1", 0))
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         self.rerunfailures_db = {}
@@ -471,7 +471,7 @@ class ServerStatusDB(SocketDB):
 class ClientStatusDB(SocketDB):
     def __init__(self, sock_port):
         super().__init__()
-        self.sock.connect(("localhost", sock_port))
+        self.sock.connect(("127.0.0.1", sock_port))
 
     def _set(self, i: str, k: str, v: int):
         self._sock_send(self.sock, "|".join(("set", i, k, str(v))))
