@@ -5,6 +5,7 @@ Changelog
 -----------------
 
 - Reverted the ability to access error attributes because of an incompatibility with ``pytest-xdist`` (https://github.com/pytest-dev/pytest-xdist/issues/843). Closes #302, #303.
+- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution
 
 
 16.0 (2025-08-29)
