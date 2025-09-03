@@ -4,8 +4,7 @@ Changelog
 16.1 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution
 
 16.0.1 (2025-09-02)
 -------------------
