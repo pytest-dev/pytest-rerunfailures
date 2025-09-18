@@ -190,6 +190,16 @@ You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif
 
 Note that the test will re-run for any ``condition`` that is truthy.
 
+Force rerun count
+-----------------
+
+To force a specific re-run count globally, irrespectively of the number
+of re-runs specified in test markers, pass ``--force-reruns``:
+
+.. code-block:: bash
+
+   $ pytest --force-reruns 5
+
 Output
 ------
 
