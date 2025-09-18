@@ -36,6 +36,9 @@ jobs:
           "8.4.*",
           "main",
         ]
+        exclude:
+        - python-version: "3.9"
+          pytest-version: "main"
     steps:
       - uses: actions/checkout@v5
 
