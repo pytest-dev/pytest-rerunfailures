@@ -349,8 +349,22 @@ class XDistHooks:
         db = sched.config.failures_db
         reruns = db.get_test_reruns(crashitem)
         if db.get_test_failures(crashitem) < reruns:
-            sched.mark_test_pending(crashitem)
-            report.outcome = "rerun"
+            try:
+                sched.mark_test_pending(crashitem)
+                report.outcome = "rerun"
+            except NotImplementedError:
+                # Some schedulers (like LoadScopeScheduling) don't implement mark_test_pending
+                # In this case, we can't reschedule the crashed test for rerun
+                # Mark it as failed with a clear message about why it couldn't be rerun
+                report.outcome = "failed"
+                if not hasattr(report, 'longrepr') or report.longrepr is None:
+                    error_msg = (
+                        f"Test crashed and could not be rescheduled for rerun. "
+                        f"The scheduler '{sched.__class__.__name__}' does not support "
+                        f"rescheduling crashed tests (mark_test_pending not implemented). "
+                        f"Remaining reruns: {reruns - db.get_test_failures(crashitem)}"
+                    )
+                    report.longrepr = error_msg
 
         db.add_test_failure(crashitem)
 
