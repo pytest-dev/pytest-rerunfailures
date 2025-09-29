@@ -4,7 +4,10 @@ Changelog
 16.1 (unreleased)
 -----------------
 
-- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution
+- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution.
+
+- Drop support for Python 3.9.
+
 
 16.0.1 (2025-09-02)
 -------------------
