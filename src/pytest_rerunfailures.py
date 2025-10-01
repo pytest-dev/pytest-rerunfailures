@@ -57,7 +57,7 @@ def pytest_addoption(parser):
         dest="force_reruns",
         type=int,
         help="Force rerunning all tests the specified number of times, "
-        "irrespectively of individual test markers.",
+        "irrespective of individual test markers.",
     )
     group._addoption(
         "--only-rerun",

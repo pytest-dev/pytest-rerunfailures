@@ -4,7 +4,7 @@ Command Line Interface Options
 .. option:: --force-reruns
 
    **Description**:
-       Force specified number of reruns, irrespectively of the number passed to pytest markers.
+       Force specified number of reruns, irrespective of the number passed to pytest markers.
 
    **Type**:
        Integer

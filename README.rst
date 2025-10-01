@@ -193,7 +193,7 @@ Note that the test will re-run for any ``condition`` that is truthy.
 Force rerun count
 -----------------
 
-To force a specific re-run count globally, irrespectively of the number
+To force a specific re-run count globally, irrespective of the number
 of re-runs specified in test markers, pass ``--force-reruns``:
 
 .. code-block:: bash
