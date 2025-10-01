@@ -4,7 +4,10 @@ Changelog
 16.1 (unreleased)
 -----------------
 
-- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution
+- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution.
+
+- Drop support for Python 3.9.
+
 
 - Added ``--force-reruns`` to override rerun count globally.
   Fixes `#306 <https://github.com/pytest-dev/pytest-rerunfailures/issues/306>`_.
