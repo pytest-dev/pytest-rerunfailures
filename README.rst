@@ -251,6 +251,9 @@ which one takes priority?
 * Second priority is what's specified on the command line, like ``--reruns=2``
 * Last priority is the ``pyproject.toml`` (or ``pytest.ini``) file setting, like ``reruns = 3``
 
+Additionally, all three can be overridden by passing ``--force-reruns`` argument
+on the command line.
+
 .. END-PRIORITY
 
 
