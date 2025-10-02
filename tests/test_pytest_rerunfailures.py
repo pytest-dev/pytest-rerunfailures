@@ -1357,3 +1357,19 @@ def test_exception_match_only_rerun_in_dual_query(testdir):
     result = testdir.runpytest()
     assert_outcomes(result, passed=0, failed=1, rerun=1)
     result.stdout.fnmatch_lines("session teardown")
+
+
+@pytest.mark.parametrize("mark_params", ["", "reruns=1"])
+def test_force_reruns(testdir, mark_params):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky({mark_params})
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--force-reruns", "3")
+    assert_outcomes(result, passed=0, failed=1, rerun=3)

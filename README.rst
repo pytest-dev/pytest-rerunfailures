@@ -190,6 +190,16 @@ You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif
 
 Note that the test will re-run for any ``condition`` that is truthy.
 
+Force rerun count
+-----------------
+
+To force a specific re-run count globally, irrespective of the number
+of re-runs specified in test markers, pass ``--force-reruns``:
+
+.. code-block:: bash
+
+   $ pytest --force-reruns 5
+
 Output
 ------
 
@@ -240,6 +250,9 @@ which one takes priority?
 * Top priority is the marker, such as ``@pytest.mark.flaky(reruns=1)``
 * Second priority is what's specified on the command line, like ``--reruns=2``
 * Last priority is the ``pyproject.toml`` (or ``pytest.ini``) file setting, like ``reruns = 3``
+
+Additionally, all three can be overridden by passing ``--force-reruns`` argument
+on the command line.
 
 .. END-PRIORITY
 

@@ -52,6 +52,14 @@ def pytest_addoption(parser):
         "rerunfailures", "re-run failing tests to eliminate flaky failures"
     )
     group._addoption(
+        "--force-reruns",
+        action="store",
+        dest="force_reruns",
+        type=int,
+        help="Force rerunning all tests the specified number of times,"
+        " irrespective of individual test markers.",
+    )
+    group._addoption(
         "--only-rerun",
         action="append",
         dest="only_rerun",
@@ -112,6 +120,10 @@ def _get_marker(item):
 
 
 def get_reruns_count(item):
+    reruns = item.session.config.getvalue("force_reruns")
+    if reruns is not None:
+        return reruns
+
     rerun_marker = _get_marker(item)
     # use the marker as a priority over the global setting.
     if rerun_marker is not None:

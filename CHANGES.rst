@@ -9,6 +9,9 @@ Changelog
 - Drop support for Python 3.9.
 
 
+- Added ``--force-reruns`` to override rerun count globally.
+  Fixes `#306 <https://github.com/pytest-dev/pytest-rerunfailures/issues/306>`_.
+
 16.0.1 (2025-09-02)
 -------------------
 
