@@ -1357,3 +1357,213 @@ def test_exception_match_only_rerun_in_dual_query(testdir):
     result = testdir.runpytest()
     assert_outcomes(result, passed=0, failed=1, rerun=1)
     result.stdout.fnmatch_lines("session teardown")
+
+
+def test_all_reruns_need_to_pass_disabled_by_default(testdir):
+    """Test that default behavior is unchanged (flag disabled by default)."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_default_behavior():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on second attempt
+        """
+    )
+    result = testdir.runpytest("--reruns", "3")
+    # Should pass because one successful rerun is enough (default behavior)
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_all_reruns_need_to_pass_all_pass(testdir):
+    """Test that when all reruns pass, test passes."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_all_pass():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on all subsequent attempts
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should pass because all 3 reruns pass
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_some_fail(testdir):
+    """Test that when some reruns fail, test fails."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_some_fail():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            # Fail on attempt 0 (initial) and attempt 2 (second rerun)
+            if count == 0 or count == 2:
+                raise Exception(f'Fail on attempt {count}')
+            # Pass on attempts 1 and 3
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should fail because rerun 2 fails
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_all_fail(testdir):
+    """Test that when all reruns fail, test fails."""
+    testdir.makepyfile(
+        """
+        def test_all_fail():
+            raise Exception('Always fail')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should fail because all reruns fail
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_marker_override(testdir):
+    """Test that marker can override command-line flag."""
+    testdir.makepyfile(
+        """
+        import pytest
+        import py
+
+        @pytest.mark.flaky(reruns=3, all_reruns_need_to_pass=True)
+        def test_marker_override():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on all subsequent attempts
+        """
+    )
+    # Not passing --all-reruns-need-to-pass on command line, but marker enables it
+    result = testdir.runpytest("--verbose")
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_marker_can_disable(testdir):
+    """Test that marker can disable flag even when set on command line."""
+    testdir.makepyfile(
+        """
+        import pytest
+        import py
+
+        @pytest.mark.flaky(reruns=3, all_reruns_need_to_pass=False)
+        def test_marker_disables():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on second attempt
+        """
+    )
+    # Passing --all-reruns-need-to-pass, but marker disables it
+    result = testdir.runpytest("--all-reruns-need-to-pass", "--verbose")
+    # Should pass with just one successful rerun (default behavior)
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_all_reruns_need_to_pass_with_only_rerun(testdir):
+    """Test interaction with --only-rerun flag."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_with_only_rerun():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise ValueError('Fail on first attempt')
+            # Pass on subsequent attempts
+        """
+    )
+    result = testdir.runpytest(
+        "--reruns", "3",
+        "--all-reruns-need-to-pass",
+        "--only-rerun", "ValueError"
+    )
+    # Should pass because all reruns pass
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_initial_pass(testdir):
+    """Test that flag has no effect if test passes on first attempt."""
+    testdir.makepyfile(
+        """
+        def test_initial_pass():
+            pass  # Always passes
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should pass without any reruns
+    assert_outcomes(result, passed=1, rerun=0)
+
+
+def test_all_reruns_need_to_pass_zero_reruns(testdir):
+    """Test that flag has no effect with reruns=0."""
+    testdir.makepyfile(
+        """
+        def test_zero_reruns():
+            raise Exception('Fail')
+        """
+    )
+    result = testdir.runpytest("--reruns", "0", "--all-reruns-need-to-pass")
+    # Should fail without any reruns
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_all_reruns_need_to_pass_setup_failure(testdir):
+    """Test behavior when setup fails - only call phase is tracked."""
+    testdir.makepyfile(
+        """
+        import pytest
+        import py
+
+        @pytest.fixture
+        def failing_fixture():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count < 2:
+                raise Exception(f'Fixture fails on attempt {count}')
+            return "ok"
+
+        def test_setup_failure(failing_fixture):
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Note: all_reruns_need_to_pass only tracks call phase failures, not setup/teardown
+    # Setup eventually passes, so test passes
+    assert_outcomes(result, passed=1, rerun=2)
+
+
+def test_all_reruns_need_to_pass_command_line(testdir):
+    """Test that command line flag works as expected."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_cli_flag():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on all subsequent attempts
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should pass because all reruns pass
+    assert_outcomes(result, passed=1, rerun=3)
