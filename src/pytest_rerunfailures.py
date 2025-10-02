@@ -91,10 +91,18 @@ def pytest_addoption(parser):
         dest="fail_on_flaky",
         help="Fail the test run with exit code 7 if a flaky test passes on a rerun.",
     )
+    group._addoption(
+        "--all-reruns-need-to-pass",
+        action="store_true",
+        dest="all_reruns_need_to_pass",
+        default=False,
+        help="If enabled, after an initial failure, all reruns must pass for the test to succeed.",
+    )
 
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
     parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
+    parser.addini("all_reruns_need_to_pass", "If enabled, all reruns must pass after initial failure", type=arg_type)
 
 
 # making sure the options make sense
@@ -160,6 +168,33 @@ def get_reruns_delay(item):
         )
 
     return delay
+
+
+def get_all_reruns_need_to_pass(item):
+    """Get whether all reruns need to pass from marker, config, or ini."""
+    rerun_marker = _get_marker(item)
+
+    # Check marker kwargs first
+    if rerun_marker is not None and "all_reruns_need_to_pass" in rerun_marker.kwargs:
+        return rerun_marker.kwargs["all_reruns_need_to_pass"]
+
+    # Check command-line option
+    all_need_pass = item.session.config.getvalue("all_reruns_need_to_pass")
+    if all_need_pass is not None:
+        return all_need_pass
+
+    # Check ini value
+    try:
+        all_need_pass = item.session.config.getini("all_reruns_need_to_pass")
+        if all_need_pass:
+            # Parse string values like "True", "true", "1", etc.
+            if isinstance(all_need_pass, str):
+                return all_need_pass.lower() in ("true", "1", "yes", "on")
+            return bool(all_need_pass)
+    except (TypeError, ValueError):
+        pass
+
+    return False
 
 
 def get_reruns_condition(item):
@@ -324,9 +359,9 @@ def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
         "markers",
-        "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
+        "flaky(reruns=1, reruns_delay=0, all_reruns_need_to_pass=False): mark test to re-run up "
         "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
-        "between re-runs.",
+        "between re-runs. If 'all_reruns_need_to_pass' is True, all reruns must pass.",
     )
 
     if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
@@ -550,6 +585,7 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
     delay = get_reruns_delay(item)
+    all_reruns_need_to_pass = get_all_reruns_need_to_pass(item)
     parallel = not is_master(item.config)
     db = item.session.config.failures_db
     item.execution_count = db.get_test_failures(item.nodeid)
@@ -557,6 +593,10 @@ def pytest_runtest_protocol(item, nextitem):
 
     if item.execution_count > reruns:
         return True
+
+    # Track rerun results when all reruns need to pass
+    initial_failure_occurred = False
+    rerun_results = []  # Track result of each rerun (True=passed, False=failed)
 
     need_to_run = True
     while need_to_run:
@@ -566,23 +606,66 @@ def pytest_runtest_protocol(item, nextitem):
 
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
-            if _should_not_rerun(item, report, reruns):
-                # last run or no failure detected, log normally
-                item.ihook.pytest_runtest_logreport(report=report)
-            else:
-                # failure detected and reruns not exhausted, since i < reruns
-                report.outcome = "rerun"
-                time.sleep(delay)
 
-                if not parallel or works_with_current_xdist():
-                    # will rerun test, log intermediate result
+            # Track initial failure for all_reruns_need_to_pass mode
+            if all_reruns_need_to_pass and report.when == "call" and report.failed and item.execution_count == 1:
+                initial_failure_occurred = True
+
+            # Track rerun results (after initial failure) - only track call phase
+            if all_reruns_need_to_pass and initial_failure_occurred and item.execution_count > 1 and report.when == "call":
+                rerun_results.append(not report.failed)  # True if passed, False if failed
+
+            # In all_reruns_need_to_pass mode with initial failure, override normal behavior
+            if all_reruns_need_to_pass and initial_failure_occurred:
+                # execution_count starts at 1, so:
+                # - execution_count==1: initial run (failed)
+                # - execution_count==2..reruns+1: reruns (must run all of them)
+                is_last_rerun = item.execution_count > reruns
+
+                if is_last_rerun:
+                    # Last run, check if all reruns passed
+                    if any(not r for r in rerun_results):
+                        # At least one rerun failed, mark final outcome as failed
+                        if report.when == "call":
+                            report.outcome = "failed"
+                    # Log the final report
                     item.ihook.pytest_runtest_logreport(report=report)
+                else:
+                    # Not the last rerun yet
+                    # Only trigger rerun after processing the call phase
+                    if report.when == "call":
+                        report.outcome = "rerun"
+                        time.sleep(delay)
+                        if not parallel or works_with_current_xdist():
+                            item.ihook.pytest_runtest_logreport(report=report)
 
-                # cleanin item's cashed results from any level of setups
-                _remove_cached_results_from_failed_fixtures(item)
-                _remove_failed_setup_state_from_session(item)
+                        _remove_cached_results_from_failed_fixtures(item)
+                        _remove_failed_setup_state_from_session(item)
+                        break  # trigger rerun
+                    else:
+                        # For setup/teardown, just log normally
+                        item.ihook.pytest_runtest_logreport(report=report)
+            else:
+                # Normal rerun behavior
+                should_not_rerun = _should_not_rerun(item, report, reruns)
 
-                break  # trigger rerun
+                if should_not_rerun:
+                    # last run or no failure detected, log normally
+                    item.ihook.pytest_runtest_logreport(report=report)
+                else:
+                    # failure detected and reruns not exhausted
+                    report.outcome = "rerun"
+                    time.sleep(delay)
+
+                    if not parallel or works_with_current_xdist():
+                        # will rerun test, log intermediate result
+                        item.ihook.pytest_runtest_logreport(report=report)
+
+                    # cleanin item's cashed results from any level of setups
+                    _remove_cached_results_from_failed_fixtures(item)
+                    _remove_failed_setup_state_from_session(item)
+
+                    break  # trigger rerun
         else:
             need_to_run = False
 
