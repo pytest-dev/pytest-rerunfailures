@@ -372,11 +372,11 @@ class XDistHooks:
                 report.outcome = "failed"
                 if not hasattr(report, "longrepr") or report.longrepr is None:
                     error_msg = (
-                        "Test crashed and could not be rescheduled for rerun. "
-                        f"The scheduler '{sched.__class__.__name__}' does not support "
-                        "rescheduling crashed tests "
-                        "(mark_test_pending not implemented). "
-                        f"Remaining reruns: {reruns - db.get_test_failures(crashitem)}"
+                        "Test crashed and could not be rescheduled for rerun."
+                        f" The scheduler '{sched.__class__.__name__}' does not support"
+                        " rescheduling crashed tests"
+                        " (mark_test_pending not implemented)."
+                        f" Remaining reruns: {reruns - db.get_test_failures(crashitem)}"
                     )
                     report.longrepr = error_msg
 
