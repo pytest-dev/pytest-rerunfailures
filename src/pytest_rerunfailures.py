@@ -206,7 +206,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             result = eval(condition_code, globals_)  # noqa: S307
         except SyntaxError as exc:
             msglines = [
-                "Error evaluating %r condition" % mark.name,
+                f"Error evaluating {mark.name!r} condition",
                 "    " + condition,
                 "    " + " " * (exc.offset or 0) + "^",
                 "SyntaxError: invalid syntax",
@@ -214,7 +214,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             fail("\n".join(msglines), pytrace=False)
         except Exception as exc:
             msglines = [
-                "Error evaluating %r condition" % mark.name,
+                f"Error evaluating {mark.name!r} condition",
                 "    " + condition,
                 *traceback.format_exception_only(type(exc), exc),
             ]
@@ -226,7 +226,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             result = bool(condition)
         except Exception as exc:
             msglines = [
-                "Error evaluating %r condition as a boolean" % mark.name,
+                f"Error evaluating {mark.name!r} condition as a boolean",
                 *traceback.format_exception_only(type(exc), exc),
             ]
             fail("\n".join(msglines), pytrace=False)

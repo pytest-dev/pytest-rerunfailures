@@ -4,16 +4,10 @@ requires = [
   "setuptools>=40",
 ]
 
-[tool.check-manifest]
-ignore = [".pre-commit-config.yaml"]
-
 [project]
 name = "pytest-rerunfailures"
 version = "16.2.dev0"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
-dynamic = [
-  "readme",
-]
 keywords = [
   "failures",
   "flaky",
@@ -21,7 +15,7 @@ keywords = [
   "rerun",
 ]
 license.text = "MPL-2.0"
-authors = [{name = "Leah Klearman", email = "lklrmn@gmail.com"}]
+authors = [ { name = "Leah Klearman", email = "lklrmn@gmail.com" } ]
 requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 5 - Production/Stable",
@@ -42,38 +36,37 @@ classifiers = [
   "Topic :: Software Development :: Testing",
   "Topic :: Utilities",
 ]
+dynamic = [
+  "readme",
+]
 dependencies = [
   "packaging>=17.1",
   "pytest!=8.2.2,>=7.4",
 ]
-urls = {Homepage = "https://github.com/pytest-dev/pytest-rerunfailures"}
+urls = { Homepage = "https://github.com/pytest-dev/pytest-rerunfailures" }
+
+entry-points.pytest11.rerunfailures = "pytest_rerunfailures"
 
 [tool.setuptools.dynamic]
-readme = {file = ["HEADER.rst", "README.rst", "CHANGES.rst"]}
+readme = { file = [ "HEADER.rst", "README.rst", "CHANGES.rst" ] }
 
-[project.entry-points.pytest11]
-rerunfailures = "pytest_rerunfailures"
 [tool.ruff]
 fix = true
 lint.select = [
-    "E", # https://pypi.org/project/pyflakes/
-    "W", # https://pypi.org/project/pycodestyle/
-    "F", # https://pypi.org/project/pyflakes/
-    "I", # https://pypi.org/project/isort/
-    "S", # https://pypi.org/project/flake8-bandit/
-    "UP", # https://pypi.org/project/upgrade-checker/
+  "E",  # https://pypi.org/project/pyflakes/
+  "F",  # https://pypi.org/project/pyflakes/
+  "I",  # https://pypi.org/project/isort/
+  "S",  # https://pypi.org/project/flake8-bandit/
+  "UP", # https://pypi.org/project/upgrade-checker/
+  "W",  # https://pypi.org/project/pycodestyle/
 ]
 
-[tool.ruff.lint.isort]
-known-first-party = ["pytest_rerunfailures"]
-
-[tool.ruff.lint.per-file-ignores]
-"test_*.py" = ["S101", "S311"]
-
-[tool.ruff.lint.pydocstyle]
-# Use Google-style docstrings.
-convention = "google"
-
-[tool.ruff.lint.mccabe]
+lint.per-file-ignores."test_*.py" = [ "S101", "S311" ]
+lint.isort.known-first-party = [ "pytest_rerunfailures" ]
 # Unlike Flake8, default to a complexity level of 10.
-max-complexity = 10
+lint.mccabe.max-complexity = 10
+# Use Google-style docstrings.
+lint.pydocstyle.convention = "google"
+
+[tool.check-manifest]
+ignore = [ ".pre-commit-config.yaml" ]
