@@ -96,6 +96,9 @@ Bug fixes
   (`#234 <https://github.com/pytest-dev/pytest-rerunfailures/issues/234>`_)
   and (`#241 <https://github.com/pytest-dev/pytest-rerunfailures/issues/241>`_)
 
+- Fix tests reported as failures when rerun happened due to exception raised from fixture teardown when using only_rerun.
+  (`#261 <https://github.com/pytest-dev/pytest-rerunfailures/issues/261>`_)
+
 Breaking changes
 ++++++++++++++++
 
@@ -107,7 +110,6 @@ Features
 ++++++++
 
 - Add support for pytest 8.0, 8.1.
-
 
 13.0 (2023-11-22)
 -----------------
