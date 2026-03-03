@@ -4,7 +4,8 @@ Changelog
 16.2 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Fix missing teardown for session and module scoped fixtures when fixture teardown fails.
+  Fixes `#314 <https://github.com/pytest-dev/pytest-rerunfailures/issues/314>`_.
 
 
 16.1 (2025-10-10)

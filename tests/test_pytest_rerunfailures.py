@@ -1170,6 +1170,40 @@ def test_run_session_teardown_once_after_reruns(testdir):
     assert_outcomes(result, failed=8, passed=2, rerun=18, skipped=5, error=1)
 
 
+def test_run_session_teardown_when_fixture_teardown_fails(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope='session', autouse=True)
+        def session_fixture():
+            yield
+            print('session teardown')
+
+        @pytest.fixture(scope='module', autouse=True)
+        def module_fixture():
+            yield
+            print('module teardown')
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise Exception("fixture teardown error")
+
+        def test_fail_in_fixture(broken_fixture):
+            pass
+
+        def test_ok():
+            pass
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1", "-s")
+    result.stdout.fnmatch_lines("*session teardown*")
+    result.stdout.fnmatch_lines("*module teardown*")
+    assert_outcomes(result, passed=3, rerun=1, error=1)
+
+
 def test_exception_matches_rerun_except_query(testdir):
     testdir.makepyfile(
         """

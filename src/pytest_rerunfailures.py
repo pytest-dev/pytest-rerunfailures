@@ -250,11 +250,11 @@ def _remove_failed_setup_state_from_session(item):
     """
     Clean up setup state.
 
-    Note: remove all failures from every node in _setupstate stack
-          and clean the stack itself
+    Note: remove only the current item, not higher-scoped items
     """
     setup_state = item.session._setupstate
-    setup_state.stack = {}
+    if item in setup_state.stack:
+        del setup_state.stack[item]
 
 
 def _get_rerun_filter_regex(item, regex_name):
