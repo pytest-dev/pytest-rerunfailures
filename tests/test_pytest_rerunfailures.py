@@ -1,10 +1,11 @@
 import random
+import socket
 import time
 from unittest import mock
 
 import pytest
 
-from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
+from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM, SocketDB
 
 pytest_plugins = "pytester"
 
@@ -1407,3 +1408,21 @@ def test_force_reruns(testdir, mark_params):
 
     result = testdir.runpytest("--force-reruns", "3")
     assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_sock_recv_raises_on_closed_connection():
+    """_sock_recv should raise ConnectionError when recv returns empty bytes
+    (connection closed), not loop forever.
+
+    Previously, _sock_recv had no check for empty bytes from recv(1), causing
+    an infinite CPU-spinning loop when the server-side connection dropped.
+    This manifested as indefinite hangs during xdist test runs.
+    """
+    s1, s2 = socket.socketpair()
+    s2.close()  # Close one end — recv on s1 will return b""
+
+    db = SocketDB()
+    with pytest.raises(ConnectionError, match="closed unexpectedly"):
+        db._sock_recv(s1)
+
+    s1.close()

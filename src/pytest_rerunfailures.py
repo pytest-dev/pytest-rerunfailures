@@ -436,6 +436,8 @@ class SocketDB(StatusDB):
         buf = b""
         while True:
             b = conn.recv(1)
+            if not b:
+                raise ConnectionError("StatusDB connection closed unexpectedly")
             if b == self.delim:
                 break
             buf += b

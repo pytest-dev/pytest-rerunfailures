@@ -7,6 +7,10 @@ Changelog
 - Fix missing teardown for session and module scoped fixtures when fixture teardown fails.
   Fixes `#314 <https://github.com/pytest-dev/pytest-rerunfailures/issues/314>`_.
 
+- Fix ``_sock_recv`` infinite loop when the StatusDB TCP connection drops.
+  ``recv(1)`` returning empty bytes (closed connection) was not handled,
+  causing workers to spin at 100% CPU indefinitely during xdist runs.
+
 
 16.1 (2025-10-10)
 -----------------
