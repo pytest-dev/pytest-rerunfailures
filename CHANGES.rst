@@ -7,6 +7,10 @@ Changelog
 - Fix missing teardown for session and module scoped fixtures when fixture teardown fails.
   Fixes `#314 <https://github.com/pytest-dev/pytest-rerunfailures/issues/314>`_.
 
+- Clear fixture finalizers when removing cached results from failed fixtures
+  to fix compatibility with pytest >= 9, which asserts that ``_finalizers`` is
+  empty before executing a fixture.
+
 
 16.1 (2025-10-10)
 -----------------
