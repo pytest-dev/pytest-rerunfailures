@@ -244,6 +244,11 @@ def _remove_cached_results_from_failed_fixtures(item):
                 result, _, err = getattr(fixture_def, cached_result)
                 if err:  # Deleting cached results for only failed fixtures
                     setattr(fixture_def, cached_result, None)
+                    # Clear finalizers registered during the failed execution
+                    # so the fixture can be re-executed cleanly (pytest >= 9
+                    # asserts _finalizers is empty before executing a fixture).
+                    if hasattr(fixture_def, "_finalizers"):
+                        fixture_def._finalizers.clear()
 
 
 def _remove_failed_setup_state_from_session(item):

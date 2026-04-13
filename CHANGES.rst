@@ -11,6 +11,11 @@ Changelog
   ``recv(1)`` returning empty bytes (closed connection) was not handled,
   causing workers to spin at 100% CPU indefinitely during xdist runs.
 
+- Clear fixture finalizers when removing cached results from failed fixtures
+  to fix compatibility with pytest >= 9, which asserts that ``_finalizers`` is
+  empty before executing a fixture.
+  Fixes `#323 <https://github.com/pytest-dev/pytest-rerunfailures/issues/323>`_.
+
 
 16.1 (2025-10-10)
 -----------------
