@@ -4,6 +4,19 @@ Changelog
 16.2 (unreleased)
 -----------------
 
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest 8.0. Minimum pytest version is now 8.1.
+
+Features
+++++++++
+
+- Add support for pytest 9.0.
+
+Bug fixes
++++++++++
+
 - Fix missing teardown for session and module scoped fixtures when fixture teardown fails.
   Fixes `#314 <https://github.com/pytest-dev/pytest-rerunfailures/issues/314>`_.
 
