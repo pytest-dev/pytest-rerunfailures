@@ -25,6 +25,11 @@ Bug fixes
   empty before executing a fixture.
   Fixes `#323 <https://github.com/pytest-dev/pytest-rerunfailures/issues/323>`_.
 
+- Accept exception classes (not only regex strings) in the ``only_rerun`` and
+  ``rerun_except`` marker keyword arguments instead of crashing with an
+  internal error.
+  Fixes `#275 <https://github.com/pytest-dev/pytest-rerunfailures/issues/275>`_.
+
 
 16.1 (2025-10-10)
 -----------------
