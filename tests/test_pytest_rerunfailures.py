@@ -1431,3 +1431,57 @@ def test_force_reruns(testdir, mark_params):
 
     result = testdir.runpytest("--force-reruns", "3")
     assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_mode_append_sums_marker_and_cli(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=2)
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "4", "--reruns-mode", "append")
+    assert_outcomes(result, passed=0, failed=1, rerun=6)
+
+
+def test_reruns_mode_default_is_strict(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=2)
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "4")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_reruns_mode_append_without_marker_uses_global(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "3", "--reruns-mode", "append")
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_mode_invalid_choice_errors(testdir):
+    testdir.makepyfile(
+        """
+        def test_pass():
+            assert True
+    """
+    )
+
+    result = testdir.runpytest("--reruns-mode", "bogus")
+    assert result.ret != 0
