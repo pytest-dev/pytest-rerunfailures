@@ -286,8 +286,11 @@ def _matches_any_rerun_except_error(rerun_except_errors, excinfo):
 def _try_match_error(rerun_errors, excinfo):
     if excinfo:
         err = f"{excinfo.type.__name__}: {excinfo.value}"
-        for rerun_regex in rerun_errors:
-            if re.search(rerun_regex, err):
+        for rerun_error in rerun_errors:
+            if isinstance(rerun_error, type) and issubclass(rerun_error, BaseException):
+                if issubclass(excinfo.type, rerun_error):
+                    return True
+            elif re.search(rerun_error, err):
                 return True
     return False
 

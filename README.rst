@@ -173,6 +173,14 @@ Or a list of strings:
    def test_example():
        raise AssertionError()
 
+Exception classes are also accepted and match any subclass:
+
+.. code-block:: python
+
+   @pytest.mark.flaky(only_rerun=[AssertionError, ValueError])
+   def test_example():
+       raise AssertionError()
+
 
 You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
 

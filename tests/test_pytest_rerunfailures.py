@@ -821,6 +821,30 @@ def test_only_rerun_flag_in_flaky_marker(
 
 
 @pytest.mark.parametrize(
+    "filter_kwarg,should_rerun",
+    [
+        ("only_rerun=[AssertionError]", True),
+        ("only_rerun=[ValueError]", False),
+        ("rerun_except=[AssertionError]", False),
+        ("rerun_except=[ValueError]", True),
+    ],
+)
+def test_rerun_filter_accepts_exception_classes(testdir, filter_kwarg, should_rerun):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, {filter_kwarg})
+        def test_fail():
+            raise AssertionError("ERR")
+        """
+    )
+    result = testdir.runpytest()
+    num_reruns = 1 if should_rerun else 0
+    assert_outcomes(result, passed=0, failed=1, rerun=num_reruns)
+
+
+@pytest.mark.parametrize(
     "marker_rerun_except,cli_rerun_except,raised_error,should_rerun",
     [
         ("AssertionError", None, "AssertionError", False),
