@@ -99,6 +99,15 @@ def pytest_addoption(parser):
         dest="fail_on_flaky",
         help="Fail the test run with exit code 7 if a flaky test passes on a rerun.",
     )
+    group._addoption(
+        "--rerun-show-tracebacks",
+        action="store_true",
+        dest="rerun_show_tracebacks",
+        help="Show tracebacks for failed attempts that were retried, including "
+        "tests that eventually passed. Tracebacks are appended to the "
+        "'rerun test summary info' section, which is emitted automatically "
+        "when this flag is set.",
+    )
 
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
@@ -636,26 +645,24 @@ def pytest_report_teststatus(report):
 def pytest_terminal_summary(terminalreporter):
     # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     tr = terminalreporter
-    if not tr.reportchars:
+    show_tracebacks = tr.config.getoption("rerun_show_tracebacks", False)
+    if not show_tracebacks and not any(c in "rR" for c in tr.reportchars):
         return
 
-    lines = []
-    for char in tr.reportchars:
-        if char in "rR":
-            show_rerun(terminalreporter, lines)
-
+    lines = show_rerun(terminalreporter, show_tracebacks=show_tracebacks)
     if lines:
         tr._tw.sep("=", "rerun test summary info")
         for line in lines:
             tr._tw.line(line)
 
 
-def show_rerun(terminalreporter, lines):
-    rerun = terminalreporter.stats.get("rerun")
-    if rerun:
-        for rep in rerun:
-            pos = rep.nodeid
-            lines.append(f"RERUN {pos}")
+def show_rerun(terminalreporter, show_tracebacks=False):
+    lines = []
+    for rep in terminalreporter.stats.get("rerun", []):
+        lines.append(f"RERUN {rep.nodeid}")
+        if show_tracebacks and rep.longrepr:
+            lines.extend(str(rep.longrepr).splitlines())
+    return lines
 
 
 @pytest.hookimpl(trylast=True)

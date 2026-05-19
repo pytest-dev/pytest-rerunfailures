@@ -4,7 +4,14 @@ Changelog
 16.3 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
+
+- Add ``--rerun-show-tracebacks`` option to display tracebacks from failed
+  attempts that were retried, including tests that eventually passed. The
+  rerun summary section is emitted automatically when the flag is set, so
+  ``-rR`` is no longer required to see the tracebacks.
+  Fixes `#156 <https://github.com/pytest-dev/pytest-rerunfailures/issues/156>`_.
 
 
 16.2 (2026-05-13)
