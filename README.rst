@@ -208,6 +208,22 @@ of re-runs specified in test markers, pass ``--force-reruns``:
 
    $ pytest --force-reruns 5
 
+Show tracebacks for retried failures
+------------------------------------
+
+By default only the *final* attempt of a flaky test produces a traceback,
+so failures from earlier attempts (including those of tests that ultimately
+pass after a rerun) are silently discarded. To inspect them, pass
+``--rerun-show-tracebacks``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 2 --rerun-show-tracebacks
+
+Each retried attempt's traceback is appended to the ``rerun test summary
+info`` section. The section is emitted automatically when the flag is set,
+so ``-rR`` is not required.
+
 Output
 ------
 
