@@ -219,7 +219,7 @@ setting. To make them additive instead, pass ``--reruns-mode=append``. With
 .. code-block:: bash
 
    $ pytest --reruns 4 --reruns-mode append
-   
+
 Show tracebacks for retried failures
 ------------------------------------
 
