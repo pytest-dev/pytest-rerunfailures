@@ -208,6 +208,18 @@ of re-runs specified in test markers, pass ``--force-reruns``:
 
    $ pytest --force-reruns 5
 
+Rerun mode
+----------
+
+By default the marker count takes strict priority over the global ``--reruns``
+setting. To make them additive instead, pass ``--reruns-mode=append``. With
+``append``, a test decorated with ``@pytest.mark.flaky(reruns=2)`` run with
+``--reruns 4`` will be re-run up to ``2 + 4 = 6`` times:
+
+.. code-block:: bash
+
+   $ pytest --reruns 4 --reruns-mode append
+
 Show tracebacks for retried failures
 ------------------------------------
 
@@ -276,7 +288,8 @@ which one takes priority?
 * Last priority is the ``pyproject.toml`` (or ``pytest.ini``) file setting, like ``reruns = 3``
 
 Additionally, all three can be overridden by passing ``--force-reruns`` argument
-on the command line.
+on the command line. Passing ``--reruns-mode=append`` makes the marker count and
+the global ``--reruns`` / ``reruns`` ini setting additive instead of strict.
 
 .. END-PRIORITY
 

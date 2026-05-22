@@ -94,6 +94,18 @@ def pytest_addoption(parser):
         "of regexes to match",
     )
     group._addoption(
+        "--reruns-mode",
+        action="store",
+        dest="reruns_mode",
+        type=str,
+        choices=("strict", "append"),
+        default="strict",
+        help="How to combine marker reruns with the global --reruns/reruns "
+        "ini setting. 'strict' (default) gives the marker priority over the "
+        "global setting. 'append' sums the marker and global counts so the "
+        "two are additive.",
+    )
+    group._addoption(
         "--fail-on-flaky",
         action="store_true",
         dest="fail_on_flaky",
@@ -128,6 +140,17 @@ def _get_marker(item):
     return item.get_closest_marker("flaky")
 
 
+def _get_global_reruns(item):
+    reruns = item.session.config.getvalue("reruns")
+    if reruns is not None:
+        return reruns
+
+    reruns = None
+    with suppress(TypeError, ValueError):
+        reruns = int(item.session.config.getini("reruns"))
+    return reruns
+
+
 def get_reruns_count(item):
     reruns = item.session.config.getvalue("force_reruns")
     if reruns is not None:
@@ -138,21 +161,20 @@ def get_reruns_count(item):
     if rerun_marker is not None:
         if "reruns" in rerun_marker.kwargs:
             # check for keyword arguments
-            return rerun_marker.kwargs["reruns"]
+            marker_reruns = rerun_marker.kwargs["reruns"]
         elif len(rerun_marker.args) > 0:
             # check for arguments
-            return rerun_marker.args[0]
+            marker_reruns = rerun_marker.args[0]
         else:
-            return 1
+            marker_reruns = 1
 
-    reruns = item.session.config.getvalue("reruns")
-    if reruns is not None:
-        return reruns
+        if item.session.config.getvalue("reruns_mode") == "append":
+            global_reruns = _get_global_reruns(item)
+            if global_reruns is not None:
+                return marker_reruns + global_reruns
+        return marker_reruns
 
-    with suppress(TypeError, ValueError):
-        reruns = int(item.session.config.getini("reruns"))
-
-    return reruns
+    return _get_global_reruns(item)
 
 
 def get_reruns_delay(item):

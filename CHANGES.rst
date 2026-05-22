@@ -7,6 +7,12 @@ Changelog
 Features
 ++++++++
 
+- Add ``--reruns-mode`` option (``strict`` or ``append``). With ``append``,
+  marker reruns and the global ``--reruns`` / ``reruns`` ini setting are summed
+  instead of the marker taking strict priority. Default is ``strict`` so
+  existing behaviour is unchanged.
+  Fixes `#321 <https://github.com/pytest-dev/pytest-rerunfailures/issues/321>`_.
+
 - Add ``--rerun-show-tracebacks`` option to display tracebacks from failed
   attempts that were retried, including tests that eventually passed. The
   rerun summary section is emitted automatically when the flag is set, so
