@@ -96,13 +96,20 @@ def pytest_addoption(parser):
         action="store_true",
         dest="all_reruns_need_to_pass",
         default=False,
-        help="If enabled, after an initial failure, all reruns must pass for the test to succeed.",
+        help=(
+            "If enabled, after an initial failure, all reruns must pass "
+            "for the test to succeed."
+        ),
     )
 
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
     parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
-    parser.addini("all_reruns_need_to_pass", "If enabled, all reruns must pass after initial failure", type=arg_type)
+    parser.addini(
+        "all_reruns_need_to_pass",
+        "If enabled, all reruns must pass after initial failure",
+        type=arg_type,
+    )
 
 
 # making sure the options make sense
@@ -359,9 +366,10 @@ def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
         "markers",
-        "flaky(reruns=1, reruns_delay=0, all_reruns_need_to_pass=False): mark test to re-run up "
-        "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
-        "between re-runs. If 'all_reruns_need_to_pass' is True, all reruns must pass.",
+        "flaky(reruns=1, reruns_delay=0, all_reruns_need_to_pass=False): "
+        "mark test to re-run up to 'reruns' times. Add a delay of "
+        "'reruns_delay' seconds between re-runs. If "
+        "'all_reruns_need_to_pass' is True, all reruns must pass.",
     )
 
     if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
@@ -608,14 +616,27 @@ def pytest_runtest_protocol(item, nextitem):
             report.rerun = item.execution_count - 1
 
             # Track initial failure for all_reruns_need_to_pass mode
-            if all_reruns_need_to_pass and report.when == "call" and report.failed and item.execution_count == 1:
+            if (
+                all_reruns_need_to_pass
+                and report.when == "call"
+                and report.failed
+                and item.execution_count == 1
+            ):
                 initial_failure_occurred = True
 
             # Track rerun results (after initial failure) - only track call phase
-            if all_reruns_need_to_pass and initial_failure_occurred and item.execution_count > 1 and report.when == "call":
-                rerun_results.append(not report.failed)  # True if passed, False if failed
+            if (
+                all_reruns_need_to_pass
+                and initial_failure_occurred
+                and item.execution_count > 1
+                and report.when == "call"
+            ):
+                rerun_results.append(
+                    not report.failed
+                )  # True if passed, False if failed
 
-            # In all_reruns_need_to_pass mode with initial failure, override normal behavior
+            # In all_reruns_need_to_pass mode with initial failure,
+            # override normal behavior
             if all_reruns_need_to_pass and initial_failure_occurred:
                 # execution_count starts at 1, so:
                 # - execution_count==1: initial run (failed)

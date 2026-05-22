@@ -1490,9 +1490,7 @@ def test_all_reruns_need_to_pass_with_only_rerun(testdir):
         """
     )
     result = testdir.runpytest(
-        "--reruns", "3",
-        "--all-reruns-need-to-pass",
-        "--only-rerun", "ValueError"
+        "--reruns", "3", "--all-reruns-need-to-pass", "--only-rerun", "ValueError"
     )
     # Should pass because all reruns pass
     assert_outcomes(result, passed=1, rerun=3)
