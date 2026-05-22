@@ -52,6 +52,14 @@ def pytest_addoption(parser):
         "rerunfailures", "re-run failing tests to eliminate flaky failures"
     )
     group._addoption(
+        "--force-reruns",
+        action="store",
+        dest="force_reruns",
+        type=int,
+        help="Force rerunning all tests the specified number of times,"
+        " irrespective of individual test markers.",
+    )
+    group._addoption(
         "--only-rerun",
         action="append",
         dest="only_rerun",
@@ -86,6 +94,18 @@ def pytest_addoption(parser):
         "of regexes to match",
     )
     group._addoption(
+        "--reruns-mode",
+        action="store",
+        dest="reruns_mode",
+        type=str,
+        choices=("strict", "append"),
+        default="strict",
+        help="How to combine marker reruns with the global --reruns/reruns "
+        "ini setting. 'strict' (default) gives the marker priority over the "
+        "global setting. 'append' sums the marker and global counts so the "
+        "two are additive.",
+    )
+    group._addoption(
         "--fail-on-flaky",
         action="store_true",
         dest="fail_on_flaky",
@@ -100,6 +120,15 @@ def pytest_addoption(parser):
             "If enabled, after an initial failure, all reruns must pass "
             "for the test to succeed."
         ),
+    )
+    group._addoption(
+        "--rerun-show-tracebacks",
+        action="store_true",
+        dest="rerun_show_tracebacks",
+        help="Show tracebacks for failed attempts that were retried, including "
+        "tests that eventually passed. Tracebacks are appended to the "
+        "'rerun test summary info' section, which is emitted automatically "
+        "when this flag is set.",
     )
 
     arg_type = "string"
@@ -126,27 +155,41 @@ def _get_marker(item):
     return item.get_closest_marker("flaky")
 
 
+def _get_global_reruns(item):
+    reruns = item.session.config.getvalue("reruns")
+    if reruns is not None:
+        return reruns
+
+    reruns = None
+    with suppress(TypeError, ValueError):
+        reruns = int(item.session.config.getini("reruns"))
+    return reruns
+
+
 def get_reruns_count(item):
+    reruns = item.session.config.getvalue("force_reruns")
+    if reruns is not None:
+        return reruns
+
     rerun_marker = _get_marker(item)
     # use the marker as a priority over the global setting.
     if rerun_marker is not None:
         if "reruns" in rerun_marker.kwargs:
             # check for keyword arguments
-            return rerun_marker.kwargs["reruns"]
+            marker_reruns = rerun_marker.kwargs["reruns"]
         elif len(rerun_marker.args) > 0:
             # check for arguments
-            return rerun_marker.args[0]
+            marker_reruns = rerun_marker.args[0]
         else:
-            return 1
+            marker_reruns = 1
 
-    reruns = item.session.config.getvalue("reruns")
-    if reruns is not None:
-        return reruns
+        if item.session.config.getvalue("reruns_mode") == "append":
+            global_reruns = _get_global_reruns(item)
+            if global_reruns is not None:
+                return marker_reruns + global_reruns
+        return marker_reruns
 
-    with suppress(TypeError, ValueError):
-        reruns = int(item.session.config.getini("reruns"))
-
-    return reruns
+    return _get_global_reruns(item)
 
 
 def get_reruns_delay(item):
@@ -236,7 +279,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             result = eval(condition_code, globals_)  # noqa: S307
         except SyntaxError as exc:
             msglines = [
-                "Error evaluating %r condition" % mark.name,
+                f"Error evaluating {mark.name!r} condition",
                 "    " + condition,
                 "    " + " " * (exc.offset or 0) + "^",
                 "SyntaxError: invalid syntax",
@@ -244,7 +287,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             fail("\n".join(msglines), pytrace=False)
         except Exception as exc:
             msglines = [
-                "Error evaluating %r condition" % mark.name,
+                f"Error evaluating {mark.name!r} condition",
                 "    " + condition,
                 *traceback.format_exception_only(type(exc), exc),
             ]
@@ -256,7 +299,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
             result = bool(condition)
         except Exception as exc:
             msglines = [
-                "Error evaluating %r condition as a boolean" % mark.name,
+                f"Error evaluating {mark.name!r} condition as a boolean",
                 *traceback.format_exception_only(type(exc), exc),
             ]
             fail("\n".join(msglines), pytrace=False)
@@ -274,17 +317,22 @@ def _remove_cached_results_from_failed_fixtures(item):
                 result, _, err = getattr(fixture_def, cached_result)
                 if err:  # Deleting cached results for only failed fixtures
                     setattr(fixture_def, cached_result, None)
+                    # Clear finalizers registered during the failed execution
+                    # so the fixture can be re-executed cleanly (pytest >= 9
+                    # asserts _finalizers is empty before executing a fixture).
+                    if hasattr(fixture_def, "_finalizers"):
+                        fixture_def._finalizers.clear()
 
 
 def _remove_failed_setup_state_from_session(item):
     """
     Clean up setup state.
 
-    Note: remove all failures from every node in _setupstate stack
-          and clean the stack itself
+    Note: remove only the current item, not higher-scoped items
     """
     setup_state = item.session._setupstate
-    setup_state.stack = {}
+    if item in setup_state.stack:
+        del setup_state.stack[item]
 
 
 def _get_rerun_filter_regex(item, regex_name):
@@ -311,8 +359,11 @@ def _matches_any_rerun_except_error(rerun_except_errors, excinfo):
 def _try_match_error(rerun_errors, excinfo):
     if excinfo:
         err = f"{excinfo.type.__name__}: {excinfo.value}"
-        for rerun_regex in rerun_errors:
-            if re.search(rerun_regex, err):
+        for rerun_error in rerun_errors:
+            if isinstance(rerun_error, type) and issubclass(rerun_error, BaseException):
+                if issubclass(excinfo.type, rerun_error):
+                    return True
+            elif re.search(rerun_error, err):
                 return True
     return False
 
@@ -392,8 +443,24 @@ class XDistHooks:
         db = sched.config.failures_db
         reruns = db.get_test_reruns(crashitem)
         if db.get_test_failures(crashitem) < reruns:
-            sched.mark_test_pending(crashitem)
-            report.outcome = "rerun"
+            try:
+                sched.mark_test_pending(crashitem)
+                report.outcome = "rerun"
+            except NotImplementedError:
+                # Some schedulers (like LoadScopeScheduling) don't implement
+                # mark_test_pending
+                # In this case, we can't reschedule the crashed test for rerun
+                # Mark it as failed with a clear message about why it couldn't be rerun
+                report.outcome = "failed"
+                if not hasattr(report, "longrepr") or report.longrepr is None:
+                    error_msg = (
+                        "Test crashed and could not be rescheduled for rerun."
+                        f" The scheduler '{sched.__class__.__name__}' does not support"
+                        " rescheduling crashed tests"
+                        " (mark_test_pending not implemented)."
+                        f" Remaining reruns: {reruns - db.get_test_failures(crashitem)}"
+                    )
+                    report.longrepr = error_msg
 
         db.add_test_failure(crashitem)
 
@@ -704,26 +771,24 @@ def pytest_report_teststatus(report):
 def pytest_terminal_summary(terminalreporter):
     # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     tr = terminalreporter
-    if not tr.reportchars:
+    show_tracebacks = tr.config.getoption("rerun_show_tracebacks", False)
+    if not show_tracebacks and not any(c in "rR" for c in tr.reportchars):
         return
 
-    lines = []
-    for char in tr.reportchars:
-        if char in "rR":
-            show_rerun(terminalreporter, lines)
-
+    lines = show_rerun(terminalreporter, show_tracebacks=show_tracebacks)
     if lines:
         tr._tw.sep("=", "rerun test summary info")
         for line in lines:
             tr._tw.line(line)
 
 
-def show_rerun(terminalreporter, lines):
-    rerun = terminalreporter.stats.get("rerun")
-    if rerun:
-        for rep in rerun:
-            pos = rep.nodeid
-            lines.append(f"RERUN {pos}")
+def show_rerun(terminalreporter, show_tracebacks=False):
+    lines = []
+    for rep in terminalreporter.stats.get("rerun", []):
+        lines.append(f"RERUN {rep.nodeid}")
+        if show_tracebacks and rep.longrepr:
+            lines.extend(str(rep.longrepr).splitlines())
+    return lines
 
 
 @pytest.hookimpl(trylast=True)

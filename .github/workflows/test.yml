@@ -28,15 +28,15 @@ jobs:
           "pypy-3.11",
         ]
         pytest-version: [
-          "8.0.*",
           "8.1.*",
           "8.2.*",
           "8.3.*",
           "8.4.*",
+          "9.0.*",
           "main",
         ]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -50,7 +50,7 @@ jobs:
           echo "::set-output name=dir::$(pip cache dir)"
 
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key:
@@ -83,7 +83,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6

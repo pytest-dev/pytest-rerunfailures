@@ -331,6 +331,47 @@ def test_extra_test_summary_for_reruns(testdir):
     assert "1 rerun" in result.stdout.str()
 
 
+def test_rerun_show_tracebacks_for_eventual_pass(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_eventually_passes():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-show-tracebacks")
+    assert result.ret == 0
+    stdout = result.stdout.str()
+    assert "rerun test summary info" in stdout
+    assert "RERUN test_rerun_show_tracebacks_for_eventual_pass" in stdout
+    assert "Exception: Failure: 1" in stdout
+    assert "1 passed" in stdout
+    assert "1 rerun" in stdout
+
+
+def test_rerun_show_tracebacks_off_by_default(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_eventually_passes():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1")
+    stdout = result.stdout.str()
+    assert "rerun test summary info" not in stdout
+    assert "Exception: Failure" not in stdout
+
+
+def test_rerun_show_tracebacks_with_reportchars(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_eventually_passes():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-show-tracebacks", "-rR")
+    stdout = result.stdout.str()
+    # Only one rerun summary section, not duplicated by the -rR path.
+    assert stdout.count("rerun test summary info") == 1
+    assert "Exception: Failure: 1" in stdout
+
+
 def test_verbose(testdir):
     testdir.makepyfile(
         f"""
@@ -821,6 +862,30 @@ def test_only_rerun_flag_in_flaky_marker(
 
 
 @pytest.mark.parametrize(
+    "filter_kwarg,should_rerun",
+    [
+        ("only_rerun=[AssertionError]", True),
+        ("only_rerun=[ValueError]", False),
+        ("rerun_except=[AssertionError]", False),
+        ("rerun_except=[ValueError]", True),
+    ],
+)
+def test_rerun_filter_accepts_exception_classes(testdir, filter_kwarg, should_rerun):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, {filter_kwarg})
+        def test_fail():
+            raise AssertionError("ERR")
+        """
+    )
+    result = testdir.runpytest()
+    num_reruns = 1 if should_rerun else 0
+    assert_outcomes(result, passed=0, failed=1, rerun=num_reruns)
+
+
+@pytest.mark.parametrize(
     "marker_rerun_except,cli_rerun_except,raised_error,should_rerun",
     [
         ("AssertionError", None, "AssertionError", False),
@@ -1168,6 +1233,40 @@ def test_run_session_teardown_once_after_reruns(testdir):
 
     logging.info.assert_has_calls(expected_calls, any_order=False)
     assert_outcomes(result, failed=8, passed=2, rerun=18, skipped=5, error=1)
+
+
+def test_run_session_teardown_when_fixture_teardown_fails(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope='session', autouse=True)
+        def session_fixture():
+            yield
+            print('session teardown')
+
+        @pytest.fixture(scope='module', autouse=True)
+        def module_fixture():
+            yield
+            print('module teardown')
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise Exception("fixture teardown error")
+
+        def test_fail_in_fixture(broken_fixture):
+            pass
+
+        def test_ok():
+            pass
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1", "-s")
+    result.stdout.fnmatch_lines("*session teardown*")
+    result.stdout.fnmatch_lines("*module teardown*")
+    assert_outcomes(result, passed=3, rerun=1, error=1)
 
 
 def test_exception_matches_rerun_except_query(testdir):
@@ -1565,3 +1664,73 @@ def test_all_reruns_need_to_pass_command_line(testdir):
     result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
     # Should pass because all reruns pass
     assert_outcomes(result, passed=1, rerun=3)
+
+
+@pytest.mark.parametrize("mark_params", ["", "reruns=1"])
+def test_force_reruns(testdir, mark_params):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.mark.flaky({mark_params})
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--force-reruns", "3")
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_mode_append_sums_marker_and_cli(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=2)
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "4", "--reruns-mode", "append")
+    assert_outcomes(result, passed=0, failed=1, rerun=6)
+
+
+def test_reruns_mode_default_is_strict(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=2)
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "4")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_reruns_mode_append_without_marker_uses_global(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "3", "--reruns-mode", "append")
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_mode_invalid_choice_errors(testdir):
+    testdir.makepyfile(
+        """
+        def test_pass():
+            assert True
+    """
+    )
+
+    result = testdir.runpytest("--reruns-mode", "bogus")
+    assert result.ret != 0

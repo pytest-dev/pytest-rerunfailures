@@ -1,13 +1,70 @@
 Changelog
 =========
 
-16.1 (unreleased)
+16.4 (unreleased)
 -----------------
 
-- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution.
+- Nothing changed yet.
+
+
+16.3 (2026-05-22)
+-----------------
+
+Features
+++++++++
+
+- Add ``--reruns-mode`` option (``strict`` or ``append``). With ``append``,
+  marker reruns and the global ``--reruns`` / ``reruns`` ini setting are summed
+  instead of the marker taking strict priority. Default is ``strict`` so
+  existing behaviour is unchanged.
+  Fixes `#321 <https://github.com/pytest-dev/pytest-rerunfailures/issues/321>`_.
+
+- Add ``--rerun-show-tracebacks`` option to display tracebacks from failed
+  attempts that were retried, including tests that eventually passed. The
+  rerun summary section is emitted automatically when the flag is set, so
+  ``-rR`` is no longer required to see the tracebacks.
+  Fixes `#156 <https://github.com/pytest-dev/pytest-rerunfailures/issues/156>`_.
+
+
+16.2 (2026-05-13)
+-----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest 8.0. Minimum pytest version is now 8.1.
+
+Features
+++++++++
+
+- Add support for pytest 9.0.
+
+Bug fixes
++++++++++
+
+- Fix missing teardown for session and module scoped fixtures when fixture teardown fails.
+  Fixes `#314 <https://github.com/pytest-dev/pytest-rerunfailures/issues/314>`_.
+
+- Clear fixture finalizers when removing cached results from failed fixtures
+  to fix compatibility with pytest >= 9, which asserts that ``_finalizers`` is
+  empty before executing a fixture.
+  Fixes `#323 <https://github.com/pytest-dev/pytest-rerunfailures/issues/323>`_.
+
+- Accept exception classes (not only regex strings) in the ``only_rerun`` and
+  ``rerun_except`` marker keyword arguments instead of crashing with an
+  internal error.
+  Fixes `#275 <https://github.com/pytest-dev/pytest-rerunfailures/issues/275>`_.
+
+
+16.1 (2025-10-10)
+-----------------
 
 - Drop support for Python 3.9.
 
+- Changed "localhost" to "127.0.0.1" to avoid bad hostname resolution.
+
+- Added ``--force-reruns`` to override rerun count globally.
+  Fixes `#306 <https://github.com/pytest-dev/pytest-rerunfailures/issues/306>`_.
 
 16.0.1 (2025-09-02)
 -------------------

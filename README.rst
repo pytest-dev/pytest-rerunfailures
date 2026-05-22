@@ -29,7 +29,7 @@ Requirements
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
 - Python 3.10+ or PyPy3
-- pytest 8.0 or newer
+- pytest 8.1 or newer
 
 This plugin can recover from a hard crash with the following optional
 prerequisites:
@@ -173,6 +173,14 @@ Or a list of strings:
    def test_example():
        raise AssertionError()
 
+Exception classes are also accepted and match any subclass:
+
+.. code-block:: python
+
+   @pytest.mark.flaky(only_rerun=[AssertionError, ValueError])
+   def test_example():
+       raise AssertionError()
+
 
 You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
 
@@ -189,6 +197,44 @@ You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif
       assert random.choice([True, False])
 
 Note that the test will re-run for any ``condition`` that is truthy.
+
+Force rerun count
+-----------------
+
+To force a specific re-run count globally, irrespective of the number
+of re-runs specified in test markers, pass ``--force-reruns``:
+
+.. code-block:: bash
+
+   $ pytest --force-reruns 5
+
+Rerun mode
+----------
+
+By default the marker count takes strict priority over the global ``--reruns``
+setting. To make them additive instead, pass ``--reruns-mode=append``. With
+``append``, a test decorated with ``@pytest.mark.flaky(reruns=2)`` run with
+``--reruns 4`` will be re-run up to ``2 + 4 = 6`` times:
+
+.. code-block:: bash
+
+   $ pytest --reruns 4 --reruns-mode append
+
+Show tracebacks for retried failures
+------------------------------------
+
+By default only the *final* attempt of a flaky test produces a traceback,
+so failures from earlier attempts (including those of tests that ultimately
+pass after a rerun) are silently discarded. To inspect them, pass
+``--rerun-show-tracebacks``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 2 --rerun-show-tracebacks
+
+Each retried attempt's traceback is appended to the ``rerun test summary
+info`` section. The section is emitted automatically when the flag is set,
+so ``-rR`` is not required.
 
 Output
 ------
@@ -240,6 +286,10 @@ which one takes priority?
 * Top priority is the marker, such as ``@pytest.mark.flaky(reruns=1)``
 * Second priority is what's specified on the command line, like ``--reruns=2``
 * Last priority is the ``pyproject.toml`` (or ``pytest.ini``) file setting, like ``reruns = 3``
+
+Additionally, all three can be overridden by passing ``--force-reruns`` argument
+on the command line. Passing ``--reruns-mode=append`` makes the marker count and
+the global ``--reruns`` / ``reruns`` ini setting additive instead of strict.
 
 .. END-PRIORITY
 
