@@ -331,6 +331,47 @@ def test_extra_test_summary_for_reruns(testdir):
     assert "1 rerun" in result.stdout.str()
 
 
+def test_rerun_show_tracebacks_for_eventual_pass(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_eventually_passes():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-show-tracebacks")
+    assert result.ret == 0
+    stdout = result.stdout.str()
+    assert "rerun test summary info" in stdout
+    assert "RERUN test_rerun_show_tracebacks_for_eventual_pass" in stdout
+    assert "Exception: Failure: 1" in stdout
+    assert "1 passed" in stdout
+    assert "1 rerun" in stdout
+
+
+def test_rerun_show_tracebacks_off_by_default(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_eventually_passes():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1")
+    stdout = result.stdout.str()
+    assert "rerun test summary info" not in stdout
+    assert "Exception: Failure" not in stdout
+
+
+def test_rerun_show_tracebacks_with_reportchars(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_eventually_passes():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-show-tracebacks", "-rR")
+    stdout = result.stdout.str()
+    # Only one rerun summary section, not duplicated by the -rR path.
+    assert stdout.count("rerun test summary info") == 1
+    assert "Exception: Failure: 1" in stdout
+
+
 def test_verbose(testdir):
     testdir.makepyfile(
         f"""
