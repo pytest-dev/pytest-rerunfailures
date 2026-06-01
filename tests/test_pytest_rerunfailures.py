@@ -1,5 +1,6 @@
 import random
 import time
+from textwrap import indent
 from unittest import mock
 
 import pytest
@@ -1526,3 +1527,33 @@ def test_reruns_mode_invalid_choice_errors(testdir):
 
     result = testdir.runpytest("--reruns-mode", "bogus")
     assert result.ret != 0
+
+
+def test_failing_subtests_are_rerun(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Fails on first attempt"):
+                {indent(temporary_failure(), "    ")}
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_too_many_failing_subtests_are_failures(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
