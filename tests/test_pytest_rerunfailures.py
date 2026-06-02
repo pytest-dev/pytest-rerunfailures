@@ -1543,6 +1543,7 @@ def test_failing_subtests_are_rerun(testdir):
     )
 
     result = testdir.runpytest("--reruns", "1")
+    assert result.ret == 0
     assert_outcomes(result, passed=1, rerun=1)
 
 
@@ -1559,4 +1560,5 @@ def test_too_many_failing_subtests_are_failures(testdir):
     )
 
     result = testdir.runpytest("--reruns", "1")
+    assert result.ret != 0
     assert_outcomes(result, passed=0, failed=2, rerun=1)

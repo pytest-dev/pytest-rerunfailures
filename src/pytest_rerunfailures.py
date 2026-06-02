@@ -334,11 +334,15 @@ def _remove_failed_subtest_reports_from_stats(item):
         return
 
     if "failed" in tr.stats:
+        num_failed_before = len(tr.stats["failed"])
         tr.stats["failed"] = [
             report
             for report in tr.stats["failed"]
             if not isinstance(report, SubtestReport) or report.nodeid != item.nodeid
         ]
+        removed_count = num_failed_before - len(tr.stats["failed"])
+        if removed_count > 0:
+            item.session.testsfailed = max(0, item.session.testsfailed - removed_count)
 
 
 def _get_num_failed_subtests(item, report):
