@@ -5,11 +5,12 @@ from unittest import mock
 
 import pytest
 
-from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
+from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM, SubtestReport
 
 pytest_plugins = "pytester"
 
 has_xdist = HAS_PYTEST_HANDLECRASHITEM
+has_subtests = SubtestReport is not None
 
 
 def temporary_failure(count=1):
@@ -1529,6 +1530,7 @@ def test_reruns_mode_invalid_choice_errors(testdir):
     assert result.ret != 0
 
 
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
 def test_failing_subtests_are_rerun(testdir):
     testdir.makepyfile(
         f"""
@@ -1544,6 +1546,7 @@ def test_failing_subtests_are_rerun(testdir):
     assert_outcomes(result, passed=1, rerun=1)
 
 
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
 def test_too_many_failing_subtests_are_failures(testdir):
     testdir.makepyfile(
         """

@@ -19,6 +19,8 @@ from packaging.version import parse as parse_version
 try:
     from _pytest.subtests import SubtestReport, failed_subtests_key
 except ImportError:
+    if pytest.version_tuple >= (9, 0, 0):
+        raise
     failed_subtests_key = None
     SubtestReport = None
 
