@@ -318,11 +318,16 @@ def _remove_failed_subtests_from_report(item, report):
 def _remove_failed_subtest_reports_from_stats(item):
     """
     Remove already-logged SubtestReports for this item from the terminal reporter's
-    'failed' stats bucket.
+    stats buckets.
 
     SubtestReports are logged immediately during runtestprotocol (independent of
     log=False), so when a rerun is triggered they must be retroactively removed
-    from the 'failed' category to avoid counting them as permanent failures.
+    from all stat categories to avoid double-counting on the subsequent run.
+
+    Concretely:
+    - Failed SubtestReports land in tr.stats["failed"].
+    - Passed SubtestReports land in tr.stats["subtests passed"].
+    Both must be removed so the final tally only reflects the last (successful) run.
 
     Note: This function does nothing on pytest versions without subtests support.
     """
@@ -333,16 +338,40 @@ def _remove_failed_subtest_reports_from_stats(item):
     if tr is None:
         return
 
-    if "failed" in tr.stats:
-        num_failed_before = len(tr.stats["failed"])
-        tr.stats["failed"] = [
-            report
-            for report in tr.stats["failed"]
-            if not isinstance(report, SubtestReport) or report.nodeid != item.nodeid
+    def _remove_subtest_reports(key):
+        """
+        Remove SubtestReports for item.nodeid from tr.stats[key].
+
+        Returns the number of removed reports, and deletes the key entirely when
+        the list becomes empty, because some code just checks the presence of
+        the 'failed' key, but doesn't check the content.
+        """
+        if key not in tr.stats:
+            return 0
+
+        num_items_before = len(tr.stats[key])
+        tr.stats[key] = [
+            r
+            for r in tr.stats[key]
+            if not isinstance(r, SubtestReport) or r.nodeid != item.nodeid
         ]
-        removed_count = num_failed_before - len(tr.stats["failed"])
-        if removed_count > 0:
-            item.session.testsfailed = max(0, item.session.testsfailed - removed_count)
+        num_items_removed = num_items_before - len(tr.stats[key])
+
+        if not tr.stats[key]:
+            del tr.stats[key]
+
+        return num_items_removed
+
+    failed_removed = _remove_subtest_reports("failed")
+    if failed_removed > 0:
+        # Decrement session.testsfailed which was incremented when the
+        # SubtestReport was originally logged via pytest_runtest_logreport.
+        item.session.testsfailed = max(0, item.session.testsfailed - failed_removed)
+
+    # When a test is rerun, subtests that already passed on the first attempt
+    # will run again and produce a second SUBPASSED report. Remove the first
+    # run's SUBPASSED entries so the count reflects each subtest exactly once.
+    _remove_subtest_reports("subtests passed")
 
 
 def _get_num_failed_subtests(item, report):
