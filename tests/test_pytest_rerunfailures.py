@@ -1526,3 +1526,75 @@ def test_reruns_mode_invalid_choice_errors(testdir):
 
     result = testdir.runpytest("--reruns-mode", "bogus")
     assert result.ret != 0
+
+
+def test_max_suite_retries_caps_total_reruns(testdir):
+    """Suite limit stops reruns once the total across all tests is reached."""
+    testdir.makepyfile(
+        """
+        def test_fail_1():
+            assert False
+
+        def test_fail_2():
+            assert False
+
+        def test_fail_3():
+            assert False
+    """
+    )
+    # 3 tests each allowed up to 3 reruns, but suite cap is 4 total
+    result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "4")
+    outcomes = result.parseoutcomes()
+    assert outcomes.get("rerun", 0) == 4
+    assert outcomes.get("failed", 0) == 3
+
+
+def test_max_suite_retries_does_not_limit_when_sufficient(testdir):
+    """Suite limit has no effect when total reruns stay below the cap."""
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False
+    """
+    )
+    result = testdir.runpytest("--reruns", "2", "--max-suite-retries", "10")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_max_suite_retries_zero_disables_all_reruns(testdir):
+    """Suite limit of 0 prevents any reruns from occurring."""
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False
+    """
+    )
+    result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "0")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_max_suite_retries_works_with_passing_tests(testdir):
+    """Suite limit only counts actual reruns, not passing test runs."""
+    testdir.makepyfile(
+        """
+        def test_pass():
+            assert True
+
+        def test_fail():
+            assert False
+    """
+    )
+    result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "2")
+    assert_outcomes(result, passed=1, failed=1, rerun=2)
+
+
+def test_max_suite_retries_without_reruns_has_no_effect(testdir):
+    """--max-suite-retries alone (without --reruns) does not break anything."""
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False
+    """
+    )
+    result = testdir.runpytest("--max-suite-retries", "5")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
