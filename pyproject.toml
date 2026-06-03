@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools>=40",
+  "setuptools>=61",
 ]
 
 [project]
@@ -51,7 +51,9 @@ entry-points.pytest11.rerunfailures = "pytest_rerunfailures"
 readme = { file = [ "HEADER.rst", "README.rst", "CHANGES.rst" ] }
 
 [tool.ruff]
+target-version = "py310"
 fix = true
+format.preview = true
 lint.select = [
   "E",  # https://pypi.org/project/pyflakes/
   "F",  # https://pypi.org/project/pyflakes/
