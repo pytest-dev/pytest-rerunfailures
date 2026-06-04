@@ -448,6 +448,13 @@ class StatusDB:
             self._suite_rerun_count += 1
             return self._suite_rerun_count
 
+    def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        with self._suite_lock:
+            if self._suite_rerun_count < max_cap:
+                self._suite_rerun_count += 1
+                return True
+            return False
+
     def get_suite_reruns(self) -> int:
         """Return the current suite-wide rerun count."""
         return self._suite_rerun_count
@@ -540,6 +547,14 @@ class ServerStatusDB(SocketDB):
                         new_v = self._get(i, k) + 1
                         self._set(i, k, new_v)
                     self._sock_send(conn, str(new_v))
+                elif op == "try_inc":
+                    with self._suite_lock:
+                        current = self._get(i, k)
+                        if current < int(v):
+                            self._set(i, k, current + 1)
+                            self._sock_send(conn, "1")
+                        else:
+                            self._sock_send(conn, "0")
 
     def _set(self, i: str, k: str, v: int):
         if i not in self.rerunfailures_db:
@@ -558,6 +573,14 @@ class ServerStatusDB(SocketDB):
             new_v = self._get("__suite__", "r") + 1
             self._set("__suite__", "r", new_v)
             return new_v
+
+    def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        with self._suite_lock:
+            current = self._get("__suite__", "r")
+            if current < max_cap:
+                self._set("__suite__", "r", current + 1)
+                return True
+            return False
 
     def get_suite_reruns(self) -> int:
         """Return the current suite-wide rerun count."""
@@ -580,6 +603,12 @@ class ClientStatusDB(SocketDB):
         """Atomically increment the suite-wide rerun counter; return new total."""
         self._sock_send(self.sock, "|".join(("inc", "__suite__", "r", "")))
         return int(self._sock_recv(self.sock))
+
+    def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        self._sock_send(
+            self.sock, "|".join(("try_inc", "__suite__", "r", str(max_cap)))
+        )
+        return self._sock_recv(self.sock) == "1"
 
     def get_suite_reruns(self) -> int:
         """Return the current suite-wide rerun count."""
@@ -686,8 +715,7 @@ def pytest_runtest_protocol(item, nextitem):
                 # failure detected and reruns not exhausted, since i < reruns
                 max_suite_reruns = item.session.config.option.max_suite_retries
                 if max_suite_reruns is not None:
-                    suite_count = db.increment_suite_reruns()
-                    if suite_count > max_suite_reruns:
+                    if not db.try_increment_suite_reruns(max_suite_reruns):
                         # suite-wide limit exhausted — log as final failure
                         item.ihook.pytest_runtest_logreport(report=report)
                         continue
