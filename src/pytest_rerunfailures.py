@@ -120,7 +120,7 @@ def pytest_addoption(parser):
         "'rerun test summary info' section, which is emitted automatically "
         "when this flag is set.",
     )
-    group._addoption(
+    group.addoption(
         "--max-suite-retries",
         action="store",
         dest="max_suite_retries",
