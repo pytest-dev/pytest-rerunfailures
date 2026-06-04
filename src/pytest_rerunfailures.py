@@ -10,6 +10,7 @@ import time
 import traceback
 import warnings
 from contextlib import suppress
+from typing import Any
 
 import pytest
 from _pytest.outcomes import fail
@@ -615,7 +616,7 @@ class ClientStatusDB(SocketDB):
         return self._get("__suite__", "r")
 
 
-suspended_finalizers = {}
+suspended_finalizers: dict[Any, Any] = {}
 
 
 def pytest_runtest_teardown(item, nextitem):
