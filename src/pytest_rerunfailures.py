@@ -144,6 +144,11 @@ def check_options(config):
         if config.option.reruns != 0:
             if config.option.usepdb:  # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
+        if (
+            config.option.max_suite_retries is not None
+            and config.option.max_suite_retries < 0
+        ):
+            raise pytest.UsageError("--max-suite-retries must be >= 0")
 
 
 def _get_marker(item):
