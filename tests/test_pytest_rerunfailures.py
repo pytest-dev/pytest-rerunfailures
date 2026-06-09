@@ -1544,9 +1544,7 @@ def test_max_suite_retries_caps_total_reruns(testdir):
     )
     # 3 tests each allowed up to 3 reruns, but suite cap is 4 total
     result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "4")
-    outcomes = result.parseoutcomes()
-    assert outcomes.get("rerun", 0) == 4
-    assert outcomes.get("failed", 0) == 3
+    assert_outcomes(result, passed=0, failed=3, rerun=4)
 
 
 def test_max_suite_retries_does_not_limit_when_sufficient(testdir):
