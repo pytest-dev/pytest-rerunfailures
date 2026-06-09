@@ -4,7 +4,13 @@ Changelog
 16.4 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Features
+++++++++
+
+- Add ``--max-suite-retries`` option to cap the total number of reruns across
+  the entire test suite. Once the limit is reached, no further reruns occur
+  regardless of per-test ``--reruns`` or ``@pytest.mark.flaky`` settings.
+  Fixes `#298 <https://github.com/pytest-dev/pytest-rerunfailures/issues/298>`_.
 
 
 16.3 (2026-05-22)

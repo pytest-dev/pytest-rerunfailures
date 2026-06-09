@@ -10,6 +10,7 @@ import time
 import traceback
 import warnings
 from contextlib import suppress
+from typing import Any
 
 import pytest
 from _pytest.outcomes import fail
@@ -120,6 +121,15 @@ def pytest_addoption(parser):
         "'rerun test summary info' section, which is emitted automatically "
         "when this flag is set.",
     )
+    group.addoption(
+        "--max-suite-retries",
+        action="store",
+        dest="max_suite_retries",
+        type=int,
+        default=None,
+        help="Maximum total number of reruns across the entire test suite. "
+        "Once this limit is reached, no further reruns will occur.",
+    )
 
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
@@ -134,6 +144,11 @@ def check_options(config):
         if config.option.reruns != 0:
             if config.option.usepdb:  # a core option
                 raise pytest.UsageError("--reruns incompatible with --pdb")
+        if (
+            config.option.max_suite_retries is not None
+            and config.option.max_suite_retries < 0
+        ):
+            raise pytest.UsageError("--max-suite-retries must be >= 0")
 
 
 def _get_marker(item):
@@ -427,9 +442,32 @@ class XDistHooks:
 # and failures (set after each failure or crash)
 # accessible from both the master and worker
 class StatusDB:
-    def __init__(self):
-        self.delim = b"\n"
-        self.hmap = {}
+    def __init__(self) -> None:
+        self.delim: bytes = b"\n"
+        self.hmap: dict[str, str] = {}
+        self._suite_rerun_count: int = 0
+        self._suite_lock: threading.Lock = threading.Lock()
+
+    def increment_suite_reruns(self) -> int:
+        """Atomically increment the suite-wide rerun counter; return new total."""
+        with self._suite_lock:
+            self._suite_rerun_count += 1
+            return self._suite_rerun_count
+
+    def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        with self._suite_lock:
+            if self._suite_rerun_count < max_cap:
+                self._suite_rerun_count += 1
+                return True
+            return False
+
+    def get_suite_reruns(self) -> int:
+        """Return the current suite-wide rerun count.
+
+        Reads under lock for thread safety.
+        """
+        with self._suite_lock:
+            return self._suite_rerun_count
 
     def _hash(self, crashitem: str) -> str:
         if crashitem not in self.hmap:
@@ -486,12 +524,12 @@ class SocketDB(StatusDB):
 
 
 class ServerStatusDB(SocketDB):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.sock.bind(("127.0.0.1", 0))
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.rerunfailures_db = {}
+        self.rerunfailures_db: dict[str, dict[str, int]] = {}
         t = threading.Thread(target=self.run_server, daemon=True)
         t.start()
 
@@ -514,6 +552,19 @@ class ServerStatusDB(SocketDB):
                     self._set(i, k, int(v))
                 elif op == "get":
                     self._sock_send(conn, str(self._get(i, k)))
+                elif op == "inc":
+                    with self._suite_lock:
+                        new_v = self._get(i, k) + 1
+                        self._set(i, k, new_v)
+                    self._sock_send(conn, str(new_v))
+                elif op == "try_inc":
+                    with self._suite_lock:
+                        current = self._get(i, k)
+                        if current < int(v):
+                            self._set(i, k, current + 1)
+                            self._sock_send(conn, "1")
+                        else:
+                            self._sock_send(conn, "0")
 
     def _set(self, i: str, k: str, v: int):
         if i not in self.rerunfailures_db:
@@ -525,6 +576,25 @@ class ServerStatusDB(SocketDB):
             return self.rerunfailures_db[i][k]
         except KeyError:
             return 0
+
+    def increment_suite_reruns(self) -> int:
+        """Atomically increment the suite-wide rerun counter; return new total."""
+        with self._suite_lock:
+            new_v = self._get("__suite__", "r") + 1
+            self._set("__suite__", "r", new_v)
+            return new_v
+
+    def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        with self._suite_lock:
+            current = self._get("__suite__", "r")
+            if current < max_cap:
+                self._set("__suite__", "r", current + 1)
+                return True
+            return False
+
+    def get_suite_reruns(self) -> int:
+        """Return the current suite-wide rerun count."""
+        return self._get("__suite__", "r")
 
 
 class ClientStatusDB(SocketDB):
@@ -539,8 +609,23 @@ class ClientStatusDB(SocketDB):
         self._sock_send(self.sock, "|".join(("get", i, k, "")))
         return int(self._sock_recv(self.sock))
 
+    def increment_suite_reruns(self) -> int:
+        """Atomically increment the suite-wide rerun counter; return new total."""
+        self._sock_send(self.sock, "|".join(("inc", "__suite__", "r", "")))
+        return int(self._sock_recv(self.sock))
 
-suspended_finalizers = {}
+    def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        self._sock_send(
+            self.sock, "|".join(("try_inc", "__suite__", "r", str(max_cap)))
+        )
+        return self._sock_recv(self.sock) == "1"
+
+    def get_suite_reruns(self) -> int:
+        """Return the current suite-wide rerun count."""
+        return self._get("__suite__", "r")
+
+
+suspended_finalizers: dict[Any, Any] = {}
 
 
 def pytest_runtest_teardown(item, nextitem):
@@ -638,6 +723,13 @@ def pytest_runtest_protocol(item, nextitem):
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
+                max_suite_reruns = item.session.config.option.max_suite_retries
+                if max_suite_reruns is not None:
+                    if not db.try_increment_suite_reruns(max_suite_reruns):
+                        # suite-wide limit exhausted — log as final failure
+                        item.ihook.pytest_runtest_logreport(report=report)
+                        continue
+
                 report.outcome = "rerun"
                 time.sleep(delay)
 
