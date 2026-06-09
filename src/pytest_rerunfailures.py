@@ -462,8 +462,9 @@ class StatusDB:
             return False
 
     def get_suite_reruns(self) -> int:
-        """Return the current suite-wide rerun count."""
-        return self._suite_rerun_count
+        """Return the current suite-wide rerun count (read under lock for thread safety)."""
+        with self._suite_lock:
+            return self._suite_rerun_count
 
     def _hash(self, crashitem: str) -> str:
         if crashitem not in self.hmap:
