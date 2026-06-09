@@ -442,11 +442,11 @@ class XDistHooks:
 # and failures (set after each failure or crash)
 # accessible from both the master and worker
 class StatusDB:
-    def __init__(self):
-        self.delim = b"\n"
-        self.hmap = {}
-        self._suite_rerun_count = 0
-        self._suite_lock = threading.Lock()
+    def __init__(self) -> None:
+        self.delim: bytes = b"\n"
+        self.hmap: dict[str, str] = {}
+        self._suite_rerun_count: int = 0
+        self._suite_lock: threading.Lock = threading.Lock()
 
     def increment_suite_reruns(self) -> int:
         """Atomically increment the suite-wide rerun counter; return new total."""
@@ -462,7 +462,10 @@ class StatusDB:
             return False
 
     def get_suite_reruns(self) -> int:
-        """Return the current suite-wide rerun count (read under lock for thread safety)."""
+        """Return the current suite-wide rerun count.
+
+        Reads under lock for thread safety.
+        """
         with self._suite_lock:
             return self._suite_rerun_count
 
@@ -521,12 +524,12 @@ class SocketDB(StatusDB):
 
 
 class ServerStatusDB(SocketDB):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.sock.bind(("127.0.0.1", 0))
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.rerunfailures_db = {}
+        self.rerunfailures_db: dict[str, dict[str, int]] = {}
         t = threading.Thread(target=self.run_server, daemon=True)
         t.start()
 
