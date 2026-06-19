@@ -4,7 +4,15 @@ Changelog
 16.4 (unreleased)
 -----------------
 
-- Nothing changed yet.
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest 8.1. Minimum pytest version is now 8.2.
+
+Features
+++++++++
+
+- Add support for pytest 9.1.
 
 
 16.3 (2026-05-22)
