@@ -52,6 +52,11 @@ def works_with_current_xdist():
 
 RERUNS_DESC = "number of times to re-run failed tests. defaults to 0."
 RERUNS_DELAY_DESC = "add time (seconds) delay between reruns."
+RERUNS_DELAY_BACKOFF_FACTOR_DESC = (
+    "multiply the rerun delay by this factor after each attempt, for an "
+    "exponential backoff (delay * factor ** (attempt - 1)). defaults to 1.0, "
+    "i.e. a constant delay."
+)
 
 
 # command line options
@@ -90,6 +95,13 @@ def pytest_addoption(parser):
         dest="reruns_delay",
         type=float,
         help="add time (seconds) delay between reruns.",
+    )
+    group._addoption(
+        "--reruns-delay-backoff-factor",
+        action="store",
+        dest="reruns_delay_backoff_factor",
+        type=float,
+        help=RERUNS_DELAY_BACKOFF_FACTOR_DESC,
     )
     group._addoption(
         "--rerun-except",
@@ -132,6 +144,11 @@ def pytest_addoption(parser):
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
     parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
+    parser.addini(
+        "reruns_delay_backoff_factor",
+        RERUNS_DELAY_BACKOFF_FACTOR_DESC,
+        type=arg_type,
+    )
 
 
 # making sure the options make sense
@@ -211,6 +228,33 @@ def get_reruns_delay(item):
         )
 
     return delay
+
+
+def get_reruns_delay_backoff_factor(item):
+    rerun_marker = _get_marker(item)
+
+    if (
+        rerun_marker is not None
+        and "reruns_delay_backoff_factor" in rerun_marker.kwargs
+    ):
+        factor = rerun_marker.kwargs["reruns_delay_backoff_factor"]
+    else:
+        factor = item.session.config.getvalue("reruns_delay_backoff_factor")
+        if factor is None:
+            try:
+                factor = float(
+                    item.session.config.getini("reruns_delay_backoff_factor")
+                )
+            except (TypeError, ValueError):
+                factor = 1.0
+
+    if factor < 0:
+        factor = 1.0
+        warnings.warn(
+            "Rerun delay backoff factor cannot be < 0. Using default value: 1.0"
+        )
+
+    return factor
 
 
 def get_reruns_condition(item):
@@ -476,9 +520,10 @@ def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
         "markers",
-        "flaky(reruns=1, reruns_delay=0): mark test to re-run up "
-        "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
-        "between re-runs.",
+        "flaky(reruns=1, reruns_delay=0, reruns_delay_backoff_factor=1.0): mark "
+        "test to re-run up to 'reruns' times. Add a delay of 'reruns_delay' "
+        "seconds between re-runs, multiplied by 'reruns_delay_backoff_factor' "
+        "after each attempt for an exponential backoff.",
     )
 
     if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
@@ -718,6 +763,7 @@ def pytest_runtest_protocol(item, nextitem):
     # first item if necessary
     check_options(item.session.config)
     delay = get_reruns_delay(item)
+    delay_backoff_factor = get_reruns_delay_backoff_factor(item)
     parallel = not is_master(item.config)
     db = item.session.config.failures_db
     item.execution_count = db.get_test_failures(item.nodeid)
@@ -740,7 +786,7 @@ def pytest_runtest_protocol(item, nextitem):
             else:
                 # failure detected and reruns not exhausted, since i < reruns
                 report.outcome = "rerun"
-                time.sleep(delay)
+                time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
 
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result

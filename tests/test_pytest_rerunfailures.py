@@ -466,6 +466,78 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
+def test_reruns_with_delay_backoff_factor(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest(
+        "--reruns",
+        "3",
+        "--reruns-delay",
+        "1",
+        "--reruns-delay-backoff-factor",
+        "2",
+    )
+
+    # delay * factor ** (attempt - 1) -> 1, 2, 4
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_with_delay_backoff_factor_marker(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=3, reruns_delay=1, reruns_delay_backoff_factor=2)
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest()
+
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_with_negative_delay_backoff_factor(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest(
+        "--reruns",
+        "2",
+        "--reruns-delay",
+        "1",
+        "--reruns-delay-backoff-factor",
+        "-1",
+    )
+
+    result.stdout.fnmatch_lines(
+        "*UserWarning: Rerun delay backoff factor cannot be < 0. "
+        "Using default value: 1.0"
+    )
+
+    # factor falls back to 1.0 -> constant delay of 1
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(1)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
 def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     """
     Case: setup_class throwing error on the first execution for parametrized test
