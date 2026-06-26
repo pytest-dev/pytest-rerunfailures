@@ -1,14 +1,16 @@
 import random
 import time
+from textwrap import indent
 from unittest import mock
 
 import pytest
 
-from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
+from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM, SubtestReport
 
 pytest_plugins = "pytester"
 
 has_xdist = HAS_PYTEST_HANDLECRASHITEM
+has_subtests = SubtestReport is not None
 
 
 def temporary_failure(count=1):
@@ -1526,3 +1528,37 @@ def test_reruns_mode_invalid_choice_errors(testdir):
 
     result = testdir.runpytest("--reruns-mode", "bogus")
     assert result.ret != 0
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_failing_subtests_are_rerun(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Fails on first attempt"):
+                {indent(temporary_failure(), "    ")}
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert result.ret == 0
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_too_many_failing_subtests_are_failures(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert result.ret != 0
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
