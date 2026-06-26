@@ -17,6 +17,14 @@ from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
 
 try:
+    from _pytest.subtests import SubtestReport, failed_subtests_key
+except ImportError:
+    if pytest.version_tuple >= (9, 0, 0):
+        raise
+    failed_subtests_key = None
+    SubtestReport = None
+
+try:
     from xdist.newhooks import pytest_handlecrashitem
 
     HAS_PYTEST_HANDLECRASHITEM = True
@@ -293,6 +301,95 @@ def _remove_failed_setup_state_from_session(item):
         del setup_state.stack[item]
 
 
+def _remove_failed_subtests_from_report(item, report):
+    """
+    Clean up failed subtests stash entry.
+
+    Note: This function does nothing on pytest versions without subtests support.
+    """
+    if failed_subtests_key is None:
+        return
+
+    failed_subtests = item.config.stash.get(failed_subtests_key, None)
+    if failed_subtests is not None and report.nodeid in failed_subtests:
+        del failed_subtests[report.nodeid]
+
+
+def _remove_failed_subtest_reports_from_stats(item):
+    """
+    Remove already-logged SubtestReports for this item from the terminal reporter's
+    stats buckets.
+
+    SubtestReports are logged immediately during runtestprotocol (independent of
+    log=False), so when a rerun is triggered they must be retroactively removed
+    from all stat categories to avoid double-counting on the subsequent run.
+
+    Concretely:
+    - Failed SubtestReports land in tr.stats["failed"].
+    - Passed SubtestReports land in tr.stats["subtests passed"].
+    Both must be removed so the final tally only reflects the last (successful) run.
+
+    Note: This function does nothing on pytest versions without subtests support.
+    """
+    if SubtestReport is None:
+        return
+
+    tr = item.config.pluginmanager.get_plugin("terminalreporter")
+    if tr is None:
+        return
+
+    def _remove_subtest_reports(key):
+        """
+        Remove SubtestReports for item.nodeid from tr.stats[key].
+
+        Returns the number of removed reports, and deletes the key entirely when
+        the list becomes empty, because some code just checks the presence of
+        the 'failed' key, but doesn't check the content.
+        """
+        if key not in tr.stats:
+            return 0
+
+        num_items_before = len(tr.stats[key])
+        tr.stats[key] = [
+            r
+            for r in tr.stats[key]
+            if not isinstance(r, SubtestReport) or r.nodeid != item.nodeid
+        ]
+        num_items_removed = num_items_before - len(tr.stats[key])
+
+        if not tr.stats[key]:
+            del tr.stats[key]
+
+        return num_items_removed
+
+    failed_removed = _remove_subtest_reports("failed")
+    if failed_removed > 0:
+        # Decrement session.testsfailed which was incremented when the
+        # SubtestReport was originally logged via pytest_runtest_logreport.
+        item.session.testsfailed = max(0, item.session.testsfailed - failed_removed)
+
+    # When a test is rerun, subtests that already passed on the first attempt
+    # will run again and produce a second SUBPASSED report. Remove the first
+    # run's SUBPASSED entries so the count reflects each subtest exactly once.
+    _remove_subtest_reports("subtests passed")
+
+
+def _get_num_failed_subtests(item, report):
+    """
+    Return the number of failed subtests.
+
+    Note: Returns 0 on pytest versions without subtests support.
+    """
+    if failed_subtests_key is None:
+        return 0
+
+    failed_subtests = item.config.stash.get(failed_subtests_key, None)
+    if failed_subtests is not None:
+        return failed_subtests.get(report.nodeid, 0)
+
+    return 0
+
+
 def _get_rerun_filter_regex(item, regex_name):
     rerun_marker = _get_marker(item)
 
@@ -358,9 +455,13 @@ def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
     is_terminal_error = item._terminal_errors[report.when]
     condition = get_reruns_condition(item)
+    has_failed_subtests = (
+        report.when == "call" and _get_num_failed_subtests(item, report) > 0
+    )
+
     return (
         item.execution_count > reruns
-        or not report.failed
+        or (not report.failed and not has_failed_subtests)
         or xfail
         or is_terminal_error
         or not condition
@@ -648,6 +749,8 @@ def pytest_runtest_protocol(item, nextitem):
                 # cleanin item's cashed results from any level of setups
                 _remove_cached_results_from_failed_fixtures(item)
                 _remove_failed_setup_state_from_session(item)
+                _remove_failed_subtests_from_report(item, report)
+                _remove_failed_subtest_reports_from_stats(item)
 
                 break  # trigger rerun
         else:

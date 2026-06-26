@@ -14,6 +14,10 @@ Features
 
 - Add support for pytest 9.1.
 
+- Rerun tests with failed subtests. This feature is only available on pytest 9.0
+  and later. The pytest-subtests plugin is *not* supported.
+  Fixes `#315 <https://github.com/pytest-dev/pytest-rerunfailures/issues/315>`_.
+
 
 16.3 (2026-05-22)
 -----------------
