@@ -233,11 +233,14 @@ def get_reruns_delay(item):
 def get_reruns_delay_backoff_factor(item):
     rerun_marker = _get_marker(item)
 
-    if (
-        rerun_marker is not None
-        and "reruns_delay_backoff_factor" in rerun_marker.kwargs
-    ):
-        factor = rerun_marker.kwargs["reruns_delay_backoff_factor"]
+    if rerun_marker is not None:
+        if "reruns_delay_backoff_factor" in rerun_marker.kwargs:
+            factor = rerun_marker.kwargs["reruns_delay_backoff_factor"]
+        elif len(rerun_marker.args) > 2:
+            # check for arguments
+            factor = rerun_marker.args[2]
+        else:
+            factor = 1.0
     else:
         factor = item.session.config.getvalue("reruns_delay_backoff_factor")
         if factor is None:

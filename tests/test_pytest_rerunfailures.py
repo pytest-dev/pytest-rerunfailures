@@ -509,6 +509,25 @@ def test_reruns_with_delay_backoff_factor_marker(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=3)
 
 
+def test_reruns_with_delay_backoff_factor_marker_positional(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(3, 1, 2)
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest()
+
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
 def test_reruns_with_negative_delay_backoff_factor(testdir):
     testdir.makepyfile(
         """

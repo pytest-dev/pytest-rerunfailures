@@ -84,7 +84,7 @@ test re-run is launched:
 
 To grow the delay after every attempt (exponential backoff), use the
 ``--reruns-delay-backoff-factor`` option. The delay before the *n*-th re-run is
-``reruns-delay * reruns-delay-backoff-factor ** (n - 1)``. The default factor is
+``reruns_delay * reruns_delay_backoff_factor ** (n - 1)``. The default factor is
 ``1.0``, which keeps the delay constant. For example, the following waits 1, 2
 and 4 seconds before the three re-runs:
 
