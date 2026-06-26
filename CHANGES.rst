@@ -4,6 +4,16 @@ Changelog
 16.4 (unreleased)
 -----------------
 
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest 8.1. Minimum pytest version is now 8.2.
+
+Features
+++++++++
+
+- Add support for pytest 9.1.
+
 - Rerun tests with failed subtests. This feature is only available on pytest 9.0
   and later. The pytest-subtests plugin is *not* supported.
   Fixes `#315 <https://github.com/pytest-dev/pytest-rerunfailures/issues/315>`_.
