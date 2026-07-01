@@ -1,7 +1,7 @@
 Changelog
 =========
 
-16.4 (unreleased)
+16.4 (2026-07-01)
 -----------------
 
 Breaking changes

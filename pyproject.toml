@@ -6,7 +6,7 @@ requires = [
 
 [project]
 name = "pytest-rerunfailures"
-version = "16.4.dev0"
+version = "16.4"
 description = "pytest plugin to re-run tests to eliminate flaky failures"
 keywords = [
   "failures",
