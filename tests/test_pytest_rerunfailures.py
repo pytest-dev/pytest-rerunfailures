@@ -1734,3 +1734,149 @@ def test_reruns_mode_invalid_choice_errors(testdir):
 
     result = testdir.runpytest("--reruns-mode", "bogus")
     assert result.ret != 0
+
+
+# --- pytest_rerunfailures_rerun_policy: per-failure rerun policy hook ---
+
+
+def test_rerun_policy_none_keeps_global_behavior(testdir):
+    """A policy hook that returns None does not change the global rerun behavior."""
+    testdir.makeconftest(
+        """
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return None
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "2")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_rerun_policy_overrides_rerun_count(testdir):
+    """A policy can cap the rerun count for its failure below the global --reruns."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    # Global --reruns is 5, but the policy caps this failure at a single rerun.
+    result = testdir.runpytest("--reruns", "5")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_rerun_policy_recovers_on_single_rerun(testdir):
+    """A tagged failure that recovers on its one rerun passes under all-reruns mode."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        def test_transient():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('transient failure')
+        """
+    )
+    # Global mode is all-reruns-need-to-pass with 3 reruns; the policy overrides it
+    # to "1 rerun, pass on recovery" for this failure.
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_policy_overrides_all_reruns_need_to_pass(testdir):
+    """A policy can disable all-reruns-need-to-pass for its failure (sustained fail)."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('always down')")
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # One rerun (not three), and it fails -> a single failure.
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_rerun_policy_only_applies_to_matching_failures(testdir):
+    """The policy can target one failure class; others keep default behavior."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            if call.excinfo is not None and call.excinfo.typename == "InfraError":
+                return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+            return None
+        """
+    )
+    testdir.makepyfile(
+        """
+        class InfraError(Exception):
+            pass
+
+        def test_infra():
+            raise InfraError('provider down')
+
+        def test_behavioral():
+            raise AssertionError('real bug')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # test_infra: policy -> 1 rerun; test_behavioral: default -> 3. Both fail.
+    assert_outcomes(result, passed=0, failed=2, rerun=4)
+
+
+def test_rerun_policy_tags_final_failure(testdir):
+    """A policy tag is stamped on the final failed report as ``report.rerun_tag``."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, tag="infra")
+        def pytest_runtest_logreport(report):
+            if report.when == "call" and report.failed:
+                tag = getattr(report, "rerun_tag", "")
+                if tag:
+                    import py
+                    py.path.local(__file__).dirpath().join("tag.res").write(tag)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "1")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    assert testdir.tmpdir.join("tag.res").read() == "infra"
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires pytest-xdist")
+def test_rerun_policy_under_xdist(testdir):
+    """The policy override + recovery work under xdist (policy per-item)."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        def test_transient():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('transient failure')
+        """
+    )
+    result = testdir.runpytest("-n", "1", "--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=1, rerun=1)

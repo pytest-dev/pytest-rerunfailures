@@ -50,6 +50,10 @@ entry-points.pytest11.rerunfailures = "pytest_rerunfailures"
 [tool.setuptools.dynamic]
 readme = { file = [ "HEADER.rst", "README.rst", "CHANGES.rst" ] }
 
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = [ "pytest_rerunfailures", "pytest_rerunfailures_newhooks" ]
+
 [tool.ruff]
 fix = true
 lint.select = [

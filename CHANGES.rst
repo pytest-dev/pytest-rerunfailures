@@ -4,7 +4,10 @@ Changelog
 16.4 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Added the ``pytest_rerunfailures_rerun_policy`` hook: plugins can return a
+  ``RerunPolicy`` to give a specific failure class its own rerun count /
+  all-reruns-need-to-pass mode and an outcome tag (``report.rerun_tag``), without
+  changing how other failures are rerun.
 
 
 16.3 (2026-05-22)
