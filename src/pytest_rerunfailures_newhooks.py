@@ -12,14 +12,18 @@ import pytest
 def pytest_rerunfailures_rerun_policy(item, report, call):
     """Return a ``RerunPolicy`` for a test's first failure, or ``None`` for default.
 
-    Called once per test, on its first failing report (setup or call). Lets a plugin
-    give a specific failure class (e.g. provider-infra errors) its own rerun count /
-    semantics and an outcome tag, without affecting how other failures are rerun. The
-    first non-None result wins.
+    Consulted once per test, on its first failing report (``.when`` may be ``"setup"``,
+    ``"call"``, or ``"teardown"``). The returned policy is locked to the item's WHOLE rerun
+    sequence -- it is not recomputed on later attempts, so a differently-classed failure on
+    a rerun inherits this policy (the rerun count / mode is fixed by the first failure). Lets
+    a plugin give a specific failure class (e.g. provider-infra errors) its own rerun count /
+    semantics and an outcome tag, without affecting how other failures are rerun. The first
+    non-None result wins.
 
     Args:
         item: The test item that failed.
-        report: The failing ``TestReport`` (``.when`` is ``"setup"`` or ``"call"``).
+        report: The first failing ``TestReport`` (``.when`` is ``"setup"``, ``"call"``,
+            or ``"teardown"``).
         call: The ``CallInfo`` (``call.excinfo`` carries the exception).
 
     Returns:

@@ -1880,3 +1880,121 @@ def test_rerun_policy_under_xdist(testdir):
     )
     result = testdir.runpytest("-n", "1", "--reruns", "3", "--all-reruns-need-to-pass")
     assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_policy_no_hook_impl_keeps_global_behavior(testdir):
+    """With NO policy hook implemented at all, global rerun behavior is unchanged.
+
+    Guards the additive contract: suites that never implement the hook must behave
+    exactly as before (this is the common case).
+    """
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "2")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_rerun_policy_can_increase_rerun_count(testdir):
+    """A policy can RAISE the rerun count for its failure above the global --reruns."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=3)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    # Global --reruns is 1, but the policy raises this failure's count to 3.
+    result = testdir.runpytest("--reruns", "1")
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_rerun_policy_firstresult_first_non_none_wins(testdir):
+    """firstresult=True: the first non-None policy wins over a later implementation."""
+    testdir.makepyfile(
+        plugin_first="""
+        import pytest
+        from pytest_rerunfailures import RerunPolicy
+        @pytest.hookimpl(tryfirst=True)
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1)
+        """
+    )
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=5)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    testdir.syspathinsert()  # make plugin_first importable for `-p`
+    # plugin_first is consulted first (tryfirst) and returns non-None, so its reruns=1
+    # wins over the conftest's reruns=5 (which would give rerun=5 if it won).
+    result = testdir.runpytest("-p", "plugin_first", "--reruns", "3")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_rerun_policy_disables_all_reruns_stops_on_first_pass(testdir):
+    """Overriding all_reruns_need_to_pass=False takes effect with reruns>=2.
+
+    Distinguishes the two modes (which are indistinguishable at reruns=1): a
+    fail/pass/fail sequence stops on the first passing rerun under the override
+    (passed), whereas global all-reruns-need-to-pass would run every rerun and fail
+    because a later rerun failed.
+    """
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=2, all_reruns_need_to_pass=False)
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        def test_flaky():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count != 1:  # fail (0), pass (1), fail (2)
+                raise Exception('flaky failure')
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "--all-reruns-need-to-pass")
+    # Override -> normal mode: stops on the first passing rerun. Without the override
+    # (all-reruns-need-to-pass) it would be passed=0, failed=1, rerun=2.
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_policy_locked_at_first_failure(testdir):
+    """The policy is fixed at the first failure; a differently-classed rerun failure
+    inherits it and is NOT recomputed."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            # Only the first failure (InfraError) ever reaches this hook; give it 1 rerun.
+            if call.excinfo is not None and call.excinfo.typename == "InfraError":
+                return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+            return RerunPolicy(reruns=3)  # would apply if (wrongly) recomputed on the rerun
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        class InfraError(Exception):
+            pass
+
+        def test_mixed():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise InfraError('provider blip')       # first failure -> policy reruns=1
+            raise AssertionError('real bug on the rerun')  # different class on the rerun
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Locked to the infra policy (1 rerun), NOT recomputed to reruns=3 for the behavioral
+    # failure that surfaces on the rerun.
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
