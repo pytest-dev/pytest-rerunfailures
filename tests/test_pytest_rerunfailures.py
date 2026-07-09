@@ -1768,12 +1768,12 @@ def test_rerun_policy_overrides_rerun_count(testdir):
 
 
 def test_rerun_policy_recovers_on_single_rerun(testdir):
-    """A tagged failure that recovers on its one rerun passes under all-reruns mode."""
+    """A failure that recovers on its one rerun passes under all-reruns mode."""
     testdir.makeconftest(
         """
         from pytest_rerunfailures import RerunPolicy
         def pytest_rerunfailures_rerun_policy(item, report, call):
-            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
         """
     )
     testdir.makepyfile(
@@ -1799,7 +1799,7 @@ def test_rerun_policy_overrides_all_reruns_need_to_pass(testdir):
         """
         from pytest_rerunfailures import RerunPolicy
         def pytest_rerunfailures_rerun_policy(item, report, call):
-            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
         """
     )
     testdir.makepyfile("def test_fail(): raise Exception('always down')")
@@ -1815,7 +1815,7 @@ def test_rerun_policy_only_applies_to_matching_failures(testdir):
         from pytest_rerunfailures import RerunPolicy
         def pytest_rerunfailures_rerun_policy(item, report, call):
             if call.excinfo is not None and call.excinfo.typename == "InfraError":
-                return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+                return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
             return None
         """
     )
@@ -1836,27 +1836,6 @@ def test_rerun_policy_only_applies_to_matching_failures(testdir):
     assert_outcomes(result, passed=0, failed=2, rerun=4)
 
 
-def test_rerun_policy_tags_final_failure(testdir):
-    """A policy tag is stamped on the final failed report as ``report.rerun_tag``."""
-    testdir.makeconftest(
-        """
-        from pytest_rerunfailures import RerunPolicy
-        def pytest_rerunfailures_rerun_policy(item, report, call):
-            return RerunPolicy(reruns=1, tag="infra")
-        def pytest_runtest_logreport(report):
-            if report.when == "call" and report.failed:
-                tag = getattr(report, "rerun_tag", "")
-                if tag:
-                    import py
-                    py.path.local(__file__).dirpath().join("tag.res").write(tag)
-        """
-    )
-    testdir.makepyfile("def test_fail(): raise Exception('boom')")
-    result = testdir.runpytest("--reruns", "1")
-    assert_outcomes(result, passed=0, failed=1, rerun=1)
-    assert testdir.tmpdir.join("tag.res").read() == "infra"
-
-
 @pytest.mark.skipif(not has_xdist, reason="requires pytest-xdist")
 def test_rerun_policy_under_xdist(testdir):
     """The policy override + recovery work under xdist (policy per-item)."""
@@ -1864,7 +1843,7 @@ def test_rerun_policy_under_xdist(testdir):
         """
         from pytest_rerunfailures import RerunPolicy
         def pytest_rerunfailures_rerun_policy(item, report, call):
-            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False, tag="infra")
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
         """
     )
     testdir.makepyfile(

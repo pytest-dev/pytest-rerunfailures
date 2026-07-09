@@ -51,20 +51,15 @@ RERUNS_DELAY_DESC = "add time (seconds) delay between reruns."
 class RerunPolicy:
     """Per-failure rerun policy returned by ``pytest_rerunfailures_rerun_policy``.
 
-    Any field left ``None`` keeps the plugin's default for that item. ``tag``, if set,
-    is stamped onto the final failed report as ``report.rerun_tag`` (an attribute that
-    survives xdist worker->controller serialization), so a consumer can tell this
-    failure class apart after the run.
+    Any field left ``None`` keeps the plugin's default for that item.
 
     Attributes:
         reruns: Rerun count for this failure (overrides ``--reruns`` / the marker).
         all_reruns_need_to_pass: Override all-reruns-need-to-pass for this failure.
-        tag: Label stamped on the final failed report as ``report.rerun_tag``.
     """
 
     reruns: int | None = None
     all_reruns_need_to_pass: bool | None = None
-    tag: str | None = None
 
 
 def pytest_addhooks(pluginmanager):
@@ -441,12 +436,6 @@ def _should_not_rerun(item, report, reruns):
     )
 
 
-def _apply_rerun_tag(report, rerun_tag):
-    """Stamp a rerun-policy tag on a final failed report as ``report.rerun_tag``."""
-    if rerun_tag and report.failed:
-        report.rerun_tag = rerun_tag
-
-
 def is_master(config):
     return not (hasattr(config, "workerinput") or hasattr(config, "slaveinput"))
 
@@ -681,7 +670,7 @@ def pytest_runtest_makereport(item, call):
     )
 
     # On the first failure, ask plugins for a per-failure rerun policy so the protocol
-    # can give this failure class its own rerun count / semantics and outcome tag.
+    # can give this failure class its own rerun count / semantics.
     if result.failed and not hasattr(item, "_rerunfailures_policy"):
         item._rerunfailures_policy = item.ihook.pytest_rerunfailures_rerun_policy(
             item=item, report=result, call=call
@@ -717,7 +706,6 @@ def pytest_runtest_protocol(item, nextitem):
     # Track rerun results when all reruns need to pass
     initial_failure_occurred = False
     rerun_results = []  # Track result of each rerun (True=passed, False=failed)
-    rerun_tag = None  # From a per-failure rerun policy; stamped on the final failure.
     policy_applied = False
 
     need_to_run = True
@@ -728,8 +716,8 @@ def pytest_runtest_protocol(item, nextitem):
 
         # Apply a per-failure rerun policy (pytest_rerunfailures_rerun_policy) once the
         # first attempt has run and makereport has classified its failure. Lets a plugin
-        # override the rerun count / all-reruns mode for THIS item and tag its final
-        # failure, without changing how other failures are rerun.
+        # override the rerun count / all-reruns mode for THIS item, without changing how
+        # other failures are rerun.
         if not policy_applied:
             policy = getattr(item, "_rerunfailures_policy", None)
             if policy is not None:
@@ -739,7 +727,6 @@ def pytest_runtest_protocol(item, nextitem):
                     db.set_test_reruns(item.nodeid, reruns)
                 if policy.all_reruns_need_to_pass is not None:
                     all_reruns_need_to_pass = policy.all_reruns_need_to_pass
-                rerun_tag = policy.tag
 
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
@@ -779,7 +766,6 @@ def pytest_runtest_protocol(item, nextitem):
                         if report.when == "call":
                             report.outcome = "failed"
                     # Log the final report
-                    _apply_rerun_tag(report, rerun_tag)
                     item.ihook.pytest_runtest_logreport(report=report)
                 else:
                     # Not the last rerun yet
@@ -795,7 +781,6 @@ def pytest_runtest_protocol(item, nextitem):
                         break  # trigger rerun
                     else:
                         # For setup/teardown, just log normally
-                        _apply_rerun_tag(report, rerun_tag)
                         item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # Normal rerun behavior
@@ -803,7 +788,6 @@ def pytest_runtest_protocol(item, nextitem):
 
                 if should_not_rerun:
                     # last run or no failure detected, log normally
-                    _apply_rerun_tag(report, rerun_tag)
                     item.ihook.pytest_runtest_logreport(report=report)
                 else:
                     # failure detected and reruns not exhausted

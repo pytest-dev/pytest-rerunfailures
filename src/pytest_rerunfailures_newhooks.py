@@ -17,8 +17,7 @@ def pytest_rerunfailures_rerun_policy(item, report, call):
     sequence -- it is not recomputed on later attempts, so a differently-classed failure on
     a rerun inherits this policy (the rerun count / mode is fixed by the first failure). Lets
     a plugin give a specific failure class (e.g. provider-infra errors) its own rerun count /
-    semantics and an outcome tag, without affecting how other failures are rerun. The first
-    non-None result wins.
+    semantics, without affecting how other failures are rerun. The first non-None result wins.
 
     Args:
         item: The test item that failed.
