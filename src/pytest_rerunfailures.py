@@ -122,9 +122,9 @@ def pytest_addoption(parser):
         "when this flag is set.",
     )
     group.addoption(
-        "--max-suite-retries",
+        "--max-suite-reruns",
         action="store",
-        dest="max_suite_retries",
+        dest="max_suite_reruns",
         type=int,
         default=None,
         help="Maximum total number of reruns across the entire test suite. "
@@ -140,15 +140,14 @@ def pytest_addoption(parser):
 # should run before / at the beginning of pytest_cmdline_main
 def check_options(config):
     val = config.getvalue
-    if not val("collectonly"):
-        if config.option.reruns != 0:
-            if config.option.usepdb:  # a core option
-                raise pytest.UsageError("--reruns incompatible with --pdb")
-        if (
-            config.option.max_suite_retries is not None
-            and config.option.max_suite_retries < 0
-        ):
-            raise pytest.UsageError("--max-suite-retries must be >= 0")
+    if (
+        config.option.max_suite_reruns is not None
+        and config.option.max_suite_reruns < 0
+    ):
+        raise pytest.UsageError("--max-suite-reruns must be >= 0")
+    if not val("collectonly") and config.option.reruns != 0:
+        if config.option.usepdb:  # a core option
+            raise pytest.UsageError("--reruns incompatible with --pdb")
 
 
 def _get_marker(item):
@@ -394,6 +393,7 @@ def pytest_configure(config):
         "to 'reruns' times. Add a delay of 'reruns_delay' seconds "
         "between re-runs.",
     )
+    check_options(config)
 
     if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
         config.pluginmanager.register(XDistHooks())
@@ -414,11 +414,23 @@ class XDistHooks:
         """Return the crashitem from pending and collection."""
         db = sched.config.failures_db
         reruns = db.get_test_reruns(crashitem)
+        reserved_suite_rerun = False
         if db.get_test_failures(crashitem) < reruns:
+            max_suite_reruns = sched.config.option.max_suite_reruns
+            if max_suite_reruns is None:
+                cap_available = True
+            else:
+                reserved_suite_rerun = db.try_increment_suite_reruns(max_suite_reruns)
+                cap_available = reserved_suite_rerun
+        else:
+            cap_available = False
+        if cap_available:
             try:
                 sched.mark_test_pending(crashitem)
                 report.outcome = "rerun"
             except NotImplementedError:
+                if reserved_suite_rerun:
+                    db.decrement_suite_reruns()
                 # Some schedulers (like LoadScopeScheduling) don't implement
                 # mark_test_pending
                 # In this case, we can't reschedule the crashed test for rerun
@@ -455,11 +467,18 @@ class StatusDB:
             return self._suite_rerun_count
 
     def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        """Increment the suite counter when it is below the configured cap."""
         with self._suite_lock:
             if self._suite_rerun_count < max_cap:
                 self._suite_rerun_count += 1
                 return True
             return False
+
+    def decrement_suite_reruns(self) -> None:
+        """Release a suite slot when a scheduled rerun cannot be started."""
+        with self._suite_lock:
+            if self._suite_rerun_count > 0:
+                self._suite_rerun_count -= 1
 
     def get_suite_reruns(self) -> int:
         """Return the current suite-wide rerun count.
@@ -565,6 +584,12 @@ class ServerStatusDB(SocketDB):
                             self._sock_send(conn, "1")
                         else:
                             self._sock_send(conn, "0")
+                elif op == "dec":
+                    with self._suite_lock:
+                        current = self._get(i, k)
+                        if current > 0:
+                            self._set(i, k, current - 1)
+                    self._sock_send(conn, "1")
 
     def _set(self, i: str, k: str, v: int):
         if i not in self.rerunfailures_db:
@@ -585,12 +610,20 @@ class ServerStatusDB(SocketDB):
             return new_v
 
     def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        """Increment the suite counter when it is below the configured cap."""
         with self._suite_lock:
             current = self._get("__suite__", "r")
             if current < max_cap:
                 self._set("__suite__", "r", current + 1)
                 return True
             return False
+
+    def decrement_suite_reruns(self) -> None:
+        """Release a suite slot when a scheduled rerun cannot be started."""
+        with self._suite_lock:
+            current = self._get("__suite__", "r")
+            if current > 0:
+                self._set("__suite__", "r", current - 1)
 
     def get_suite_reruns(self) -> int:
         """Return the current suite-wide rerun count."""
@@ -615,10 +648,16 @@ class ClientStatusDB(SocketDB):
         return int(self._sock_recv(self.sock))
 
     def try_increment_suite_reruns(self, max_cap: int) -> bool:
+        """Increment the suite counter when it is below the configured cap."""
         self._sock_send(
             self.sock, "|".join(("try_inc", "__suite__", "r", str(max_cap)))
         )
         return self._sock_recv(self.sock) == "1"
+
+    def decrement_suite_reruns(self) -> None:
+        """Release a suite slot when a scheduled rerun cannot be started."""
+        self._sock_send(self.sock, "|".join(("dec", "__suite__", "r", "")))
+        self._sock_recv(self.sock)
 
     def get_suite_reruns(self) -> int:
         """Return the current suite-wide rerun count."""
@@ -626,6 +665,12 @@ class ClientStatusDB(SocketDB):
 
 
 suspended_finalizers: dict[Any, Any] = {}
+
+
+def _restore_suspended_finalizers(item):
+    """Restore higher-scope finalizers after a rerun is not scheduled."""
+    item.session._setupstate.stack.update(suspended_finalizers)
+    suspended_finalizers.clear()
 
 
 def pytest_runtest_teardown(item, nextitem):
@@ -641,6 +686,14 @@ def pytest_runtest_teardown(item, nextitem):
         return
 
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
+
+    max_suite_reruns = item.session.config.option.max_suite_reruns
+    if (
+        max_suite_reruns is not None
+        and item.session.config.failures_db.get_suite_reruns() >= max_suite_reruns
+    ):
+        _restore_suspended_finalizers(item)
+        return
 
     # Only remove non-function level actions from the stack if the test is to be re-run
     # Exceeding re-run limits, being free of failue statuses, and encountering
@@ -662,8 +715,7 @@ def pytest_runtest_teardown(item, nextitem):
                     del item.session._setupstate.stack[key]
     else:
         # restore suspended finalizers
-        item.session._setupstate.stack.update(suspended_finalizers)
-        suspended_finalizers.clear()
+        _restore_suspended_finalizers(item)
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -698,9 +750,6 @@ def pytest_runtest_protocol(item, nextitem):
         # flaky
         return
 
-    # while this doesn't need to be run with every item, it will fail on the
-    # first item if necessary
-    check_options(item.session.config)
     delay = get_reruns_delay(item)
     parallel = not is_master(item.config)
     db = item.session.config.failures_db
@@ -723,10 +772,11 @@ def pytest_runtest_protocol(item, nextitem):
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
-                max_suite_reruns = item.session.config.option.max_suite_retries
+                max_suite_reruns = item.session.config.option.max_suite_reruns
                 if max_suite_reruns is not None:
                     if not db.try_increment_suite_reruns(max_suite_reruns):
-                        # suite-wide limit exhausted — log as final failure
+                        # Suite-wide limit exhausted -- log as final failure.
+                        _restore_suspended_finalizers(item)
                         item.ihook.pytest_runtest_logreport(report=report)
                         continue
 

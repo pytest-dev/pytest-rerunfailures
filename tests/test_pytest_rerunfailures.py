@@ -1,10 +1,11 @@
 import random
 import time
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
-from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM
+from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM, StatusDB, XDistHooks
 
 pytest_plugins = "pytester"
 
@@ -271,6 +272,54 @@ def test_rerun_passes_after_temporary_test_crash(testdir):
     )
     result = testdir.runpytest("-p", "xdist", "-n", "1", "--reruns", "1", "-r", "R")
     assert_outcomes(result, passed=2, rerun=1)
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
+def test_max_suite_reruns_caps_temporary_test_crash(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_crash():
+            {temporary_crash(2)}
+
+        def test_pass():
+            pass
+        """
+    )
+    result = testdir.runpytest(
+        "-p",
+        "xdist",
+        "-n",
+        "1",
+        "--reruns",
+        "3",
+        "--max-suite-reruns",
+        "1",
+    )
+    assert result.ret != pytest.ExitCode.OK
+    check_outcome_field(result.parseoutcomes(), "rerun", 1)
+
+
+def test_xdist_crash_rerun_releases_cap_when_scheduler_rejects():
+    db = StatusDB()
+    db.get_test_reruns = lambda _: 1
+    db.get_test_failures = lambda _: 0
+
+    def mark_test_pending(_):
+        raise NotImplementedError
+
+    sched = SimpleNamespace(
+        config=SimpleNamespace(
+            failures_db=db,
+            option=SimpleNamespace(max_suite_reruns=1),
+        ),
+        mark_test_pending=mark_test_pending,
+    )
+    report = SimpleNamespace(outcome="failed", longrepr=None)
+
+    XDistHooks().pytest_handlecrashitem("test_crash", report, sched)
+
+    assert report.outcome == "failed"
+    assert db.get_suite_reruns() == 0
 
 
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
@@ -1528,7 +1577,7 @@ def test_reruns_mode_invalid_choice_errors(testdir):
     assert result.ret != 0
 
 
-def test_max_suite_retries_caps_total_reruns(testdir):
+def test_max_suite_reruns_caps_total_reruns(testdir):
     """Suite limit stops reruns once the total across all tests is reached."""
     testdir.makepyfile(
         """
@@ -1543,11 +1592,11 @@ def test_max_suite_retries_caps_total_reruns(testdir):
     """
     )
     # 3 tests each allowed up to 3 reruns, but suite cap is 4 total
-    result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "4")
+    result = testdir.runpytest("--reruns", "3", "--max-suite-reruns", "4")
     assert_outcomes(result, passed=0, failed=3, rerun=4)
 
 
-def test_max_suite_retries_does_not_limit_when_sufficient(testdir):
+def test_max_suite_reruns_does_not_limit_when_sufficient(testdir):
     """Suite limit has no effect when total reruns stay below the cap."""
     testdir.makepyfile(
         """
@@ -1555,11 +1604,11 @@ def test_max_suite_retries_does_not_limit_when_sufficient(testdir):
             assert False
     """
     )
-    result = testdir.runpytest("--reruns", "2", "--max-suite-retries", "10")
+    result = testdir.runpytest("--reruns", "2", "--max-suite-reruns", "10")
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
-def test_max_suite_retries_zero_disables_all_reruns(testdir):
+def test_max_suite_reruns_zero_disables_all_reruns(testdir):
     """Suite limit of 0 prevents any reruns from occurring."""
     testdir.makepyfile(
         """
@@ -1567,11 +1616,11 @@ def test_max_suite_retries_zero_disables_all_reruns(testdir):
             assert False
     """
     )
-    result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "0")
+    result = testdir.runpytest("--reruns", "3", "--max-suite-reruns", "0")
     assert_outcomes(result, passed=0, failed=1, rerun=0)
 
 
-def test_max_suite_retries_works_with_passing_tests(testdir):
+def test_max_suite_reruns_works_with_passing_tests(testdir):
     """Suite limit only counts actual reruns, not passing test runs."""
     testdir.makepyfile(
         """
@@ -1582,17 +1631,60 @@ def test_max_suite_retries_works_with_passing_tests(testdir):
             assert False
     """
     )
-    result = testdir.runpytest("--reruns", "3", "--max-suite-retries", "2")
+    result = testdir.runpytest("--reruns", "3", "--max-suite-reruns", "2")
     assert_outcomes(result, passed=1, failed=1, rerun=2)
 
 
-def test_max_suite_retries_without_reruns_has_no_effect(testdir):
-    """--max-suite-retries alone (without --reruns) does not break anything."""
+def test_max_suite_reruns_without_reruns_has_no_effect(testdir):
+    """--max-suite-reruns alone (without --reruns) does not break anything."""
     testdir.makepyfile(
         """
         def test_fail():
             assert False
     """
     )
-    result = testdir.runpytest("--max-suite-retries", "5")
+    result = testdir.runpytest("--max-suite-reruns", "5")
     assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_max_suite_reruns_caps_flaky_marker_reruns(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=3)
+        def test_fail():
+            assert False
+        """
+    )
+    result = testdir.runpytest("--max-suite-reruns", "2")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_max_suite_reruns_rejects_negative_without_reruns(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("--max-suite-reruns", "-1")
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
+    result.stderr.fnmatch_lines("*--max-suite-reruns must be >= 0*")
+
+    collect_result = testdir.runpytest("--collect-only", "--max-suite-reruns", "-1")
+    assert collect_result.ret == pytest.ExitCode.USAGE_ERROR
+    collect_result.stderr.fnmatch_lines("*--max-suite-reruns must be >= 0*")
+
+
+def test_max_suite_reruns_preserves_fixture_teardown_when_exhausted(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        def test_fail():
+            assert False
+        """
+    )
+    result = testdir.runpytest("-s", "--reruns", "1", "--max-suite-reruns", "0")
+    result.stdout.fnmatch_lines("*module teardown*")
