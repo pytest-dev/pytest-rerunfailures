@@ -1,7 +1,7 @@
 Changelog
 =========
 
-16.4 (unreleased)
+16.5 (unreleased)
 -----------------
 
 Features
@@ -11,6 +11,31 @@ Features
   the entire test suite. Once the limit is reached, no further reruns occur
   regardless of per-test ``--reruns`` or ``@pytest.mark.flaky`` settings.
   Fixes `#298 <https://github.com/pytest-dev/pytest-rerunfailures/issues/298>`_.
+
+
+16.4 (2026-07-01)
+-----------------
+
+Breaking changes
+++++++++++++++++
+
+- Drop support for pytest 8.1. Minimum pytest version is now 8.2.
+
+Features
+++++++++
+
+- Add support for pytest 9.1.
+
+- Rerun tests with failed subtests. This feature is only available on pytest 9.0
+  and later. The pytest-subtests plugin is *not* supported.
+  Fixes `#315 <https://github.com/pytest-dev/pytest-rerunfailures/issues/315>`_.
+
+- Add ``--reruns-delay-backoff-factor`` option (and the matching
+  ``reruns_delay_backoff_factor`` marker kwarg / ini setting) to grow the rerun
+  delay after each attempt for an exponential backoff. The delay before the
+  *n*-th re-run is ``reruns_delay * reruns_delay_backoff_factor ** (n - 1)``.
+  The default factor is ``1.0``, so existing behaviour (a constant delay) is
+  unchanged.
 
 
 16.3 (2026-05-22)
