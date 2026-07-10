@@ -29,7 +29,7 @@ Requirements
 You will need the following prerequisites in order to use pytest-rerunfailures:
 
 - Python 3.10+ or PyPy3
-- pytest 8.1 or newer
+- pytest 8.2 or newer
 
 This plugin can recover from a hard crash with the following optional
 prerequisites:
@@ -81,6 +81,16 @@ test re-run is launched:
 .. code-block:: bash
 
    $ pytest --reruns 5 --reruns-delay 1
+
+To grow the delay after every attempt (exponential backoff), use the
+``--reruns-delay-backoff-factor`` option. The delay before the *n*-th re-run is
+``reruns_delay * reruns_delay_backoff_factor ** (n - 1)``. The default factor is
+``1.0``, which keeps the delay constant. For example, the following waits 1, 2
+and 4 seconds before the three re-runs:
+
+.. code-block:: bash
+
+   $ pytest --reruns 3 --reruns-delay 1 --reruns-delay-backoff-factor 2
 
 Re-run all failures matching certain expressions
 ------------------------------------------------
@@ -135,11 +145,19 @@ test to run:
 Note that when teardown fails, two reports are generated for the case, one for
 the test case and the other for the teardown error.
 
-You can also specify the re-run delay time in the marker:
+You can also specify the re-run delay time in the marker, as well as the
+backoff factor for an exponential backoff:
 
 .. code-block:: python
 
   @pytest.mark.flaky(reruns=5, reruns_delay=2)
+  def test_example():
+      import random
+      assert random.choice([True, False])
+
+.. code-block:: python
+
+  @pytest.mark.flaky(reruns=5, reruns_delay=2, reruns_delay_backoff_factor=2)
   def test_example():
       import random
       assert random.choice([True, False])

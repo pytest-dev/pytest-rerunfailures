@@ -1,15 +1,22 @@
 import random
 import time
+from textwrap import indent
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
-from pytest_rerunfailures import HAS_PYTEST_HANDLECRASHITEM, StatusDB, XDistHooks
+from pytest_rerunfailures import (
+    HAS_PYTEST_HANDLECRASHITEM,
+    StatusDB,
+    SubtestReport,
+    XDistHooks,
+)
 
 pytest_plugins = "pytester"
 
 has_xdist = HAS_PYTEST_HANDLECRASHITEM
+has_subtests = SubtestReport is not None
 
 
 def temporary_failure(count=1):
@@ -509,6 +516,97 @@ def test_reruns_with_delay_marker(testdir, delay_time):
         delay_time = 0
 
     time.sleep.assert_called_with(delay_time)
+
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_reruns_with_delay_backoff_factor(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest(
+        "--reruns",
+        "3",
+        "--reruns-delay",
+        "1",
+        "--reruns-delay-backoff-factor",
+        "2",
+    )
+
+    # delay * factor ** (attempt - 1) -> 1, 2, 4
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_with_delay_backoff_factor_marker(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=3, reruns_delay=1, reruns_delay_backoff_factor=2)
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest()
+
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_with_delay_backoff_factor_marker_positional(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(3, 1, 2)
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest()
+
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(2), mock.call(4)]
+
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_reruns_with_negative_delay_backoff_factor(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail():
+            assert False"""
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest(
+        "--reruns",
+        "2",
+        "--reruns-delay",
+        "1",
+        "--reruns-delay-backoff-factor",
+        "-1",
+    )
+
+    result.stdout.fnmatch_lines(
+        "*UserWarning: Rerun delay backoff factor cannot be < 0. "
+        "Using default value: 1.0"
+    )
+
+    # factor falls back to 1.0 -> constant delay of 1
+    assert time.sleep.call_args_list == [mock.call(1), mock.call(1)]
 
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
@@ -1645,6 +1743,40 @@ def test_max_suite_reruns_without_reruns_has_no_effect(testdir):
     )
     result = testdir.runpytest("--max-suite-reruns", "5")
     assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_failing_subtests_are_rerun(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Fails on first attempt"):
+                {indent(temporary_failure(), "    ")}
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert result.ret == 0
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_too_many_failing_subtests_are_failures(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert result.ret != 0
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
 
 
 def test_max_suite_reruns_caps_flaky_marker_reruns(testdir):
