@@ -614,7 +614,7 @@ class StatusDB:
         self.delim: bytes = b"\n"
         self.hmap: dict[str, str] = {}
         self._suite_rerun_count: int = 0
-        self._suite_lock: threading.Lock = threading.Lock()
+        self._suite_lock = threading.Lock()
 
     def increment_suite_reruns(self) -> int:
         """Atomically increment the suite-wide rerun counter; return new total."""

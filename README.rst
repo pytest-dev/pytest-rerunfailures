@@ -244,7 +244,7 @@ Limit total reruns across the suite
 To cap the total number of reruns across the entire test suite regardless of
 how many individual tests fail, pass ``--max-suite-reruns``. Once the limit
 is reached, no further reruns occur even if individual tests have remaining
-retries:
+reruns:
 
 .. code-block:: bash
 
