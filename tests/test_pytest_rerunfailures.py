@@ -1694,6 +1694,23 @@ def test_max_suite_reruns_caps_total_reruns(testdir):
     assert_outcomes(result, passed=0, failed=3, rerun=4)
 
 
+def test_max_suite_reruns_caps_force_reruns(testdir):
+    """Suite cap applies after ``--force-reruns`` selection."""
+    testdir.makepyfile(
+        """
+        def test_fail_1():
+            assert False
+
+        def test_fail_2():
+            assert False
+    """
+    )
+    # Force reruns allows every failing test to rerun, but the suite cap should
+    # limit total reruns to one.
+    result = testdir.runpytest("--force-reruns", "5", "--max-suite-reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
 def test_max_suite_reruns_does_not_limit_when_sufficient(testdir):
     """Suite limit has no effect when total reruns stay below the cap."""
     testdir.makepyfile(
@@ -1765,7 +1782,7 @@ def test_failing_subtests_are_rerun(testdir):
 @pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
 def test_too_many_failing_subtests_are_failures(testdir):
     testdir.makepyfile(
-        f"""
+        """
         import pytest
 
         def test_subtests(subtests):

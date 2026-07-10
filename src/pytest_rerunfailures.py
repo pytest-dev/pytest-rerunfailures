@@ -17,13 +17,20 @@ from _pytest.outcomes import fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
 
+failed_subtests_key: Any
+SubtestReport: Any
+_failed_subtests_key: Any = None
+_SubtestReport: Any = None
+
 try:
-    from _pytest.subtests import SubtestReport, failed_subtests_key
+    from _pytest.subtests import SubtestReport as _SubtestReport
+    from _pytest.subtests import failed_subtests_key as _failed_subtests_key
 except ImportError:
     if pytest.version_tuple >= (9, 0, 0):
         raise
-    failed_subtests_key = None
-    SubtestReport = None
+
+failed_subtests_key = _failed_subtests_key
+SubtestReport = _SubtestReport
 
 try:
     from xdist.newhooks import pytest_handlecrashitem
