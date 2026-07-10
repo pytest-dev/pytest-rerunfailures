@@ -236,6 +236,31 @@ Each retried attempt's traceback is appended to the ``rerun test summary
 info`` section. The section is emitted automatically when the flag is set,
 so ``-rR`` is not required.
 
+Per-failure rerun policy (hook)
+-------------------------------
+
+Plugins can give a *specific failure class* its own rerun count and semantics via the
+``pytest_rerunfailures_rerun_policy`` hook, without changing how other failures are
+rerun. The hook is called once per test, on its first failing report, and returns a
+``RerunPolicy`` (or ``None`` for the default behavior):
+
+.. code-block:: python
+
+    # conftest.py
+    from pytest_rerunfailures import RerunPolicy
+
+    def pytest_rerunfailures_rerun_policy(item, report, call):
+        # e.g. give transient provider/infra errors one rerun, pass on recovery —
+        # while other failures keep the global --reruns / --all-reruns-need-to-pass
+        # behavior.
+        exc = call.excinfo.value if call.excinfo else None
+        if isinstance(exc, ConnectionError):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+        return None
+
+``RerunPolicy`` fields left ``None`` keep the plugin's default for that item. The policy
+is fixed at the item's first failure and applies to its whole rerun sequence.
+
 Output
 ------
 

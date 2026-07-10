@@ -10,6 +10,7 @@ import time
 import traceback
 import warnings
 from contextlib import suppress
+from dataclasses import dataclass
 
 import pytest
 from _pytest.outcomes import fail
@@ -44,6 +45,32 @@ def works_with_current_xdist():
 
 RERUNS_DESC = "number of times to re-run failed tests. defaults to 0."
 RERUNS_DELAY_DESC = "add time (seconds) delay between reruns."
+
+
+@dataclass(frozen=True)
+class RerunPolicy:
+    """Per-failure rerun policy returned by ``pytest_rerunfailures_rerun_policy``.
+
+    Any field left ``None`` keeps the plugin's default for that item.
+
+    Attributes:
+        reruns: Rerun count for this failure (overrides ``--reruns`` / the marker).
+        all_reruns_need_to_pass: Override all-reruns-need-to-pass for this failure.
+    """
+
+    reruns: int | None = None
+    all_reruns_need_to_pass: bool | None = None
+
+
+def pytest_addhooks(pluginmanager):
+    """Register this plugin's own hookspecs (see ``pytest_rerunfailures_newhooks``).
+
+    The specs live in a dedicated module so ``add_hookspecs`` sees only them, not this
+    module's own hook implementations.
+    """
+    import pytest_rerunfailures_newhooks
+
+    pluginmanager.add_hookspecs(pytest_rerunfailures_newhooks)
 
 
 # command line options
@@ -642,6 +669,13 @@ def pytest_runtest_makereport(item, call):
         item, result, call.excinfo
     )
 
+    # On the first failure, ask plugins for a per-failure rerun policy so the protocol
+    # can give this failure class its own rerun count / semantics.
+    if result.failed and not hasattr(item, "_rerunfailures_policy"):
+        item._rerunfailures_policy = item.ihook.pytest_rerunfailures_rerun_policy(
+            item=item, report=result, call=call
+        )
+
 
 def pytest_runtest_protocol(item, nextitem):
     """
@@ -672,12 +706,27 @@ def pytest_runtest_protocol(item, nextitem):
     # Track rerun results when all reruns need to pass
     initial_failure_occurred = False
     rerun_results = []  # Track result of each rerun (True=passed, False=failed)
+    policy_applied = False
 
     need_to_run = True
     while need_to_run:
         item.execution_count += 1
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
+
+        # Apply a per-failure rerun policy (pytest_rerunfailures_rerun_policy) once the
+        # first attempt has run and makereport has classified its failure. Lets a plugin
+        # override the rerun count / all-reruns mode for THIS item, without changing how
+        # other failures are rerun.
+        if not policy_applied:
+            policy = getattr(item, "_rerunfailures_policy", None)
+            if policy is not None:
+                policy_applied = True
+                if policy.reruns is not None:
+                    reruns = policy.reruns
+                    db.set_test_reruns(item.nodeid, reruns)
+                if policy.all_reruns_need_to_pass is not None:
+                    all_reruns_need_to_pass = policy.all_reruns_need_to_pass
 
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
