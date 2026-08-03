@@ -12,6 +12,14 @@ Bug fixes
   was considered, so a ``--rerun-except``-matching error raised during
   teardown was ignored and the test was rerun anyway.
   Fixes `#270 <https://github.com/pytest-dev/pytest-rerunfailures/issues/270>`_.
+  
+Features
+++++++++
+
+- Add ``--max-suite-reruns`` option to cap the total number of reruns across
+  the entire test suite. Once the limit is reached, no further reruns occur
+  regardless of per-test ``--reruns`` or ``@pytest.mark.flaky`` settings.
+  Fixes `#298 <https://github.com/pytest-dev/pytest-rerunfailures/issues/298>`_.
 
 
 16.4 (2026-07-01)
