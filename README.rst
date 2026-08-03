@@ -238,6 +238,22 @@ setting. To make them additive instead, pass ``--reruns-mode=append``. With
 
    $ pytest --reruns 4 --reruns-mode append
 
+Limit total reruns across the suite
+------------------------------------
+
+To cap the total number of reruns across the entire test suite regardless of
+how many individual tests fail, pass ``--max-suite-reruns``. Once the limit
+is reached, no further reruns occur even if individual tests have remaining
+reruns:
+
+.. code-block:: bash
+
+   $ pytest --reruns 3 --max-suite-reruns 10
+
+This is useful in large test suites to bound resource usage when many tests
+are flaky at the same time. The cap applies after rerun selection, including
+tests configured with ``--force-reruns`` and ``@pytest.mark.flaky``.
+
 Show tracebacks for retried failures
 ------------------------------------
 
