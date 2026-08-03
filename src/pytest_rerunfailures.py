@@ -521,7 +521,7 @@ def _should_hard_fail_on_error(item, report, excinfo):
 
 def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
-    is_terminal_error = item._terminal_errors[report.when]
+    is_terminal_error = any(item._terminal_errors.values())
     condition = get_reruns_condition(item)
     has_failed_subtests = (
         report.when == "call" and _get_num_failed_subtests(item, report) > 0

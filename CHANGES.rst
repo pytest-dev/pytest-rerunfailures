@@ -4,6 +4,15 @@ Changelog
 16.5 (unreleased)
 -----------------
 
+Bug fixes
++++++++++
+
+- Prevent a rerun when a fixture teardown raises an error matching
+  ``--rerun-except``. Previously only the error from the current test stage
+  was considered, so a ``--rerun-except``-matching error raised during
+  teardown was ignored and the test was rerun anyway.
+  Fixes `#270 <https://github.com/pytest-dev/pytest-rerunfailures/issues/270>`_.
+
 Features
 ++++++++
 
