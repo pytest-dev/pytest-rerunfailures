@@ -12,7 +12,7 @@ Bug fixes
   was considered, so a ``--rerun-except``-matching error raised during
   teardown was ignored and the test was rerun anyway.
   Fixes `#270 <https://github.com/pytest-dev/pytest-rerunfailures/issues/270>`_.
-  
+
 Features
 ++++++++
 
