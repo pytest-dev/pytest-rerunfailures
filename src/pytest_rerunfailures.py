@@ -358,6 +358,24 @@ def _remove_cached_results_from_failed_fixtures(item):
                         fixture_def._finalizers.clear()
 
 
+def _discard_test_class_instance(item):
+    """
+    Drop the cached test class instance so the rerun gets a fresh one.
+
+    Note: pytest creates one instance per test item and caches it on the item,
+    so without this the rerun would reuse the instance -- and therefore any
+    state stored on ``self`` -- of the attempt that just failed.
+    """
+    if getattr(item, "_instance", None) is None:
+        # no instance is cached: not a test method, or pytest dropped it itself
+        return
+
+    # ``obj`` is the method bound to the cached instance, so it has to go too;
+    # both are recomputed lazily on next access.
+    del item._instance
+    item._obj = None
+
+
 def _remove_failed_setup_state_from_session(item):
     """
     Clean up setup state.
@@ -947,6 +965,7 @@ def pytest_runtest_protocol(item, nextitem):
                 # cleanin item's cashed results from any level of setups
                 _remove_cached_results_from_failed_fixtures(item)
                 _remove_failed_setup_state_from_session(item)
+                _discard_test_class_instance(item)
                 _remove_failed_subtests_from_report(item, report)
                 _remove_failed_subtest_reports_from_stats(item)
 

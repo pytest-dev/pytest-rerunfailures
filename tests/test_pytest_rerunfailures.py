@@ -731,6 +731,75 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
     assert_outcomes(result, passed=2, rerun=1)
 
 
+def test_rerun_recreates_test_class_instance(testdir):
+    """
+    Case: state stored on ``self`` by a failed attempt must not leak into the
+    rerun, i.e. every attempt gets a fresh test class instance
+    """
+    testdir.makepyfile(
+        """
+        import pytest
+
+        attempts = 0
+
+        class TestFoo(object):
+            @pytest.fixture(autouse=True)
+            def counting_fixture(self):
+                assert not hasattr(self, 'seen_by_fixture')
+                self.seen_by_fixture = True
+
+            @pytest.mark.flaky(reruns=2)
+            def test_fresh_instance(self):
+                global attempts
+                attempts += 1
+                assert not hasattr(self, 'seen_by_test')
+                self.seen_by_test = True
+                assert attempts == 3"""
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=1, rerun=2)
+
+
+def test_rerun_recreates_instance_without_re_executing_scoped_fixtures(testdir):
+    """
+    Case: recreating the test class instance for a rerun must not invalidate
+    fixtures cached at a higher scope than function
+    """
+    testdir.makepyfile(
+        """
+        import pytest
+
+        attempts = 0
+        executions = {'session': 0, 'module': 0, 'class': 0}
+
+        @pytest.fixture(scope='session')
+        def session_fixture():
+            executions['session'] += 1
+
+        @pytest.fixture(scope='module')
+        def module_fixture():
+            executions['module'] += 1
+
+        @pytest.fixture(scope='class')
+        def class_fixture():
+            executions['class'] += 1
+
+        class TestFoo(object):
+            @pytest.mark.flaky(reruns=2)
+            def test_fresh_instance(
+                self, session_fixture, module_fixture, class_fixture
+            ):
+                global attempts
+                attempts += 1
+                assert executions == {'session': 1, 'module': 1, 'class': 1}
+                assert not hasattr(self, 'seen_by_test')
+                self.seen_by_test = True
+                assert attempts == 3"""
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=1, rerun=2)
+
+
 def test_execution_count_exposed(testdir):
     testdir.makepyfile("def test_pass(): assert True")
     testdir.makeconftest(

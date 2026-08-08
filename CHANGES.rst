@@ -13,6 +13,12 @@ Bug fixes
   teardown was ignored and the test was rerun anyway.
   Fixes `#270 <https://github.com/pytest-dev/pytest-rerunfailures/issues/270>`_.
 
+- Create a new test class instance for each rerun. Previously the instance of
+  the failed attempt was reused, so state stored on ``self`` leaked into the
+  rerun and broke test isolation. Fixtures cached at class scope or higher are
+  still not re-executed.
+  Fixes `#268 <https://github.com/pytest-dev/pytest-rerunfailures/issues/268>`_.
+
 Features
 ++++++++
 
