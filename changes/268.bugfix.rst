@@ -1,0 +1,1 @@
+Create a new test class instance for each rerun. Previously the instance of the failed attempt was reused, so state stored on ``self`` leaked into the rerun and broke test isolation. Fixtures cached at class scope or higher are still not re-executed.
