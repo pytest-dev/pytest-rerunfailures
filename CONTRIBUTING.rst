@@ -37,5 +37,30 @@ Preparing Pull Requests
 
 #. Follow **PEP 8** for naming and `black <https://github.com/psf/black>`_ for formatting.
 
-#. Add a line item to the current **unreleased** version in ``CHANGES.rst``,
-   unless the change is trivial.
+#. Add a change log entry, unless the change is trivial. Do **not** edit
+   ``CHANGES.rst`` -- it is generated at release time. Instead create a file in
+   the ``changes/`` directory named after the GitHub issue or pull request
+   number, with an extension naming the kind of change, for example
+   ``changes/270.bugfix.rst``. See `changes/README.rst
+   <https://github.com/pytest-dev/pytest-rerunfailures/blob/master/changes/README.rst>`_
+   for the available types and the expected style.
+
+
+Making a release
+----------------
+
+Releases are made with `zest.releaser
+<https://zestreleaser.readthedocs.io/>`_ together with the
+``zestreleaser.towncrier`` plugin, which runs ``towncrier build`` at the right
+moment so ``CHANGES.rst`` is assembled from the files in ``changes/``::
+
+    $ pip install --group release
+    $ fullrelease
+
+``pip install --group release`` requires pip 25.1 or newer; with an older pip
+use ``pip install "zest.releaser[recommended]" zestreleaser.towncrier``
+instead.
+
+To preview the change log for the next release without writing anything::
+
+    $ towncrier build --draft --version 17.0

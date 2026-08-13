@@ -50,6 +50,11 @@ entry-points.pytest11.rerunfailures = "pytest_rerunfailures"
 [dependency-groups]
 dev = [
   "mypy>=2.1",
+  "towncrier>=25.8",
+]
+release = [
+  "zest-releaser[recommended]>=9.9",
+  "zestreleaser-towncrier>=2",
 ]
 
 [tool.setuptools.dynamic]
@@ -77,6 +82,28 @@ lint.pydocstyle.convention = "google"
 
 [tool.check-manifest]
 ignore = [ ".pre-commit-config.yaml" ]
+
+[tool.towncrier]
+directory = "changes"
+filename = "CHANGES.rst"
+title_format = "{version} ({project_date})"
+issue_format = "`#{issue} <https://github.com/pytest-dev/pytest-rerunfailures/issues/{issue}>`_"
+underlines = [
+  "-",
+  "+",
+  "~",
+]
+wrap = true
+# An empty ignore list turns on strict validation of news fragment file names.
+ignore = [  ]
+type = [
+  { directory = "breaking", name = "Breaking Changes", showcontent = true },
+  { directory = "removal", name = "Deprecations and Removals", showcontent = true },
+  { directory = "feature", name = "Features", showcontent = true },
+  { directory = "bugfix", name = "Bug Fixes", showcontent = true },
+  { directory = "doc", name = "Documentation", showcontent = true },
+  { directory = "misc", name = "Misc", showcontent = true },
+]
 
 [tool.mypy]
 python_version = "3.10"
