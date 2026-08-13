@@ -1,1 +1,0 @@
-Prevent a rerun when a fixture teardown raises an error matching ``--rerun-except``. Previously only the error from the current test stage was considered, so a ``--rerun-except``-matching error raised during teardown was ignored and the test was rerun anyway.

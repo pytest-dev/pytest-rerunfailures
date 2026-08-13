@@ -6,6 +6,33 @@ Changelog
 
 .. towncrier release notes start
 
+16.5 (2026-08-13)
+-----------------
+
+Features
+++++++++
+
+- Add ``--max-suite-reruns`` option to cap the total number of reruns across
+  the entire test suite. Once the limit is reached, no further reruns occur
+  regardless of per-test ``--reruns`` or ``@pytest.mark.flaky`` settings.
+  (`#298 <https://github.com/pytest-dev/pytest-rerunfailures/issues/298>`_)
+
+
+Bug Fixes
++++++++++
+
+- Create a new test class instance for each rerun. Previously the instance of
+  the failed attempt was reused, so state stored on ``self`` leaked into the
+  rerun and broke test isolation. Fixtures cached at class scope or higher are
+  still not re-executed. (`#268
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/268>`_)
+- Prevent a rerun when a fixture teardown raises an error matching
+  ``--rerun-except``. Previously only the error from the current test stage was
+  considered, so a ``--rerun-except``-matching error raised during teardown was
+  ignored and the test was rerun anyway. (`#270
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/270>`_)
+
+
 16.4 (2026-07-01)
 -----------------
 
