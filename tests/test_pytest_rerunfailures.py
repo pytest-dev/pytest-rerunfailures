@@ -75,6 +75,44 @@ def test_error_when_run_with_pdb(testdir):
     result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
 
 
+def test_no_error_when_run_with_pdb_without_reruns(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("--pdb")
+    assert_outcomes(result)
+
+
+def test_no_error_when_run_with_pdb_and_zero_reruns(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("--reruns", "0", "--pdb")
+    assert_outcomes(result)
+
+
+def test_error_when_run_with_pdb_and_reruns_ini(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    testdir.makeini("[pytest]\nreruns = 1\n")
+    result = testdir.runpytest("--pdb")
+    result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
+
+
+def test_error_when_run_with_pdb_and_force_reruns(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("--force-reruns", "1", "--pdb")
+    result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
+
+
+def test_error_when_run_with_pdb_and_flaky_marker(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1)
+        def test_pass(): pass
+        """
+    )
+    result = testdir.runpytest("--pdb")
+    result.stderr.fnmatch_lines_random("*--reruns incompatible with --pdb")
+
+
 def test_no_rerun_on_pass(testdir):
     testdir.makepyfile("def test_pass(): pass")
     result = testdir.runpytest("--reruns", "1")
