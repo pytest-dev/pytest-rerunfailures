@@ -920,6 +920,162 @@ def test_rerun_except_flag(testdir, rerun_except_texts, should_rerun):
     )
 
 
+def test_rerun_exclude_path_prevents_reruns_in_directory(testdir):
+    testdir.makeconftest(
+        """
+        from pathlib import Path
+
+        def pytest_runtest_call(item):
+            with Path("executions").open("a") as execution_log:
+                execution_log.write(item.name + "\\n")
+    """
+    )
+    testdir.makepyfile(
+        test_normal="""
+        def test_normal_failure():
+            assert False
+    """
+    )
+    excluded_dir = testdir.mkdir("excluded")
+    excluded_dir.join("test_excluded.py").write(
+        """
+def test_excluded_failure():
+    assert False
+"""
+    )
+
+    result = testdir.runpytest("--reruns", "2", "--rerun-exclude-path", "excluded")
+
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+    executions = testdir.tmpdir.join("executions").read().splitlines()
+    assert executions.count("test_normal_failure") == 3
+    assert executions.count("test_excluded_failure") == 1
+
+
+def test_rerun_exclude_path_prevents_reruns_for_file(testdir):
+    testdir.makeconftest(
+        """
+        from pathlib import Path
+
+        def pytest_runtest_call(item):
+            with Path("executions").open("a") as execution_log:
+                execution_log.write(item.name + "\\n")
+    """
+    )
+    testdir.makepyfile(
+        test_normal="""
+        def test_normal_failure():
+            assert False
+    """
+    )
+    excluded_dir = testdir.mkdir("excluded")
+    excluded_dir.join("test_excluded.py").write(
+        """
+def test_excluded_failure():
+    assert False
+"""
+    )
+
+    result = testdir.runpytest(
+        "--reruns",
+        "2",
+        "--rerun-exclude-path",
+        "excluded/test_excluded.py",
+    )
+
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+    executions = testdir.tmpdir.join("executions").read().splitlines()
+    assert executions.count("test_normal_failure") == 3
+    assert executions.count("test_excluded_failure") == 1
+
+
+def test_rerun_exclude_path_accepts_multiple_paths(testdir):
+    testdir.makeconftest(
+        """
+        from pathlib import Path
+
+        def pytest_runtest_call(item):
+            with Path("executions").open("a") as execution_log:
+                execution_log.write(item.name + "\\n")
+    """
+    )
+    testdir.makepyfile(
+        test_normal="""
+        def test_normal_failure():
+            assert False
+    """
+    )
+    excluded_a_dir = testdir.mkdir("excluded_a")
+    excluded_a_dir.join("test_excluded_a.py").write(
+        """
+def test_excluded_a_failure():
+    assert False
+"""
+    )
+    excluded_b_dir = testdir.mkdir("excluded_b")
+    excluded_b_dir.join("test_excluded_b.py").write(
+        """
+def test_excluded_b_failure():
+    assert False
+"""
+    )
+
+    result = testdir.runpytest(
+        "--reruns",
+        "2",
+        "--rerun-exclude-path",
+        "excluded_a",
+        "--rerun-exclude-path",
+        "excluded_b",
+    )
+
+    assert_outcomes(result, passed=0, failed=3, rerun=2)
+    executions = testdir.tmpdir.join("executions").read().splitlines()
+    assert executions.count("test_normal_failure") == 3
+    assert executions.count("test_excluded_a_failure") == 1
+    assert executions.count("test_excluded_b_failure") == 1
+
+
+def test_rerun_exclude_path_prevents_reruns_for_doctest(testdir):
+    testdir.makeconftest(
+        """
+        from pathlib import Path
+
+        def pytest_runtest_call(item):
+            with Path("executions").open("a") as execution_log:
+                execution_log.write(item.name + "\\n")
+    """
+    )
+    testdir.makepyfile(
+        test_normal="""
+        def test_normal_failure():
+            assert False
+    """
+    )
+    docs_dir = testdir.mkdir("docs")
+    docs_dir.join("guide.txt").write(
+        """
+This example fails:
+
+    >>> 1 + 1
+    3
+"""
+    )
+
+    result = testdir.runpytest(
+        "--doctest-glob=*.txt",
+        "--reruns",
+        "2",
+        "--rerun-exclude-path",
+        "docs/guide.txt",
+    )
+
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+    executions = testdir.tmpdir.join("executions").read().splitlines()
+    assert executions.count("test_normal_failure") == 3
+    assert executions.count("guide.txt") == 1
+
+
 @pytest.mark.parametrize(
     "only_rerun_texts, rerun_except_texts, should_rerun",
     [
