@@ -1,0 +1,1 @@
+Fix a regression in version 16.5 which made ``--pdb`` unusable even when no reruns were configured.
