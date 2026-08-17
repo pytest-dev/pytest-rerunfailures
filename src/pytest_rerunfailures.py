@@ -179,7 +179,7 @@ def pytest_addoption(parser):
 
 
 def _get_global_reruns(config):
-    reruns = config.getvalue("reruns")
+    reruns = config.getoption("reruns")
     if reruns is not None:
         return reruns
 
@@ -191,14 +191,13 @@ def _get_global_reruns(config):
 # making sure the options make sense
 # should run before / at the beginning of pytest_cmdline_main
 def check_options(config):
-    val = config.getvalue
     if (
         config.option.max_suite_reruns is not None
         and config.option.max_suite_reruns < 0
     ):
         raise pytest.UsageError("--max-suite-reruns must be >= 0")
-    reruns = config.getvalue("force_reruns") or _get_global_reruns(config)
-    if not val("collectonly") and reruns:
+    reruns = config.getoption("force_reruns") or _get_global_reruns(config)
+    if not config.getoption("collectonly") and reruns:
         if config.option.usepdb:  # a core option
             raise pytest.UsageError("--reruns incompatible with --pdb")
 
@@ -208,7 +207,7 @@ def _get_marker(item):
 
 
 def get_reruns_count(item):
-    reruns = item.session.config.getvalue("force_reruns")
+    reruns = item.session.config.getoption("force_reruns")
     if reruns is not None:
         return reruns
 
@@ -224,7 +223,7 @@ def get_reruns_count(item):
         else:
             marker_reruns = 1
 
-        if item.session.config.getvalue("reruns_mode") == "append":
+        if item.session.config.getoption("reruns_mode") == "append":
             global_reruns = _get_global_reruns(item.session.config)
             if global_reruns is not None:
                 return marker_reruns + global_reruns
@@ -245,7 +244,7 @@ def get_reruns_delay(item):
         else:
             delay = 0
     else:
-        delay = item.session.config.getvalue("reruns_delay")
+        delay = item.session.config.getoption("reruns_delay")
         if delay is None:
             try:
                 delay = float(item.session.config.getini("reruns_delay"))
@@ -273,7 +272,7 @@ def get_reruns_delay_backoff_factor(item):
         else:
             factor = 1.0
     else:
-        factor = item.session.config.getvalue("reruns_delay_backoff_factor")
+        factor = item.session.config.getoption("reruns_delay_backoff_factor")
         if factor is None:
             try:
                 factor = float(
