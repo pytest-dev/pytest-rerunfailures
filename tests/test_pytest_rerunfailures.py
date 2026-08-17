@@ -863,6 +863,66 @@ def test_rerun_report(testdir):
     assert_outcomes(result, failed=1, rerun=2, passed=0)
 
 
+def test_rerun_report_includes_teardown_from_each_attempt(testdir):
+    testdir.makepyfile("def test_fail(): assert False")
+    testdir.makeconftest(
+        """
+        reports = []
+
+        def pytest_runtest_logreport(report):
+            reports.append((report.when, report.outcome, report.rerun))
+
+        def pytest_sessionfinish():
+            print(f"REPORTS: {reports!r}")
+        """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+
+    assert_outcomes(result, failed=1, rerun=1, passed=0)
+    expected_reports = (
+        "REPORTS: [('setup', 'passed', 0), ('call', 'rerun', 0), "
+        "('teardown', 'passed', 0), ('setup', 'passed', 1), "
+        "('call', 'failed', 1), ('teardown', 'passed', 1)]"
+    )
+    assert expected_reports in result.stdout.str()
+
+
+def test_single_attempt_triggers_at_most_one_rerun(testdir):
+    testdir.makepyfile("def test_fail(failing_teardown): assert False")
+    testdir.makeconftest(
+        """
+        import pytest
+
+        attempts = 0
+        first_attempt_reports = []
+
+        @pytest.fixture
+        def failing_teardown():
+            global attempts
+            attempts += 1
+            yield
+            raise RuntimeError("teardown failure")
+
+        def pytest_runtest_logreport(report):
+            if report.rerun == 0 and report.when in ("call", "teardown"):
+                first_attempt_reports.append((report.when, report.outcome))
+
+        def pytest_sessionfinish():
+            print(f"ATTEMPTS: {attempts}")
+            print(f"FIRST ATTEMPT REPORTS: {first_attempt_reports!r}")
+        """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+
+    stdout = result.stdout.str()
+    assert "ATTEMPTS: 2" in stdout
+    assert (
+        "FIRST ATTEMPT REPORTS: [('call', 'rerun'), ('teardown', 'failed')]" in stdout
+    )
+
+
 def test_pytest_runtest_logfinish_is_called(testdir):
     hook_message = "Message from pytest_runtest_logfinish hook"
     testdir.makepyfile("def test_pass(): pass")
