@@ -6,6 +6,25 @@ Changelog
 
 .. towncrier release notes start
 
+16.6 (2026-08-17)
+-----------------
+
+Features
+++++++++
+
+- Add a repeatable ``--rerun-exclude-path`` option to exclude test files or
+  directories from reruns. (`#232
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/232>`_)
+
+
+Bug Fixes
++++++++++
+
+- Fix a regression in version 16.5 which made ``--pdb`` unusable even when no
+  reruns were configured. (`#342
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/342>`_)
+
+
 16.5 (2026-08-13)
 -----------------
 
