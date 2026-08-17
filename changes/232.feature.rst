@@ -1,0 +1,1 @@
+Add a repeatable ``--rerun-exclude-path`` option to exclude test files or directories from reruns.

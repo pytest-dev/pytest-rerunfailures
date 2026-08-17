@@ -122,6 +122,16 @@ def pytest_addoption(parser):
         "of regexes to match",
     )
     group._addoption(
+        "--rerun-exclude-path",
+        action="append",
+        dest="rerun_exclude_path",
+        type=str,
+        default=None,
+        help="If passed, do not rerun tests in the path provided. "
+        "Pass this flag multiple times to accumulate a list of paths "
+        "to exclude",
+    )
+    group._addoption(
         "--reruns-mode",
         action="store",
         dest="reruns_mode",
@@ -847,6 +857,14 @@ def _restore_suspended_finalizers(item):
     suspended_finalizers.clear()
 
 
+def _is_rerun_path_excluded(item):
+    excluded_paths = item.config.getoption("rerun_exclude_path") or []
+    return any(
+        item.path.is_relative_to(item.config.rootpath / excluded_path)
+        for excluded_path in excluded_paths
+    )
+
+
 def pytest_runtest_teardown(item, nextitem):
     reruns = get_reruns_count(item)
     if reruns is None:
@@ -918,6 +936,9 @@ def pytest_runtest_protocol(item, nextitem):
     Note: when teardown fails, two reports are generated for the case, one for
     the test case and the other for the teardown error.
     """
+    if _is_rerun_path_excluded(item):
+        return
+
     reruns = get_reruns_count(item)
     if reruns is None:
         # global setting is not specified, and this test is not marked with
