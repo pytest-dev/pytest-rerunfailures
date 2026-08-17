@@ -128,6 +128,19 @@ would only rerun those errors that does not match with ``AssertionError`` or ``O
 
    $ pytest --reruns 5 --rerun-except AssertionError --rerun-except OSError
 
+Exclude test paths from re-runs
+--------------------------------
+
+To exclude a test file or all tests under a directory from re-runs, use the
+``--rerun-exclude-path`` option. Relative paths are interpreted relative to
+pytest's root directory:
+
+.. code-block:: bash
+
+   $ pytest --reruns 3 --rerun-exclude-path docs
+
+The option may be passed multiple times to exclude multiple paths.
+
 Re-run individual failures
 --------------------------
 
