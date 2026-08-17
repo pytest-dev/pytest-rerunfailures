@@ -173,7 +173,6 @@ def _get_global_reruns(config):
     if reruns is not None:
         return reruns
 
-    reruns = None
     with suppress(TypeError, ValueError):
         reruns = int(config.getini("reruns"))
     return reruns
