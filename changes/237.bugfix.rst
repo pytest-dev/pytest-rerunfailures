@@ -1,0 +1,1 @@
+Ensure teardown reports are passed to ``pytest_runtest_logreport`` for rerun attempts.

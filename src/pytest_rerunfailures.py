@@ -966,10 +966,11 @@ def pytest_runtest_protocol(item, nextitem):
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
+        rerun_triggered = False
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
-            if _should_not_rerun(item, report, reruns):
-                # last run or no failure detected, log normally
+            if rerun_triggered or _should_not_rerun(item, report, reruns):
+                # no rerun needed or one already triggered, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
@@ -995,9 +996,9 @@ def pytest_runtest_protocol(item, nextitem):
                 _remove_failed_subtests_from_report(item, report)
                 _remove_failed_subtest_reports_from_stats(item)
 
-                break  # trigger rerun
-        else:
-            need_to_run = False
+                rerun_triggered = True
+
+        need_to_run = rerun_triggered
 
         item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
 
