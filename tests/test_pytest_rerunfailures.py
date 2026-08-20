@@ -1346,7 +1346,7 @@ def test_only_rerun_flag_in_flaky_marker(
     args = []
     if cli_only_rerun:
         args.extend(["--only-rerun", cli_only_rerun])
-    result = testdir.runpytest()
+    result = testdir.runpytest(*args)
     num_reruns = 1 if should_rerun else 0
     assert_outcomes(result, passed=0, failed=1, rerun=num_reruns)
 
