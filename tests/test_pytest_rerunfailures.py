@@ -1232,6 +1232,28 @@ def test_rerun_except_passes_setup_errors(testdir):
     assert_outcomes(result, passed=0, error=1, rerun=num_reruns)
 
 
+@pytest.mark.parametrize(
+    "rerun_except, expected_reruns",
+    [("ValueError", 0), ("TypeError", 1)],
+)
+def test_rerun_except_setup_error(testdir, rerun_except, expected_reruns):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture()
+        def fixture_setup_fails():
+            raise ValueError("setup error")
+
+        def test_will_not_run(fixture_setup_fails):
+            pass
+        """
+    )
+
+    result = testdir.runpytest("--reruns", "1", "--rerun-except", rerun_except)
+    assert_outcomes(result, passed=0, error=1, rerun=expected_reruns)
+
+
 def test_rerun_except_teardown_error_prevents_rerun(testdir):
     """Teardown errors covered by --rerun-except must prevent reruns."""
     testdir.makepyfile(
