@@ -8,6 +8,7 @@ import pytest
 
 from pytest_rerunfailures import (
     HAS_PYTEST_HANDLECRASHITEM,
+    ServerStatusDB,
     StatusDB,
     SubtestReport,
     XDistHooks,
@@ -365,6 +366,37 @@ def test_xdist_crash_rerun_releases_cap_when_scheduler_rejects():
 
     assert report.outcome == "failed"
     assert db.get_suite_reruns() == 0
+
+
+def test_statusdb_rejects_unauthenticated_commands():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = str(mock.sentinel.statusdb_token)
+    server._set("test", "r", 1)
+
+    connection = mock.MagicMock()
+    wire_data = b"invalid-token\nset|test|r|2\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"0\n")
+    assert server._get("test", "r") == 1
+
+
+def test_xdist_configure_node_passes_statusdb_connection_details():
+    failures_db = SimpleNamespace(sock_port=12345, token=mock.sentinel.statusdb_token)
+    node = SimpleNamespace(
+        config=SimpleNamespace(failures_db=failures_db), workerinput={}
+    )
+
+    XDistHooks().pytest_configure_node(node)
+
+    assert node.workerinput == {
+        "sock_port": 12345,
+        "statusdb_token": mock.sentinel.statusdb_token,
+    }
 
 
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):

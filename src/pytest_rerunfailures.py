@@ -3,6 +3,7 @@ import importlib.metadata
 import os
 import platform
 import re
+import secrets
 import socket
 import sys
 import threading
@@ -595,7 +596,10 @@ def pytest_configure(config):
         if is_master(config):
             config.failures_db = ServerStatusDB()
         else:
-            config.failures_db = ClientStatusDB(config.workerinput["sock_port"])
+            config.failures_db = ClientStatusDB(
+                config.workerinput["sock_port"],
+                config.workerinput["statusdb_token"],
+            )
     else:
         config.failures_db = StatusDB()  # no-op db
 
@@ -624,8 +628,9 @@ class XDistHooks:
             )
 
     def pytest_configure_node(self, node):
-        """Configure xdist hook for node sock_port."""
+        """Configure xdist hook with StatusDB connection details."""
         node.workerinput["sock_port"] = node.config.failures_db.sock_port
+        node.workerinput["statusdb_token"] = node.config.failures_db.token
 
     def pytest_handlecrashitem(self, crashitem, report, sched):
         """Return the crashitem from pending and collection."""
@@ -762,6 +767,7 @@ class SocketDB(StatusDB):
 class ServerStatusDB(SocketDB):
     def __init__(self) -> None:
         super().__init__()
+        self.token = secrets.token_hex(32)
         self.sock.bind(("127.0.0.1", 0))
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -781,7 +787,12 @@ class ServerStatusDB(SocketDB):
             t.start()
 
     def run_connection(self, conn):
-        with suppress(ConnectionError):
+        with conn, suppress(ConnectionError):
+            authenticated = secrets.compare_digest(self._sock_recv(conn), self.token)
+            self._sock_send(conn, "1" if authenticated else "0")
+            if not authenticated:
+                return
+
             while True:
                 op, i, k, v = self._sock_recv(conn).split("|")
                 if op == "set":
@@ -848,9 +859,13 @@ class ServerStatusDB(SocketDB):
 
 
 class ClientStatusDB(SocketDB):
-    def __init__(self, sock_port):
+    def __init__(self, sock_port, token):
         super().__init__()
         self.sock.connect(("127.0.0.1", sock_port))
+        self._sock_send(self.sock, token)
+        if self._sock_recv(self.sock) != "1":
+            self.sock.close()
+            raise ConnectionError("StatusDB authentication failed")
 
     def _set(self, i: str, k: str, v: int):
         self._sock_send(self.sock, "|".join(("set", i, k, str(v))))
