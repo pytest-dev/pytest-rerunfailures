@@ -73,6 +73,29 @@ jobs:
         run: |
           pytest
 
+  xdist:
+    # The xdist specific tests are skipped unless pytest-xdist is installed,
+    # so run the test suite once with it on the newest Python and pytest.
+    name: xdist:py-3.14:pytest-9.1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install pytest==9.1.* pytest-xdist
+          python -m pip install -e .
+
+      - name: Tests
+        run: pytest
+
   platform:
     # Test devel setup on different platforms.
     name: Platform-${{ matrix.os }}

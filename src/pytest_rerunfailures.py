@@ -410,10 +410,12 @@ def _remove_failed_subtests_from_report(item, report):
         del failed_subtests[report.nodeid]
 
 
-def _remove_failed_subtest_reports_from_stats(item):
+def _remove_failed_subtest_reports_from_stats(
+    config, session, nodeid, worker_id=None, item_index=None
+):
     """
-    Remove already-logged SubtestReports for this item from the terminal reporter's
-    stats buckets.
+    Remove already-logged SubtestReports for a superseded test attempt from the
+    terminal reporter's stats buckets.
 
     SubtestReports are logged immediately during runtestprotocol (independent of
     log=False), so when a rerun is triggered they must be retroactively removed
@@ -429,13 +431,13 @@ def _remove_failed_subtest_reports_from_stats(item):
     if SubtestReport is None:
         return
 
-    tr = item.config.pluginmanager.get_plugin("terminalreporter")
+    tr = config.pluginmanager.get_plugin("terminalreporter")
     if tr is None:
         return
 
     def _remove_subtest_reports(key):
         """
-        Remove SubtestReports for item.nodeid from tr.stats[key].
+        Remove matching SubtestReports from tr.stats[key].
 
         Returns the number of removed reports, and deletes the key entirely when
         the list becomes empty, because some code just checks the presence of
@@ -444,11 +446,21 @@ def _remove_failed_subtest_reports_from_stats(item):
         if key not in tr.stats:
             return 0
 
+        def is_matching_subtest_report(report):
+            if not isinstance(report, SubtestReport) or report.nodeid != nodeid:
+                return False
+            if (
+                worker_id is not None
+                and getattr(report, "worker_id", None) != worker_id
+            ):
+                return False
+            return (
+                item_index is None or getattr(report, "item_index", None) == item_index
+            )
+
         num_items_before = len(tr.stats[key])
         tr.stats[key] = [
-            r
-            for r in tr.stats[key]
-            if not isinstance(r, SubtestReport) or r.nodeid != item.nodeid
+            report for report in tr.stats[key] if not is_matching_subtest_report(report)
         ]
         num_items_removed = num_items_before - len(tr.stats[key])
 
@@ -461,7 +473,7 @@ def _remove_failed_subtest_reports_from_stats(item):
     if failed_removed > 0:
         # Decrement session.testsfailed which was incremented when the
         # SubtestReport was originally logged via pytest_runtest_logreport.
-        item.session.testsfailed = max(0, item.session.testsfailed - failed_removed)
+        session.testsfailed = max(0, session.testsfailed - failed_removed)
 
     # When a test is rerun, subtests that already passed on the first attempt
     # will run again and produce a second SUBPASSED report. Remove the first
@@ -589,6 +601,28 @@ def pytest_configure(config):
 
 
 class XDistHooks:
+    def pytest_sessionstart(self, session):
+        self.session = session
+
+    def pytest_runtest_logreport(self, report):
+        """Clean up subtest reports superseded by a worker rerun."""
+        worker_id = getattr(report, "worker_id", None)
+        item_index = getattr(report, "item_index", None)
+        # xdist adds worker_id and item_index when forwarding a report to the
+        # controller. Together they distinguish every collected test item.
+        if (
+            report.outcome == "rerun"
+            and worker_id is not None
+            and item_index is not None
+        ):
+            _remove_failed_subtest_reports_from_stats(
+                self.session.config,
+                self.session,
+                report.nodeid,
+                worker_id=worker_id,
+                item_index=item_index,
+            )
+
     def pytest_configure_node(self, node):
         """Configure xdist hook for node sock_port."""
         node.workerinput["sock_port"] = node.config.failures_db.sock_port
@@ -887,12 +921,14 @@ def pytest_runtest_teardown(item, nextitem):
         return
 
     # Only remove non-function level actions from the stack if the test is to be re-run
-    # Exceeding re-run limits, being free of failue statuses, and encountering
-    # allowable exceptions indicate that the test is not to be re-ran.
+    # Exceeding re-run limits, being free of failue statuses, encountering
+    # allowable exceptions, and a falsy flaky condition indicate that the test is
+    # not to be re-ran.
     if (
         item.execution_count <= reruns
         and any(_test_failed_statuses.values())
         and not any(item._terminal_errors.values())
+        and get_reruns_condition(item)
     ):
         # clean cached results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
@@ -994,7 +1030,9 @@ def pytest_runtest_protocol(item, nextitem):
                 _remove_failed_setup_state_from_session(item)
                 _discard_test_class_instance(item)
                 _remove_failed_subtests_from_report(item, report)
-                _remove_failed_subtest_reports_from_stats(item)
+                _remove_failed_subtest_reports_from_stats(
+                    item.config, item.session, item.nodeid
+                )
 
                 rerun_triggered = True
 
