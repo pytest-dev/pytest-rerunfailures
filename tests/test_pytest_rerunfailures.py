@@ -2254,6 +2254,96 @@ def test_too_many_failing_subtests_are_failures(testdir):
     assert_outcomes(result, passed=0, failed=2, rerun=1)
 
 
+@pytest.mark.skipif(
+    not has_subtests or not has_xdist,
+    reason="Requires pytest 9.0 or newer and xdist",
+)
+def test_failing_subtests_are_rerun_with_xdist(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Fails on first attempt"):
+                {indent(temporary_failure(), "    ")}
+    """
+    )
+
+    result = testdir.runpytest("-p", "xdist", "-n", "1", "--reruns", "1")
+    assert result.ret == pytest.ExitCode.OK
+    assert_outcomes(result, passed=1, failed=0, rerun=1)
+
+
+@pytest.mark.skipif(
+    not has_subtests or not has_xdist,
+    reason="Requires pytest 9.0 or newer and xdist",
+)
+def test_too_many_failing_subtests_are_failures_with_xdist(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest("-p", "xdist", "-n", "1", "--reruns", "1")
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+@pytest.mark.skipif(
+    not has_subtests or not has_xdist,
+    reason="Requires pytest 9.0 or newer and xdist",
+)
+def test_xdist_subtest_cleanup_is_scoped_to_worker(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest("-p", "xdist", "-n", "2", "--dist=each", "--reruns", "1")
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    assert_outcomes(result, passed=0, failed=4, rerun=2)
+
+
+@pytest.mark.skipif(
+    not has_subtests or not has_xdist,
+    reason="Requires pytest 9.0 or newer and xdist",
+)
+def test_xdist_subtest_cleanup_is_scoped_to_item_index(testdir):
+    test_file = testdir.makepyfile(
+        """
+        import pytest
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest(
+        "-p",
+        "xdist",
+        "-n",
+        "1",
+        "--keep-duplicates",
+        test_file,
+        test_file,
+        "--reruns",
+        "1",
+    )
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    assert_outcomes(result, passed=0, failed=4, rerun=2)
+
+
 def test_max_suite_reruns_caps_flaky_marker_reruns(testdir):
     testdir.makepyfile(
         """
