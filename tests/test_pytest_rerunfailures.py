@@ -1338,6 +1338,99 @@ def test_reruns_with_string_condition_with_global_var(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
+@pytest.mark.parametrize("scope", ["class", "module", "session"])
+def test_falsy_condition_preserves_higher_scope_teardown(testdir, scope):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="{scope}", autouse=True)
+        def higher_scope_fixture():
+            yield
+            print("{scope} teardown")
+
+        class TestFlaky:
+            @pytest.mark.flaky(reruns=2, condition=False)
+            def test_fail(self):
+                assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.fnmatch_lines(f"*{scope} teardown*")
+
+
+@pytest.mark.parametrize("condition", ["'os.getpid() == -1'"])
+def test_falsy_non_bool_condition_preserves_teardown(testdir, condition):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        @pytest.mark.flaky(reruns=2, condition={condition})
+        def test_fail():
+            assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.fnmatch_lines("*module teardown*")
+
+
+def test_falsy_condition_preserves_teardown_of_earlier_module(testdir):
+    testdir.makepyfile(
+        test_flaky_module="""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def flaky_module_fixture():
+            yield
+            print("flaky module teardown")
+
+        @pytest.mark.flaky(reruns=2, condition=False)
+        def test_fail():
+            assert False""",
+        test_later_module="""
+        def test_pass():
+            pass""",
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=1, failed=1, rerun=0)
+    result.stdout.fnmatch_lines("*flaky module teardown*")
+
+
+@pytest.mark.parametrize(
+    "marker, args",
+    [
+        ("@pytest.mark.flaky(reruns=2, condition=True)", []),
+        ("", ["--reruns", "2"]),
+    ],
+)
+def test_rerunnable_failure_tears_down_module_fixture_once(testdir, marker, args):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        {marker}
+        def test_fail():
+            assert False"""
+    )
+
+    result = testdir.runpytest("-s", *args)
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+    assert result.stdout.str().count("module teardown") == 1
+
+
 @pytest.mark.parametrize(
     "marker_only_rerun,cli_only_rerun,should_rerun",
     [
