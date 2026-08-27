@@ -887,12 +887,14 @@ def pytest_runtest_teardown(item, nextitem):
         return
 
     # Only remove non-function level actions from the stack if the test is to be re-run
-    # Exceeding re-run limits, being free of failue statuses, and encountering
-    # allowable exceptions indicate that the test is not to be re-ran.
+    # Exceeding re-run limits, being free of failue statuses, encountering
+    # allowable exceptions, and a falsy flaky condition indicate that the test is
+    # not to be re-ran.
     if (
         item.execution_count <= reruns
         and any(_test_failed_statuses.values())
         and not any(item._terminal_errors.values())
+        and get_reruns_condition(item)
     ):
         # clean cached results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
