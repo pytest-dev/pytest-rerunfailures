@@ -1431,6 +1431,115 @@ def test_rerunnable_failure_tears_down_module_fixture_once(testdir, marker, args
     assert result.stdout.str().count("module teardown") == 1
 
 
+@pytest.mark.parametrize("scope", ["class", "module", "session"])
+def test_terminal_teardown_error_preserves_higher_scope_teardown(testdir, scope):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="{scope}", autouse=True)
+        def higher_scope_fixture():
+            yield
+            print("{scope} teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        class TestFlaky:
+            @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+            def test_fail(self, broken_fixture):
+                assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(f"*{scope} teardown*")
+
+
+def test_terminal_teardown_error_preserves_teardown_of_earlier_module(testdir):
+    testdir.makepyfile(
+        test_flaky_module="""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def flaky_module_fixture():
+            yield
+            print("flaky module teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+        def test_fail(broken_fixture):
+            assert False""",
+        test_later_module="""
+        def test_pass():
+            print("later module test")""",
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=1, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(
+        ["*flaky module teardown*", "*later module test*"],
+    )
+
+
+def test_terminal_teardown_error_reports_failing_higher_scope_teardown(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            raise RuntimeError("module teardown error")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+        def test_fail(broken_fixture):
+            assert False"""
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(
+        ["*RuntimeError: module teardown error*", "*ValueError: teardown error*"],
+    )
+
+
+def test_rerunnable_teardown_error_tears_down_module_fixture_once(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, only_rerun=["AssertionError", "ValueError"])
+        def test_fail(broken_fixture):
+            assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=0, failed=1, error=3, rerun=2)
+    assert result.stdout.str().count("module teardown") == 1
+
+
 @pytest.mark.parametrize(
     "marker_only_rerun,cli_only_rerun,should_rerun",
     [

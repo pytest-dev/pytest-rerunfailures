@@ -534,6 +534,10 @@ def _should_hard_fail_on_error(item, report, excinfo):
     if report.outcome != "failed":
         return False
 
+    return _is_terminal_error(item, excinfo)
+
+
+def _is_terminal_error(item, excinfo):
     rerun_errors = _get_rerun_filter_regex(item, "only_rerun")
     rerun_except_errors = _get_rerun_filter_regex(item, "rerun_except")
 
@@ -898,17 +902,21 @@ def _is_rerun_path_excluded(item):
     )
 
 
-def pytest_runtest_teardown(item, nextitem):
+def _suspend_finalizers_for_rerun(item):
+    """Hold back the higher-scope finalizers if the test is going to be re-run.
+
+    Returns whether they were taken off the stack.
+    """
     reruns = get_reruns_count(item)
     if reruns is None:
         # global setting is not specified, and this test is not marked with
         # flaky
-        return
+        return False
 
     if not hasattr(item, "execution_count"):
         # pytest_runtest_protocol hook of this plugin was not executed
         # -> teardown needs to be skipped as well
-        return
+        return False
 
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
 
@@ -918,7 +926,7 @@ def pytest_runtest_teardown(item, nextitem):
         and item.session.config.failures_db.get_suite_reruns() >= max_suite_reruns
     ):
         _restore_suspended_finalizers(item)
-        return
+        return False
 
     # Only remove non-function level actions from the stack if the test is to be re-run
     # Exceeding re-run limits, being free of failue statuses, encountering
@@ -940,9 +948,41 @@ def pytest_runtest_teardown(item, nextitem):
                     if key not in suspended_finalizers:
                         suspended_finalizers[key] = item.session._setupstate.stack[key]
                     del item.session._setupstate.stack[key]
-    else:
-        # restore suspended finalizers
+        return True
+
+    # restore suspended finalizers
+    _restore_suspended_finalizers(item)
+    return False
+
+
+def _teardown_error_is_terminal(item, outcome):
+    """Report whether the teardown phase raised an error that stops re-runs."""
+    exc_info = outcome.excinfo
+    if exc_info is None:
+        return False
+
+    return _is_terminal_error(item, pytest.ExceptionInfo.from_exc_info(exc_info))
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    suspended = _suspend_finalizers_for_rerun(item)
+    outcome = yield
+
+    # The error a teardown raises is only classified once this hook has
+    # returned, so the decision above could not take it into account. A
+    # terminal one means there is no re-run to hold the finalizers back for,
+    # so put them back on the stack and tear down what this item was the last
+    # user of.
+    if suspended and _teardown_error_is_terminal(item, outcome):
         _restore_suspended_finalizers(item)
+        try:
+            item.session._setupstate.teardown_exact(nextitem)
+        except BaseException as exc:
+            # The error raised above is the one that rules out a re-run, so it
+            # has to stay the error of this phase. Chain this one onto it
+            # instead of replacing it, so both end up in the report.
+            outcome.excinfo[1].__context__ = exc
 
 
 @pytest.hookimpl(hookwrapper=True)
