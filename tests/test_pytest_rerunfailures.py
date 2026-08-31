@@ -9,6 +9,7 @@ import pytest
 from pytest_rerunfailures import (
     HAS_PYTEST_HANDLECRASHITEM,
     ServerStatusDB,
+    SocketDB,
     StatusDB,
     SubtestReport,
     XDistHooks,
@@ -366,6 +367,23 @@ def test_xdist_crash_rerun_releases_cap_when_scheduler_rejects():
 
     assert report.outcome == "failed"
     assert db.get_suite_reruns() == 0
+
+
+def test_sock_recv_raises_connection_error_on_eof():
+    db = SocketDB.__new__(SocketDB)
+    StatusDB.__init__(db)
+    connection = mock.MagicMock()
+    connection.recv.side_effect = [
+        b"",
+        AssertionError("recv called again after EOF"),
+    ]
+
+    with pytest.raises(
+        ConnectionError, match="StatusDB connection closed unexpectedly"
+    ):
+        db._sock_recv(connection)
+
+    connection.recv.assert_called_once_with(1)
 
 
 def test_statusdb_rejects_unauthenticated_commands():
