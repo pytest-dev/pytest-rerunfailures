@@ -484,7 +484,7 @@ def _remove_failed_subtest_reports_from_stats(
     _remove_subtest_reports("subtests passed")
 
 
-def _get_num_failed_subtests(item, report):
+def _get_num_failed_subtests(item, nodeid):
     """
     Return the number of failed subtests.
 
@@ -495,7 +495,7 @@ def _get_num_failed_subtests(item, report):
 
     failed_subtests = item.config.stash.get(failed_subtests_key, None)
     if failed_subtests is not None:
-        return failed_subtests.get(report.nodeid, 0)
+        return failed_subtests.get(nodeid, 0)
 
     return 0
 
@@ -566,7 +566,7 @@ def _should_not_rerun(item, report, reruns):
     is_terminal_error = any(item._terminal_errors.values())
     condition = get_reruns_condition(item)
     has_failed_subtests = (
-        report.when == "call" and _get_num_failed_subtests(item, report) > 0
+        report.when == "call" and _get_num_failed_subtests(item, report.nodeid) > 0
     )
 
     return (
@@ -974,10 +974,15 @@ def pytest_runtest_teardown(item, nextitem):
     # Only remove non-function level actions from the stack if the test is to be re-run
     # Exceeding re-run limits, being free of failue statuses, encountering
     # allowable exceptions, and a falsy flaky condition indicate that the test is
-    # not to be re-ran.
+    # not to be re-ran. A failure can also be carried by failed subtests alone,
+    # which leaves the call phase itself passing.
     if (
         item.execution_count <= reruns
-        and any(_test_failed_statuses.values())
+        and (
+            any(_test_failed_statuses.values())
+            or _get_num_failed_subtests(item, item.nodeid) > 0
+        )
+        and not any(item._test_xfailed.values())
         and not any(item._terminal_errors.values())
         and get_reruns_condition(item)
     ):
@@ -1009,12 +1014,19 @@ def pytest_runtest_makereport(item, call):
         # create a dict to store error-check results for each stage
         setattr(item, "_terminal_errors", {})
 
+        # create a dict to store xfail results for each stage
+        setattr(item, "_test_xfailed", {})
+
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
     _test_failed_statuses[result.when] = result.failed
     item._test_failed_statuses = _test_failed_statuses
     item._terminal_errors[result.when] = _should_hard_fail_on_error(
         item, result, call.excinfo
     )
+    # subtests emit extra "call" reports, so accumulate rather than overwrite
+    item._test_xfailed[result.when] = item._test_xfailed.get(
+        result.when, False
+    ) or hasattr(result, "wasxfail")
 
     if result.when == "teardown" and item._terminal_errors["teardown"]:
         result = _teardown_suspended_finalizers(item, call, result)
