@@ -386,7 +386,15 @@ def test_sock_recv_raises_connection_error_on_eof():
     connection.recv.assert_called_once_with(1)
 
 
-def test_statusdb_rejects_unauthenticated_commands():
+@pytest.mark.parametrize(
+    "authentication",
+    [
+        pytest.param(b"invalid-token", id="incorrect-token"),
+        pytest.param(b"\xff", id="invalid-utf8"),
+        pytest.param("é".encode(), id="non-ascii"),
+    ],
+)
+def test_statusdb_rejects_unauthenticated_commands(authentication):
     server = ServerStatusDB.__new__(ServerStatusDB)
     StatusDB.__init__(server)
     server.rerunfailures_db = {}
@@ -394,7 +402,7 @@ def test_statusdb_rejects_unauthenticated_commands():
     server._set("test", "r", 1)
 
     connection = mock.MagicMock()
-    wire_data = b"invalid-token\nset|test|r|2\n"
+    wire_data = authentication + b"\nset|test|r|2\n"
     connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
 
     server.run_connection(connection)
