@@ -411,6 +411,41 @@ def test_statusdb_rejects_unauthenticated_commands(authentication):
     assert server._get("test", "r") == 1
 
 
+def test_statusdb_accepts_64_byte_authentication_token():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = "a" * 64
+
+    connection = mock.MagicMock()
+    wire_data = server.token.encode() + b"\nset|test|r|1\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data] + [b""]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"1\n")
+    assert server._get("test", "r") == 1
+
+
+def test_statusdb_rejects_oversized_authentication():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = "a" * 64
+    server._set("test", "r", 1)
+
+    connection = mock.MagicMock()
+    oversized_authentication = server.token.encode() + b"x"
+    wire_data = oversized_authentication + b"\nset|test|r|2\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"0\n")
+    assert connection.recv.call_count == 65
+    assert server._get("test", "r") == 1
+
+
 def test_xdist_configure_node_passes_statusdb_connection_details():
     failures_db = SimpleNamespace(sock_port=12345, token=mock.sentinel.statusdb_token)
     node = SimpleNamespace(

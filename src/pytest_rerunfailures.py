@@ -753,7 +753,7 @@ class SocketDB(StatusDB):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setblocking(1)
 
-    def _sock_recv_bytes(self, conn) -> bytes:
+    def _sock_recv_bytes(self, conn, max_length: int | None = None) -> bytes:
         buf = b""
         while True:
             b = conn.recv(1)
@@ -762,6 +762,8 @@ class SocketDB(StatusDB):
             if b == self.delim:
                 break
             buf += b
+            if max_length is not None and len(buf) > max_length:
+                break
 
         return buf
 
@@ -796,8 +798,10 @@ class ServerStatusDB(SocketDB):
 
     def run_connection(self, conn):
         with conn, suppress(ConnectionError):
+            expected_token = self.token.encode("ascii")
             authenticated = secrets.compare_digest(
-                self._sock_recv_bytes(conn), self.token.encode("ascii")
+                self._sock_recv_bytes(conn, max_length=len(expected_token)),
+                expected_token,
             )
             self._sock_send(conn, "1" if authenticated else "0")
             if not authenticated:
