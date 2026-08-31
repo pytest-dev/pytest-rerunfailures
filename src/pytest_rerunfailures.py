@@ -13,9 +13,12 @@ from contextlib import suppress
 from typing import Any
 
 import pytest
-from _pytest.outcomes import fail
+from _pytest.outcomes import Exit, fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
+
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
 
 failed_subtests_key: Any
 SubtestReport: Any
@@ -898,7 +901,55 @@ def _is_rerun_path_excluded(item):
     )
 
 
+def _teardown_suspended_finalizers(item, call, report):
+    """Tear down the scopes held back for a re-run that will not happen.
+
+    pytest_runtest_teardown takes the module, class and session finalizers off
+    the setup stack when it expects the test to be re-run. Whether the error a
+    teardown raised rules that re-run out is only known here, where the report
+    of the phase says how the error was classified, so put the finalizers back
+    and tear down whatever this item was the last user of.
+
+    Returns the report of the teardown phase.
+    """
+    if not getattr(item, "_finalizers_suspended", False):
+        return report
+
+    item._finalizers_suspended = False
+    _restore_suspended_finalizers(item)
+
+    def teardown_higher_scopes():
+        try:
+            item.session._setupstate.teardown_exact(item._teardown_nextitem)
+        except (Exit, KeyboardInterrupt):
+            # A fixture that ends the session has to keep ending it.
+            raise
+        except BaseException as exc:
+            if call.excinfo is None:
+                raise
+            # Both errors come from the teardown of this item, so report them
+            # together, the way pytest reports several failing finalizers.
+            raise BaseExceptionGroup(
+                "errors during test teardown", [exc, call.excinfo.value]
+            ) from None
+
+    teardown_call = pytest.CallInfo.from_call(
+        teardown_higher_scopes, when="teardown", reraise=(Exit, KeyboardInterrupt)
+    )
+    if teardown_call.excinfo is None:
+        return report
+
+    # The report of the phase is already built, so the only way for the error
+    # above to reach the terminal is a report that replaces it.
+    return pytest.TestReport.from_item_and_call(item, teardown_call)
+
+
 def pytest_runtest_teardown(item, nextitem):
+    # pytest_runtest_makereport needs both of these to finish a teardown this
+    # hook left half done because it expected a re-run.
+    item._finalizers_suspended = False
+    item._teardown_nextitem = nextitem
+
     reruns = get_reruns_count(item)
     if reruns is None:
         # global setting is not specified, and this test is not marked with
@@ -940,15 +991,17 @@ def pytest_runtest_teardown(item, nextitem):
                     if key not in suspended_finalizers:
                         suspended_finalizers[key] = item.session._setupstate.stack[key]
                     del item.session._setupstate.stack[key]
+                    item._finalizers_suspended = True
     else:
         # restore suspended finalizers
         _restore_suspended_finalizers(item)
 
 
-@pytest.hookimpl(hookwrapper=True)
+# A wrapper rather than an old-style hookwrapper because it has to be able to
+# let an Exit or a KeyboardInterrupt out of _teardown_suspended_finalizers.
+@pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item, call):
-    outcome = yield
-    result = outcome.get_result()
+    result = yield
     if result.when == "setup":
         # clean failed statuses at the beginning of each test/rerun
         setattr(item, "_test_failed_statuses", {})
@@ -962,6 +1015,11 @@ def pytest_runtest_makereport(item, call):
     item._terminal_errors[result.when] = _should_hard_fail_on_error(
         item, result, call.excinfo
     )
+
+    if result.when == "teardown" and item._terminal_errors["teardown"]:
+        result = _teardown_suspended_finalizers(item, call, result)
+
+    return result
 
 
 def pytest_runtest_protocol(item, nextitem):
