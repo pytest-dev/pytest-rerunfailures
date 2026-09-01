@@ -8,6 +8,8 @@ import pytest
 
 from pytest_rerunfailures import (
     HAS_PYTEST_HANDLECRASHITEM,
+    ServerStatusDB,
+    SocketDB,
     StatusDB,
     SubtestReport,
     XDistHooks,
@@ -365,6 +367,97 @@ def test_xdist_crash_rerun_releases_cap_when_scheduler_rejects():
 
     assert report.outcome == "failed"
     assert db.get_suite_reruns() == 0
+
+
+def test_sock_recv_raises_connection_error_on_eof():
+    db = SocketDB.__new__(SocketDB)
+    StatusDB.__init__(db)
+    connection = mock.MagicMock()
+    connection.recv.side_effect = [
+        b"",
+        AssertionError("recv called again after EOF"),
+    ]
+
+    with pytest.raises(
+        ConnectionError, match="StatusDB connection closed unexpectedly"
+    ):
+        db._sock_recv(connection)
+
+    connection.recv.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize(
+    "authentication",
+    [
+        pytest.param(b"invalid-token", id="incorrect-token"),
+        pytest.param(b"\xff", id="invalid-utf8"),
+        pytest.param("é".encode(), id="non-ascii"),
+    ],
+)
+def test_statusdb_rejects_unauthenticated_commands(authentication):
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = str(mock.sentinel.statusdb_token)
+    server._set("test", "r", 1)
+
+    connection = mock.MagicMock()
+    wire_data = authentication + b"\nset|test|r|2\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"0\n")
+    assert server._get("test", "r") == 1
+
+
+def test_statusdb_accepts_64_byte_authentication_token():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = "a" * 64
+
+    connection = mock.MagicMock()
+    wire_data = server.token.encode() + b"\nset|test|r|1\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data] + [b""]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"1\n")
+    assert server._get("test", "r") == 1
+
+
+def test_statusdb_rejects_oversized_authentication():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = "a" * 64
+    server._set("test", "r", 1)
+
+    connection = mock.MagicMock()
+    oversized_authentication = server.token.encode() + b"x"
+    wire_data = oversized_authentication + b"\nset|test|r|2\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"0\n")
+    assert connection.recv.call_count == 65
+    assert server._get("test", "r") == 1
+
+
+def test_xdist_configure_node_passes_statusdb_connection_details():
+    failures_db = SimpleNamespace(sock_port=12345, token=mock.sentinel.statusdb_token)
+    node = SimpleNamespace(
+        config=SimpleNamespace(failures_db=failures_db), workerinput={}
+    )
+
+    XDistHooks().pytest_configure_node(node)
+
+    assert node.workerinput == {
+        "sock_port": 12345,
+        "statusdb_token": mock.sentinel.statusdb_token,
+    }
 
 
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
