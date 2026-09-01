@@ -8,6 +8,8 @@ import pytest
 
 from pytest_rerunfailures import (
     HAS_PYTEST_HANDLECRASHITEM,
+    ServerStatusDB,
+    SocketDB,
     StatusDB,
     SubtestReport,
     XDistHooks,
@@ -365,6 +367,97 @@ def test_xdist_crash_rerun_releases_cap_when_scheduler_rejects():
 
     assert report.outcome == "failed"
     assert db.get_suite_reruns() == 0
+
+
+def test_sock_recv_raises_connection_error_on_eof():
+    db = SocketDB.__new__(SocketDB)
+    StatusDB.__init__(db)
+    connection = mock.MagicMock()
+    connection.recv.side_effect = [
+        b"",
+        AssertionError("recv called again after EOF"),
+    ]
+
+    with pytest.raises(
+        ConnectionError, match="StatusDB connection closed unexpectedly"
+    ):
+        db._sock_recv(connection)
+
+    connection.recv.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize(
+    "authentication",
+    [
+        pytest.param(b"invalid-token", id="incorrect-token"),
+        pytest.param(b"\xff", id="invalid-utf8"),
+        pytest.param("é".encode(), id="non-ascii"),
+    ],
+)
+def test_statusdb_rejects_unauthenticated_commands(authentication):
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = str(mock.sentinel.statusdb_token)
+    server._set("test", "r", 1)
+
+    connection = mock.MagicMock()
+    wire_data = authentication + b"\nset|test|r|2\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"0\n")
+    assert server._get("test", "r") == 1
+
+
+def test_statusdb_accepts_64_byte_authentication_token():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = "a" * 64
+
+    connection = mock.MagicMock()
+    wire_data = server.token.encode() + b"\nset|test|r|1\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data] + [b""]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"1\n")
+    assert server._get("test", "r") == 1
+
+
+def test_statusdb_rejects_oversized_authentication():
+    server = ServerStatusDB.__new__(ServerStatusDB)
+    StatusDB.__init__(server)
+    server.rerunfailures_db = {}
+    server.token = "a" * 64
+    server._set("test", "r", 1)
+
+    connection = mock.MagicMock()
+    oversized_authentication = server.token.encode() + b"x"
+    wire_data = oversized_authentication + b"\nset|test|r|2\n"
+    connection.recv.side_effect = [bytes((byte,)) for byte in wire_data]
+
+    server.run_connection(connection)
+
+    connection.send.assert_called_once_with(b"0\n")
+    assert connection.recv.call_count == 65
+    assert server._get("test", "r") == 1
+
+
+def test_xdist_configure_node_passes_statusdb_connection_details():
+    failures_db = SimpleNamespace(sock_port=12345, token=mock.sentinel.statusdb_token)
+    node = SimpleNamespace(
+        config=SimpleNamespace(failures_db=failures_db), workerinput={}
+    )
+
+    XDistHooks().pytest_configure_node(node)
+
+    assert node.workerinput == {
+        "sock_port": 12345,
+        "statusdb_token": mock.sentinel.statusdb_token,
+    }
 
 
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
@@ -1429,6 +1522,204 @@ def test_rerunnable_failure_tears_down_module_fixture_once(testdir, marker, args
     result = testdir.runpytest("-s", *args)
     assert_outcomes(result, passed=0, failed=1, rerun=2)
     assert result.stdout.str().count("module teardown") == 1
+
+
+@pytest.mark.parametrize("scope", ["class", "module", "session"])
+def test_terminal_teardown_error_preserves_higher_scope_teardown(testdir, scope):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="{scope}", autouse=True)
+        def higher_scope_fixture():
+            yield
+            print("{scope} teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        class TestFlaky:
+            @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+            def test_fail(self, broken_fixture):
+                assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(f"*{scope} teardown*")
+
+
+def test_terminal_teardown_error_preserves_teardown_of_earlier_module(testdir):
+    testdir.makepyfile(
+        test_flaky_module="""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def flaky_module_fixture():
+            yield
+            print("flaky module teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+        def test_fail(broken_fixture):
+            assert False""",
+        test_later_module="""
+        def test_pass():
+            print("later module test")""",
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=1, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(
+        ["*flaky module teardown*", "*later module test*"],
+    )
+
+
+def test_terminal_teardown_error_reports_failing_higher_scope_teardown(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            raise RuntimeError("module teardown error")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+        def test_fail(broken_fixture):
+            assert False"""
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(
+        ["*RuntimeError: module teardown error*", "*ValueError: teardown error*"],
+    )
+
+
+def test_rerunnable_teardown_error_tears_down_module_fixture_once(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, only_rerun=["AssertionError", "ValueError"])
+        def test_fail(broken_fixture):
+            assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(result, passed=0, failed=1, error=3, rerun=2)
+    assert result.stdout.str().count("module teardown") == 1
+
+
+@pytest.mark.parametrize(
+    "outcome,skipped,xfailed",
+    [("skip", 3, 0), ("xfail", 0, 3)],
+)
+def test_teardown_error_that_is_not_a_failure_does_not_stop_reruns(
+    testdir, outcome, skipped, xfailed
+):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        @pytest.fixture
+        def not_failing_fixture():
+            yield
+            pytest.{outcome}("{outcome} in teardown")
+
+        @pytest.mark.flaky(reruns=2, only_rerun=["AssertionError"])
+        def test_fail(not_failing_fixture):
+            assert False"""
+    )
+
+    result = testdir.runpytest("-s")
+    assert_outcomes(
+        result, passed=0, skipped=skipped, xfailed=xfailed, failed=1, rerun=2
+    )
+    assert result.stdout.str().count("module teardown") == 1
+
+
+def test_terminal_teardown_error_lets_a_higher_scope_teardown_exit(testdir):
+    testdir.makepyfile(
+        test_flaky_module="""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            pytest.exit("exit from teardown")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+        def test_fail(broken_fixture):
+            assert False""",
+        test_later_module="""
+        def test_pass():
+            print("later module test")""",
+    )
+
+    result = testdir.runpytest("-s")
+    assert result.ret == pytest.ExitCode.INTERRUPTED
+    result.stdout.fnmatch_lines("*Exit: exit from teardown*")
+    assert "later module test" not in result.stdout.str()
+
+
+def test_terminal_teardown_error_reports_higher_scope_teardown_without_context(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            raise RuntimeError("module teardown error")
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            raise ValueError("teardown error") from None
+
+        @pytest.mark.flaky(reruns=2, rerun_except=["ValueError"])
+        def test_fail(broken_fixture):
+            assert False"""
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=0)
+    result.stdout.fnmatch_lines(
+        ["*RuntimeError: module teardown error*", "*ValueError: teardown error*"],
+    )
 
 
 @pytest.mark.parametrize(

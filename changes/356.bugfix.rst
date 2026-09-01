@@ -1,0 +1,1 @@
+Restore module, class, and session scoped fixture teardown when an error raised during teardown rules out a re-run.

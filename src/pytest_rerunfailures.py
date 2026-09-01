@@ -3,6 +3,7 @@ import importlib.metadata
 import os
 import platform
 import re
+import secrets
 import socket
 import sys
 import threading
@@ -13,9 +14,12 @@ from contextlib import suppress
 from typing import Any
 
 import pytest
-from _pytest.outcomes import fail
+from _pytest.outcomes import Exit, fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
+
+if sys.version_info < (3, 11):
+    from exceptiongroup import BaseExceptionGroup
 
 failed_subtests_key: Any
 SubtestReport: Any
@@ -595,7 +599,10 @@ def pytest_configure(config):
         if is_master(config):
             config.failures_db = ServerStatusDB()
         else:
-            config.failures_db = ClientStatusDB(config.workerinput["sock_port"])
+            config.failures_db = ClientStatusDB(
+                config.workerinput["sock_port"],
+                config.workerinput["statusdb_token"],
+            )
     else:
         config.failures_db = StatusDB()  # no-op db
 
@@ -624,8 +631,9 @@ class XDistHooks:
             )
 
     def pytest_configure_node(self, node):
-        """Configure xdist hook for node sock_port."""
+        """Configure xdist hook with StatusDB connection details."""
         node.workerinput["sock_port"] = node.config.failures_db.sock_port
+        node.workerinput["statusdb_token"] = node.config.failures_db.token
 
     def pytest_handlecrashitem(self, crashitem, report, sched):
         """Return the crashitem from pending and collection."""
@@ -745,15 +753,22 @@ class SocketDB(StatusDB):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setblocking(1)
 
-    def _sock_recv(self, conn) -> str:
+    def _sock_recv_bytes(self, conn, max_length: int | None = None) -> bytes:
         buf = b""
         while True:
             b = conn.recv(1)
+            if not b:
+                raise ConnectionError("StatusDB connection closed unexpectedly")
             if b == self.delim:
                 break
             buf += b
+            if max_length is not None and len(buf) > max_length:
+                break
 
-        return buf.decode()
+        return buf
+
+    def _sock_recv(self, conn) -> str:
+        return self._sock_recv_bytes(conn).decode()
 
     def _sock_send(self, conn, msg: str):
         conn.send(msg.encode() + self.delim)
@@ -762,6 +777,7 @@ class SocketDB(StatusDB):
 class ServerStatusDB(SocketDB):
     def __init__(self) -> None:
         super().__init__()
+        self.token = secrets.token_hex(32)
         self.sock.bind(("127.0.0.1", 0))
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -781,7 +797,16 @@ class ServerStatusDB(SocketDB):
             t.start()
 
     def run_connection(self, conn):
-        with suppress(ConnectionError):
+        with conn, suppress(ConnectionError):
+            expected_token = self.token.encode("ascii")
+            authenticated = secrets.compare_digest(
+                self._sock_recv_bytes(conn, max_length=len(expected_token)),
+                expected_token,
+            )
+            self._sock_send(conn, "1" if authenticated else "0")
+            if not authenticated:
+                return
+
             while True:
                 op, i, k, v = self._sock_recv(conn).split("|")
                 if op == "set":
@@ -848,9 +873,13 @@ class ServerStatusDB(SocketDB):
 
 
 class ClientStatusDB(SocketDB):
-    def __init__(self, sock_port):
+    def __init__(self, sock_port, token):
         super().__init__()
         self.sock.connect(("127.0.0.1", sock_port))
+        self._sock_send(self.sock, token)
+        if self._sock_recv(self.sock) != "1":
+            self.sock.close()
+            raise ConnectionError("StatusDB authentication failed")
 
     def _set(self, i: str, k: str, v: int):
         self._sock_send(self.sock, "|".join(("set", i, k, str(v))))
@@ -898,7 +927,55 @@ def _is_rerun_path_excluded(item):
     )
 
 
+def _teardown_suspended_finalizers(item, call, report):
+    """Tear down the scopes held back for a re-run that will not happen.
+
+    pytest_runtest_teardown takes the module, class and session finalizers off
+    the setup stack when it expects the test to be re-run. Whether the error a
+    teardown raised rules that re-run out is only known here, where the report
+    of the phase says how the error was classified, so put the finalizers back
+    and tear down whatever this item was the last user of.
+
+    Returns the report of the teardown phase.
+    """
+    if not getattr(item, "_finalizers_suspended", False):
+        return report
+
+    item._finalizers_suspended = False
+    _restore_suspended_finalizers(item)
+
+    def teardown_higher_scopes():
+        try:
+            item.session._setupstate.teardown_exact(item._teardown_nextitem)
+        except (Exit, KeyboardInterrupt):
+            # A fixture that ends the session has to keep ending it.
+            raise
+        except BaseException as exc:
+            if call.excinfo is None:
+                raise
+            # Both errors come from the teardown of this item, so report them
+            # together, the way pytest reports several failing finalizers.
+            raise BaseExceptionGroup(
+                "errors during test teardown", [exc, call.excinfo.value]
+            ) from None
+
+    teardown_call = pytest.CallInfo.from_call(
+        teardown_higher_scopes, when="teardown", reraise=(Exit, KeyboardInterrupt)
+    )
+    if teardown_call.excinfo is None:
+        return report
+
+    # The report of the phase is already built, so the only way for the error
+    # above to reach the terminal is a report that replaces it.
+    return pytest.TestReport.from_item_and_call(item, teardown_call)
+
+
 def pytest_runtest_teardown(item, nextitem):
+    # pytest_runtest_makereport needs both of these to finish a teardown this
+    # hook left half done because it expected a re-run.
+    item._finalizers_suspended = False
+    item._teardown_nextitem = nextitem
+
     reruns = get_reruns_count(item)
     if reruns is None:
         # global setting is not specified, and this test is not marked with
@@ -940,15 +1017,17 @@ def pytest_runtest_teardown(item, nextitem):
                     if key not in suspended_finalizers:
                         suspended_finalizers[key] = item.session._setupstate.stack[key]
                     del item.session._setupstate.stack[key]
+                    item._finalizers_suspended = True
     else:
         # restore suspended finalizers
         _restore_suspended_finalizers(item)
 
 
-@pytest.hookimpl(hookwrapper=True)
+# A wrapper rather than an old-style hookwrapper because it has to be able to
+# let an Exit or a KeyboardInterrupt out of _teardown_suspended_finalizers.
+@pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item, call):
-    outcome = yield
-    result = outcome.get_result()
+    result = yield
     if result.when == "setup":
         # clean failed statuses at the beginning of each test/rerun
         setattr(item, "_test_failed_statuses", {})
@@ -962,6 +1041,11 @@ def pytest_runtest_makereport(item, call):
     item._terminal_errors[result.when] = _should_hard_fail_on_error(
         item, result, call.excinfo
     )
+
+    if result.when == "teardown" and item._terminal_errors["teardown"]:
+        result = _teardown_suspended_finalizers(item, call, result)
+
+    return result
 
 
 def pytest_runtest_protocol(item, nextitem):
