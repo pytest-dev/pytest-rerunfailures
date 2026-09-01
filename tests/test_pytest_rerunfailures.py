@@ -2545,6 +2545,107 @@ def test_too_many_failing_subtests_are_failures(testdir):
     assert_outcomes(result, passed=0, failed=2, rerun=1)
 
 
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+@pytest.mark.parametrize("scope", ["class", "module", "session"])
+def test_failing_subtests_keep_higher_scope_fixture_alive(testdir, scope):
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        @pytest.fixture(scope="{scope}", autouse=True)
+        def higher_scope_fixture():
+            yield
+            print("{scope} teardown")
+
+        class TestSubtests:
+            def test_subtests(self, subtests):
+                with subtests.test("Fails on first attempt"):
+                    {indent(temporary_failure(), "        ")}
+    """
+    )
+
+    result = testdir.runpytest("-s", "--reruns", "1")
+    assert_outcomes(result, passed=1, rerun=1)
+    assert result.stdout.str().count(f"{scope} teardown") == 1
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_failing_subtests_keep_earlier_module_fixture_alive(testdir):
+    testdir.makepyfile(
+        test_flaky_subtests_module=f"""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def subtests_module_fixture():
+            yield
+            print("subtests module teardown")
+
+        def test_subtests(subtests):
+            with subtests.test("Fails on first attempt"):
+                {indent(temporary_failure(), "    ")}""",
+        test_later_module="""
+        def test_pass():
+            print("later module test")""",
+    )
+
+    result = testdir.runpytest("-s", "--reruns", "1")
+    assert_outcomes(result, passed=2, rerun=1)
+    assert result.stdout.str().count("subtests module teardown") == 1
+    result.stdout.fnmatch_lines(
+        ["*subtests module teardown*", "*later module test*"],
+    )
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_xfail_after_failing_subtest_restores_module_fixture(testdir):
+    testdir.makepyfile(
+        test_early_xfail_module="""
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def xfail_module_fixture():
+            yield
+            print("xfail module teardown")
+
+        def test_xfail_after_subtest(subtests):
+            with subtests.test("Fails"):
+                assert False
+            pytest.xfail("known issue")""",
+        test_later_module="""
+        def test_pass():
+            print("later module test")""",
+    )
+
+    result = testdir.runpytest("-s", "--reruns", "2")
+    assert_outcomes(result, passed=1, failed=1, xfailed=1, rerun=0)
+    assert result.stdout.str().count("xfail module teardown") == 1
+    result.stdout.fnmatch_lines(
+        ["*xfail module teardown*", "*later module test*"],
+    )
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_too_many_failing_subtests_tear_down_module_fixture_once(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            print("module teardown")
+
+        def test_subtests(subtests):
+            with subtests.test("Always fails"):
+                assert False
+    """
+    )
+
+    result = testdir.runpytest("-s", "--reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+    assert result.stdout.str().count("module teardown") == 1
+
+
 @pytest.mark.skipif(
     not has_subtests or not has_xdist,
     reason="Requires pytest 9.0 or newer and xdist",
