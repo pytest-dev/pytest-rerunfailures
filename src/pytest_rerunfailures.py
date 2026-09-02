@@ -1089,7 +1089,8 @@ def pytest_runtest_protocol(item, nextitem):
     item.execution_count = db.get_test_failures(item.nodeid)
     db.set_test_reruns(item.nodeid, reruns)
 
-    if item.execution_count > reruns:
+    # A rerun count limits extra attempts, not the initial test execution.
+    if item.execution_count > reruns and item.execution_count > 0:
         return True
 
     need_to_run = True
