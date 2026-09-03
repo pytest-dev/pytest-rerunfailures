@@ -1,1 +1,0 @@
-Keep module, class, and session scoped fixtures alive across re-runs of a test whose call phase failed through subtests only.

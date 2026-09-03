@@ -1,1 +1,0 @@
-Authenticate xdist StatusDB connections with a per-session token.

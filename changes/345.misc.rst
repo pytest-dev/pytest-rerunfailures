@@ -1,1 +1,0 @@
-Replace deprecated ``Config.getvalue()`` calls with ``Config.getoption()``.
