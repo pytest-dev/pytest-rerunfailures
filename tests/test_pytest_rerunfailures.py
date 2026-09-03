@@ -2370,6 +2370,54 @@ def test_force_reruns(testdir, mark_params):
     assert_outcomes(result, passed=0, failed=1, rerun=3)
 
 
+@pytest.mark.parametrize(
+    ("pytest_args", "ini", "marker"),
+    [
+        (("--reruns", "-1"), None, ""),
+        ((), "reruns = -1", ""),
+        (("--force-reruns", "-1"), None, ""),
+        ((), None, "@pytest.mark.flaky(reruns=-1)"),
+    ],
+)
+def test_negative_reruns_does_not_skip_initial_execution(
+    testdir, pytest_args, ini, marker
+):
+    if ini:
+        testdir.makeini(f"[pytest]\n{ini}")
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        {marker}
+        def test_fail():
+            assert False
+        """
+    )
+
+    result = testdir.runpytest(*pytest_args)
+
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires xdist")
+def test_xdist_negative_marker_does_not_skip_initial_execution(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=-1)
+        def test_fail():
+            assert False
+        """
+    )
+
+    result = testdir.runpytest("-p", "xdist", "-n", "1")
+
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
 def test_reruns_mode_append_sums_marker_and_cli(testdir):
     testdir.makepyfile(
         """
