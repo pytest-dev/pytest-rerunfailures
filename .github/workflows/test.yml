@@ -47,16 +47,16 @@ jobs:
       - name: Get pip cache dir
         id: pip-cache
         run: |
-          echo "::set-output name=dir::$(pip cache dir)"
+          echo "dir=$(pip cache dir)" >> "$GITHUB_OUTPUT"
 
       - name: Cache
         uses: actions/cache@v6
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key:
-            ${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-${{ hashFiles('**/pyproject.toml') }}
+            ${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
-            ${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-
+            ${{ matrix.python-version }}-${{ matrix.pytest-version }}-v1-
 
       - name: Install dependencies
         run: |
