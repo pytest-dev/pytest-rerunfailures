@@ -6,6 +6,40 @@ Changelog
 
 .. towncrier release notes start
 
+16.6.1 (2026-09-03)
+-------------------
+
+Bug Fixes
++++++++++
+
+- Ensure teardown reports are passed to ``pytest_runtest_logreport`` for rerun
+  attempts. (`#237
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/237>`_)
+- Prevent superseded built-in subtest failures from remaining in the final test
+  result when rerunning tests with pytest-xdist. (`#350
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/350>`_)
+- Restore module, class, and session scoped fixture teardown when a ``flaky``
+  marker condition is falsy. (`#351
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/351>`_)
+- Restore module, class, and session scoped fixture teardown when an error
+  raised during teardown rules out a re-run. (`#356
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/356>`_)
+- Keep module, class, and session scoped fixtures alive across re-runs of a
+  test whose call phase failed through subtests only. (`#357
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/357>`_)
+- Authenticate xdist StatusDB connections with a per-session token. (`#358
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/358>`_)
+- Ensure negative rerun counts do not skip the initial test execution. (`#359
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/359>`_)
+
+
+Misc
+++++
+
+- Replace deprecated ``Config.getvalue()`` calls with ``Config.getoption()``.
+  (`#345 <https://github.com/pytest-dev/pytest-rerunfailures/issues/345>`_)
+
+
 16.6 (2026-08-17)
 -----------------
 

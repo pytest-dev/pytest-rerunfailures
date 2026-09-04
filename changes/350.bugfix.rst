@@ -1,1 +1,0 @@
-Prevent superseded built-in subtest failures from remaining in the final test result when rerunning tests with pytest-xdist.
