@@ -96,6 +96,39 @@ jobs:
       - name: Tests
         run: pytest
 
+  freethreading:
+    # The free-threaded build is officially supported since Python 3.14 (PEP 779).
+    # The plugin coordinates reruns between xdist workers over a socket server
+    # with a thread per connection, so run the suite without the GIL to make
+    # sure that shared state stays safe.
+    name: free-threading:py-3.14t:pytest-9.1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14t"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install pytest==9.1.* pytest-xdist
+          python -m pip install -e .
+
+      - name: Verify the GIL stays disabled
+        # Importing an extension that does not declare free-threading support
+        # re-enables the GIL, which would make this job silently pointless.
+        run: |
+          python -c "
+          import sys, pytest, xdist, pytest_rerunfailures
+          assert not sys._is_gil_enabled(), 'importing the test dependencies re-enabled the GIL'
+          "
+
+      - name: Tests
+        run: pytest
+
   platform:
     # Test devel setup on different platforms.
     name: Platform-${{ matrix.os }}
