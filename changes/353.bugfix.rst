@@ -1,0 +1,1 @@
+Match ``only_rerun`` and ``rerun_except`` against the full exception chain (``__cause__`` and ``__context__``), not only the outermost exception.

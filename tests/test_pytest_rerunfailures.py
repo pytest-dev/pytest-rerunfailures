@@ -1068,6 +1068,87 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     )
 
 
+@pytest.mark.parametrize(
+    "only_rerun,should_rerun",
+    [
+        ("MemoryError", True),
+        ("out of memory", True),
+        ("ValueError", False),
+    ],
+)
+def test_only_rerun_matches_wrapped_cause(testdir, only_rerun, should_rerun):
+    testdir.makepyfile(
+        """
+        def test_wrapped():
+            try:
+                raise MemoryError("out of memory")
+            except MemoryError as error:
+                raise RuntimeError("something failed") from error
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--only-rerun", only_rerun)
+    assert_outcomes(result, passed=0, failed=1, rerun=1 if should_rerun else 0)
+
+
+def test_only_rerun_matches_implicit_context(testdir):
+    testdir.makepyfile(
+        """
+        def test_wrapped():
+            try:
+                raise MemoryError("out of memory")
+            except MemoryError:
+                raise RuntimeError("something failed")
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--only-rerun", "MemoryError")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_only_rerun_exception_class_matches_wrapped_cause(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, only_rerun=[MemoryError])
+        def test_wrapped():
+            try:
+                raise MemoryError("out of memory")
+            except MemoryError as error:
+                raise RuntimeError("something failed") from error
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_only_rerun_ignores_suppressed_context(testdir):
+    testdir.makepyfile(
+        """
+        def test_wrapped():
+            try:
+                raise MemoryError("out of memory")
+            except MemoryError:
+                raise RuntimeError("something failed") from None
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--only-rerun", "MemoryError")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_rerun_except_matches_wrapped_cause(testdir):
+    testdir.makepyfile(
+        """
+        def test_wrapped():
+            try:
+                raise ValueError("bad value")
+            except ValueError as error:
+                raise RuntimeError("something failed") from error
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-except", "ValueError")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
 def test_no_rerun_on_strict_xfail_with_only_rerun_flag(testdir):
     testdir.makepyfile(
         """
