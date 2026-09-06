@@ -1764,6 +1764,10 @@ def test_only_rerun_flag_in_flaky_marker(
         ("only_rerun=[ValueError]", False),
         ("rerun_except=[AssertionError]", False),
         ("rerun_except=[ValueError]", True),
+        ("only_rerun=AssertionError", True),
+        ("only_rerun=ValueError", False),
+        ("rerun_except=AssertionError", False),
+        ("rerun_except=ValueError", True),
     ],
 )
 def test_rerun_filter_accepts_exception_classes(testdir, filter_kwarg, should_rerun):

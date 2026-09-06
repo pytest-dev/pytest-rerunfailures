@@ -506,7 +506,9 @@ def _get_rerun_filter_regex(item, regex_name):
 
     if rerun_marker is not None and regex_name in rerun_marker.kwargs:
         regex = rerun_marker.kwargs[regex_name]
-        if isinstance(regex, str):
+        if isinstance(regex, str) or (
+            isinstance(regex, type) and issubclass(regex, BaseException)
+        ):
             regex = [regex]
     else:
         regex = getattr(item.session.config.option, regex_name)
