@@ -27,6 +27,14 @@ _failed_subtests_key: Any = None
 _SubtestReport: Any = None
 
 try:
+    from _pytest.nodeid import NodeId
+except ImportError:
+    HAS_PYTEST_NODE_ID = False
+else:
+    HAS_PYTEST_NODE_ID = True
+    del NodeId
+
+try:
     from _pytest.subtests import SubtestReport as _SubtestReport
     from _pytest.subtests import failed_subtests_key as _failed_subtests_key
 except ImportError:
@@ -400,6 +408,18 @@ def _remove_failed_setup_state_from_session(item):
         del setup_state.stack[item]
 
 
+def _failed_subtests_lookup_key(node_or_report):
+    """Return the key used by pytest's private ``failed_subtests`` mapping.
+
+    Newer pytest uses structured ``.id`` while older versions use ``.nodeid``.
+    Detect the pytest API itself because another plugin may add an unrelated
+    ``id`` attribute.
+    """
+    if HAS_PYTEST_NODE_ID:
+        return node_or_report.id
+    return node_or_report.nodeid
+
+
 def _remove_failed_subtests_from_report(item, report):
     """
     Clean up failed subtests stash entry.
@@ -410,8 +430,9 @@ def _remove_failed_subtests_from_report(item, report):
         return
 
     failed_subtests = item.config.stash.get(failed_subtests_key, None)
-    if failed_subtests is not None and report.nodeid in failed_subtests:
-        del failed_subtests[report.nodeid]
+    key = _failed_subtests_lookup_key(report)
+    if failed_subtests is not None and key in failed_subtests:
+        del failed_subtests[key]
 
 
 def _remove_failed_subtest_reports_from_stats(
@@ -485,7 +506,7 @@ def _remove_failed_subtest_reports_from_stats(
     _remove_subtest_reports("subtests passed")
 
 
-def _get_num_failed_subtests(item, nodeid):
+def _get_num_failed_subtests(item):
     """
     Return the number of failed subtests.
 
@@ -496,7 +517,7 @@ def _get_num_failed_subtests(item, nodeid):
 
     failed_subtests = item.config.stash.get(failed_subtests_key, None)
     if failed_subtests is not None:
-        return failed_subtests.get(nodeid, 0)
+        return failed_subtests.get(_failed_subtests_lookup_key(item), 0)
 
     return 0
 
@@ -566,9 +587,7 @@ def _should_not_rerun(item, report, reruns):
     xfail = hasattr(report, "wasxfail")
     is_terminal_error = any(item._terminal_errors.values())
     condition = get_reruns_condition(item)
-    has_failed_subtests = (
-        report.when == "call" and _get_num_failed_subtests(item, report.nodeid) > 0
-    )
+    has_failed_subtests = report.when == "call" and _get_num_failed_subtests(item) > 0
 
     return (
         item.execution_count > reruns
@@ -1004,10 +1023,7 @@ def pytest_runtest_teardown(item, nextitem):
     # which leaves the call phase itself passing.
     if (
         item.execution_count <= reruns
-        and (
-            any(_test_failed_statuses.values())
-            or _get_num_failed_subtests(item, item.nodeid) > 0
-        )
+        and (any(_test_failed_statuses.values()) or _get_num_failed_subtests(item) > 0)
         and not any(item._test_xfailed.values())
         and not any(item._terminal_errors.values())
         and get_reruns_condition(item)
