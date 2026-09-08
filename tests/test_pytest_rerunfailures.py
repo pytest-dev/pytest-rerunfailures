@@ -13,6 +13,7 @@ from pytest_rerunfailures import (
     StatusDB,
     SubtestReport,
     XDistHooks,
+    _failed_subtests_lookup_key,
 )
 
 pytest_plugins = "pytester"
@@ -1845,6 +1846,10 @@ def test_only_rerun_flag_in_flaky_marker(
         ("only_rerun=[ValueError]", False),
         ("rerun_except=[AssertionError]", False),
         ("rerun_except=[ValueError]", True),
+        ("only_rerun=AssertionError", True),
+        ("only_rerun=ValueError", False),
+        ("rerun_except=AssertionError", False),
+        ("rerun_except=ValueError", True),
     ],
 )
 def test_rerun_filter_accepts_exception_classes(testdir, filter_kwarg, should_rerun):
@@ -2640,6 +2645,22 @@ def test_max_suite_reruns_without_reruns_has_no_effect(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=0)
 
 
+@pytest.mark.parametrize(
+    ("has_node_id_api", "expected"),
+    [
+        pytest.param(False, mock.sentinel.nodeid, id="legacy-api"),
+        pytest.param(True, mock.sentinel.id, id="structured-api"),
+    ],
+)
+def test_failed_subtests_lookup_key_uses_api_capability(
+    monkeypatch, has_node_id_api, expected
+):
+    monkeypatch.setattr("pytest_rerunfailures.HAS_PYTEST_NODE_ID", has_node_id_api)
+    report = SimpleNamespace(nodeid=mock.sentinel.nodeid, id=mock.sentinel.id)
+
+    assert _failed_subtests_lookup_key(report) is expected
+
+
 @pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
 def test_failing_subtests_are_rerun(testdir):
     testdir.makepyfile(
@@ -2650,6 +2671,33 @@ def test_failing_subtests_are_rerun(testdir):
             with subtests.test("Fails on first attempt"):
                 {indent(temporary_failure(), "    ")}
     """
+    )
+
+    result = testdir.runpytest("--reruns", "1")
+    assert result.ret == 0
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+@pytest.mark.skipif(not has_subtests, reason="Only supported on pytest 9.0 and newer")
+def test_unrelated_report_id_does_not_prevent_failing_subtest_rerun(testdir):
+    testdir.makeconftest(
+        """
+        import pytest
+
+        @pytest.hookimpl(wrapper=True, tryfirst=True)
+        def pytest_runtest_makereport(item, call):
+            report = yield
+            if not hasattr(type(report), "id"):
+                report.id = "unrelated-plugin-id"
+            return report
+        """
+    )
+    testdir.makepyfile(
+        f"""
+        def test_subtests(subtests):
+            with subtests.test("Fails on first attempt"):
+                {indent(temporary_failure(), "    ")}
+        """
     )
 
     result = testdir.runpytest("--reruns", "1")
