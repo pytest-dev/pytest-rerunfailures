@@ -1,0 +1,1 @@
+Fix subtest reruns with newer pytest versions that use structured ``NodeId`` values internally.
