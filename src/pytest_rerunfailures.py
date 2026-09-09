@@ -1,5 +1,6 @@
 import hashlib
 import importlib.metadata
+import inspect
 import os
 import platform
 import re
@@ -302,20 +303,74 @@ def get_reruns_delay_backoff_factor(item):
     return factor
 
 
-def get_reruns_condition(item):
+def get_reruns_condition(item, failures=()):
     rerun_marker = _get_marker(item)
 
-    condition = True
-    if rerun_marker is not None and "condition" in rerun_marker.kwargs:
-        condition = evaluate_condition(
-            item, rerun_marker, rerun_marker.kwargs["condition"]
-        )
+    if rerun_marker is None or "condition" not in rerun_marker.kwargs:
+        return True
 
-    return condition
+    condition = rerun_marker.kwargs["condition"]
+    condition_results = getattr(item, "_rerun_condition_results", {})
+    failures = list(failures)
+    if not failures:
+        failures = [("attempt", 0, None)]
+    if not callable(condition) and not isinstance(condition, str):
+        failures = failures[:1]
+
+    for phase, index, excinfo in failures:
+        cache_key = (phase, index)
+        if cache_key not in condition_results:
+            condition_results[cache_key] = evaluate_condition(
+                item, rerun_marker, condition, excinfo
+            )
+            item._rerun_condition_results = condition_results
+        if condition_results[cache_key]:
+            return True
+    return False
 
 
-def evaluate_condition(item, mark, condition: object) -> bool:
+def _warn_condition_error(msglines):
+    """Report a bad condition without letting warning filters abort pytest."""
+    try:
+        warnings.warn("\n".join(msglines))
+    except Warning:
+        pass
+
+
+def evaluate_condition(item, mark, condition: object, excinfo=None) -> bool:
     # copy from python3.8 _pytest.skipping.py
+
+    error = excinfo.value if excinfo is not None else None
+
+    # Callable condition.
+    if callable(condition):
+        try:
+            try:
+                signature = inspect.signature(condition)
+            except (TypeError, ValueError):
+                call_with_error = True
+            else:
+                try:
+                    signature.bind(error)
+                except TypeError:
+                    try:
+                        signature.bind()
+                    except TypeError:
+                        _warn_condition_error([
+                            f"Error evaluating {mark.name!r} condition as a callable",
+                            "Condition callable must accept zero or one argument",
+                        ])
+                        return False
+                    call_with_error = False
+                else:
+                    call_with_error = True
+            return bool(condition(error) if call_with_error else condition())
+        except Exception as exc:
+            _warn_condition_error([
+                f"Error evaluating {mark.name!r} condition as a callable",
+                *traceback.format_exception_only(type(exc), exc),
+            ])
+            return False
 
     result = False
     # String condition.
@@ -328,6 +383,7 @@ def evaluate_condition(item, mark, condition: object) -> bool:
         }
         if hasattr(item, "obj"):
             globals_.update(item.obj.__globals__)  # type: ignore[attr-defined]
+        globals_["error"] = error
         try:
             filename = f"<{mark.name} condition>"
             condition_code = compile(condition, filename, "eval")
@@ -339,14 +395,16 @@ def evaluate_condition(item, mark, condition: object) -> bool:
                 "    " + " " * (exc.offset or 0) + "^",
                 "SyntaxError: invalid syntax",
             ]
-            fail("\n".join(msglines), pytrace=False)
+            _warn_condition_error(msglines)
+            return False
         except Exception as exc:
             msglines = [
                 f"Error evaluating {mark.name!r} condition",
                 "    " + condition,
                 *traceback.format_exception_only(type(exc), exc),
             ]
-            fail("\n".join(msglines), pytrace=False)
+            _warn_condition_error(msglines)
+            return False
 
     # Boolean condition.
     else:
@@ -585,19 +643,20 @@ def _should_hard_fail_on_error(item, report, excinfo):
         return (not matches_rerun_only) or matches_rerun_except
 
 
-def _should_not_rerun(item, report, reruns):
+def _should_not_rerun(item, report, reruns, condition):
     xfail = hasattr(report, "wasxfail")
     is_terminal_error = any(item._terminal_errors.values())
-    condition = get_reruns_condition(item)
     has_failed_subtests = report.when == "call" and _get_num_failed_subtests(item) > 0
 
-    return (
+    if (
         item.execution_count > reruns
         or (not report.failed and not has_failed_subtests)
         or xfail
         or is_terminal_error
-        or not condition
-    )
+    ):
+        return True
+
+    return not condition
 
 
 def is_master(config):
@@ -948,6 +1007,37 @@ def _is_rerun_path_excluded(item):
     )
 
 
+def _get_reruns_condition_failures(item):
+    """Return each failed phase exception recorded during this attempt."""
+    failed_statuses = getattr(item, "_test_failed_statuses", {})
+    excinfos = getattr(item, "_rerun_condition_excinfos", {})
+    failures = []
+    for phase in ("setup", "call", "teardown"):
+        phase_excinfos = excinfos.get(phase, ())
+        if phase_excinfos:
+            failures.extend(
+                (phase, index, excinfo) for index, excinfo in enumerate(phase_excinfos)
+            )
+        elif failed_statuses.get(phase):
+            failures.append((phase, 0, None))
+    if not failures and _get_num_failed_subtests(item) > 0:
+        failures.append(("call", 0, None))
+    return failures
+
+
+def _reruns_condition_matches_phase(item, phase):
+    """Return whether a failed phase matched the attempt's condition."""
+    rerun_marker = _get_marker(item)
+    if rerun_marker is None or "condition" not in rerun_marker.kwargs:
+        return True
+    condition_results = getattr(item, "_rerun_condition_results", {})
+    return any(
+        result
+        for (result_phase, _), result in condition_results.items()
+        if result_phase == phase
+    )
+
+
 def _teardown_suspended_finalizers(item, call, report):
     """Tear down the scopes held back for a re-run that will not happen.
 
@@ -1009,7 +1099,6 @@ def pytest_runtest_teardown(item, nextitem):
         return
 
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
-
     max_suite_reruns = item.session.config.option.max_suite_reruns
     if (
         max_suite_reruns is not None
@@ -1020,15 +1109,15 @@ def pytest_runtest_teardown(item, nextitem):
 
     # Only remove non-function level actions from the stack if the test is to be re-run
     # Exceeding re-run limits, being free of failue statuses, encountering
-    # allowable exceptions, and a falsy flaky condition indicate that the test is
-    # not to be re-ran. A failure can also be carried by failed subtests alone,
-    # which leaves the call phase itself passing.
+    # allowable exceptions indicate that the test may need to be re-run. The
+    # final condition decision is made after teardown, when every failed phase
+    # is known. A failure can also be carried by failed subtests alone, which
+    # leaves the call phase itself passing.
     if (
         item.execution_count <= reruns
         and (any(_test_failed_statuses.values()) or _get_num_failed_subtests(item) > 0)
         and not any(item._test_xfailed.values())
         and not any(item._terminal_errors.values())
-        and get_reruns_condition(item)
     ):
         # clean cached results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
@@ -1061,8 +1150,18 @@ def pytest_runtest_makereport(item, call):
         # create a dict to store xfail results for each stage
         setattr(item, "_test_xfailed", {})
 
+        # Keep exception state on the worker-side item. TestReport attributes
+        # are serialized by pytest-xdist and ExceptionInfo is not serializable.
+        setattr(item, "_rerun_condition_excinfos", {})
+        setattr(item, "_rerun_condition_results", {})
+
+    if call.excinfo is not None and result.failed:
+        item._rerun_condition_excinfos.setdefault(result.when, []).append(call.excinfo)
+
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
-    _test_failed_statuses[result.when] = result.failed
+    _test_failed_statuses[result.when] = (
+        _test_failed_statuses.get(result.when, False) or result.failed
+    )
     item._test_failed_statuses = _test_failed_statuses
     item._terminal_errors[result.when] = _should_hard_fail_on_error(
         item, result, call.excinfo
@@ -1072,8 +1171,10 @@ def pytest_runtest_makereport(item, call):
         result.when, False
     ) or hasattr(result, "wasxfail")
 
-    if result.when == "teardown" and item._terminal_errors["teardown"]:
-        result = _teardown_suspended_finalizers(item, call, result)
+    if result.when == "teardown" and getattr(item, "_finalizers_suspended", False):
+        condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
+        if item._terminal_errors["teardown"] or not condition:
+            result = _teardown_suspended_finalizers(item, call, result)
 
     return result
 
@@ -1117,10 +1218,25 @@ def pytest_runtest_protocol(item, nextitem):
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
+        condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         rerun_triggered = False
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
-            if rerun_triggered or _should_not_rerun(item, report, reruns):
+            if rerun_triggered:
+                item.ihook.pytest_runtest_logreport(report=report)
+            elif (
+                condition
+                and not _reruns_condition_matches_phase(item, report.when)
+                and (
+                    report.failed
+                    or (report.when == "call" and _get_num_failed_subtests(item) > 0)
+                )
+            ):
+                # Another failed phase matched the condition and will carry
+                # this intermediate attempt's rerun report. Do not publish a
+                # nonmatching failure as a final result first.
+                continue
+            elif _should_not_rerun(item, report, reruns, condition):
                 # no rerun needed or one already triggered, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
@@ -1151,6 +1267,10 @@ def pytest_runtest_protocol(item, nextitem):
 
                 rerun_triggered = True
 
+        # Do not retain ExceptionInfo tracebacks and their frame locals for the
+        # lifetime of the collected item/session.
+        item._rerun_condition_excinfos.clear()
+        item._rerun_condition_results.clear()
         need_to_run = rerun_triggered
 
         item.ihook.pytest_runtest_logfinish(nodeid=item.nodeid, location=item.location)
