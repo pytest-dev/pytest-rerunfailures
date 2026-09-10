@@ -1136,7 +1136,7 @@ def test_only_rerun_ignores_suppressed_context(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=0)
 
 
-def test_rerun_except_matches_wrapped_cause(testdir):
+def test_rerun_except_matches_explicit_cause(testdir):
     testdir.makepyfile(
         """
         def test_wrapped():
@@ -1148,6 +1148,41 @@ def test_rerun_except_matches_wrapped_cause(testdir):
     )
     result = testdir.runpytest("--reruns", "1", "--rerun-except", "ValueError")
     assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_rerun_except_does_not_match_implicit_context(testdir):
+    testdir.makepyfile(
+        """
+        def test_wrapped():
+            try:
+                assert False, "genuine failure"
+            except AssertionError:
+                raise ConnectionError("network blip")
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "--rerun-except", "AssertionError")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_only_rerun_and_rerun_except_implicit_context(testdir):
+    testdir.makepyfile(
+        """
+        def test_wrapped():
+            try:
+                assert False, "genuine failure"
+            except AssertionError:
+                raise ConnectionError("network blip")
+        """
+    )
+    result = testdir.runpytest(
+        "--reruns",
+        "2",
+        "--only-rerun",
+        "ConnectionError",
+        "--rerun-except",
+        "AssertionError",
+    )
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
 def test_no_rerun_on_strict_xfail_with_only_rerun_flag(testdir):

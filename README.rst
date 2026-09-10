@@ -133,6 +133,12 @@ would only rerun those errors that does not match with ``AssertionError`` or ``O
 
    $ pytest --reruns 5 --rerun-except AssertionError --rerun-except OSError
 
+Matching for ``--rerun-except`` follows explicit ``__cause__`` links
+(``raise ... from ...``), so ``raise RuntimeError(...) from ValueError(...)``
+is excluded by ``--rerun-except ValueError``. Implicit ``__context__`` from
+``except`` / ``finally`` is not walked, so a ``ConnectionError`` raised inside
+``except AssertionError`` is still rerun by ``--rerun-except AssertionError``.
+
 Exclude test paths from re-runs
 --------------------------------
 
