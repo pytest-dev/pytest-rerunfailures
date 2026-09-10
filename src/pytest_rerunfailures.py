@@ -1223,6 +1223,8 @@ def pytest_runtest_protocol(item, nextitem):
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
             if rerun_triggered:
+                if report.failed:
+                    report.outcome = "rerun"
                 item.ihook.pytest_runtest_logreport(report=report)
             elif (
                 condition
