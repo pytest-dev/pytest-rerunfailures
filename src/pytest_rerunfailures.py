@@ -596,19 +596,34 @@ def _get_rerun_filter_regex(item, regex_name):
 
 
 def _matches_any_rerun_error(rerun_errors, excinfo):
-    return _try_match_error(rerun_errors, excinfo)
+    return _try_match_error(rerun_errors, excinfo, follow_context=True)
 
 
 def _matches_any_rerun_except_error(rerun_except_errors, excinfo):
-    return _try_match_error(rerun_except_errors, excinfo)
+    return _try_match_error(rerun_except_errors, excinfo, follow_context=False)
 
 
-def _try_match_error(rerun_errors, excinfo):
-    if excinfo:
-        err = f"{excinfo.type.__name__}: {excinfo.value}"
+def _iter_exception_chain(exc, *, follow_context=True):
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        yield exc
+        if exc.__cause__ is not None:
+            exc = exc.__cause__
+        elif follow_context and not getattr(exc, "__suppress_context__", False):
+            exc = exc.__context__
+        else:
+            exc = None
+
+
+def _try_match_error(rerun_errors, excinfo, *, follow_context=True):
+    if not excinfo:
+        return False
+    for exc in _iter_exception_chain(excinfo.value, follow_context=follow_context):
+        err = f"{type(exc).__name__}: {exc}"
         for rerun_error in rerun_errors:
             if isinstance(rerun_error, type) and issubclass(rerun_error, BaseException):
-                if issubclass(excinfo.type, rerun_error):
+                if isinstance(exc, rerun_error):
                     return True
             elif re.search(rerun_error, err):
                 return True

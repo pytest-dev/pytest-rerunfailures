@@ -110,6 +110,11 @@ would only rerun those errors that match ``AssertionError`` or ``ValueError``:
 
    $ pytest --reruns 5 --only-rerun AssertionError --only-rerun ValueError
 
+The same matching is applied to each exception in the ``__cause__`` /
+``__context__`` chain, so a wrapped error such as
+``raise RuntimeError(...) from MemoryError(...)`` is still rerun by
+``--only-rerun MemoryError``.
+
 Re-run all failures other than matching certain expressions
 -----------------------------------------------------------
 
@@ -127,6 +132,12 @@ would only rerun those errors that does not match with ``AssertionError`` or ``O
 .. code-block:: bash
 
    $ pytest --reruns 5 --rerun-except AssertionError --rerun-except OSError
+
+Matching for ``--rerun-except`` follows explicit ``__cause__`` links
+(``raise ... from ...``), so ``raise RuntimeError(...) from ValueError(...)``
+is excluded by ``--rerun-except ValueError``. Implicit ``__context__`` from
+``except`` / ``finally`` is not walked, so a ``ConnectionError`` raised inside
+``except AssertionError`` is still rerun by ``--rerun-except AssertionError``.
 
 Exclude test paths from re-runs
 --------------------------------

@@ -1,0 +1,1 @@
+Match ``only_rerun`` against the full exception chain (``__cause__`` and ``__context__``), not only the outermost exception. Match ``rerun_except`` against explicit ``__cause__`` links only, so implicit ``except`` / ``finally`` context does not suppress reruns.
