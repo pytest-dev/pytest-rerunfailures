@@ -72,7 +72,13 @@ maximum number of times you'd like the tests to run:
 
   $ pytest --reruns 5
 
-Failed fixture or setup_class will also be re-executed.
+Fixture support
+~~~~~~~~~~~~~~~
+
+Failures during fixture setup or ``setup_class`` are also rerun. This includes
+class-, module-, package-, and session-scoped fixtures. A rerun repeats only
+the affected test item: fixtures that have already completed setup remain
+cached at their scope and are torn down once after reruns.
 
 To add a delay time between re-runs use the ``--reruns-delay`` command line
 option with the amount of seconds that you would like wait before the next

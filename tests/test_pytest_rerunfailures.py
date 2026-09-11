@@ -881,6 +881,29 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
     assert_outcomes(result, passed=2, rerun=1)
 
 
+def test_rerun_on_package_scope_fixture_with_reruns(testdir):
+    """A package-scoped fixture that fails during setup is rerun."""
+    testdir.makepyfile(
+        """
+        import pytest
+
+        attempts = 0
+
+        @pytest.fixture(scope="package", autouse=True)
+        def package_fixture():
+            global attempts
+            attempts += 1
+            if attempts == 1:
+                assert False
+
+        def test_pass():
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "1")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
 def test_rerun_recreates_test_class_instance(testdir):
     """
     Case: state stored on ``self`` by a failed attempt must not leak into the
