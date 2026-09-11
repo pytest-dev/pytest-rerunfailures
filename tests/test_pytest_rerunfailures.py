@@ -1030,9 +1030,29 @@ def test_single_attempt_triggers_at_most_one_rerun(testdir):
 
     stdout = result.stdout.str()
     assert "ATTEMPTS: 2" in stdout
-    assert (
-        "FIRST ATTEMPT REPORTS: [('call', 'rerun'), ('teardown', 'failed')]" in stdout
+    assert "FIRST ATTEMPT REPORTS: [('call', 'rerun'), ('teardown', 'rerun')]" in stdout
+
+
+def test_call_and_teardown_failures_are_rerun_together(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def demo_fixture(request):
+            yield
+            if request.node.execution_count == 1:
+                raise RuntimeError("teardown failure")
+
+        def test_demo(demo_fixture, request):
+            if request.node.execution_count == 1:
+                pytest.fail("call failure")
+        """
     )
+
+    result = testdir.runpytest("--reruns", "1")
+
+    assert_outcomes(result, passed=1, rerun=2, failed=0, error=0)
 
 
 def test_pytest_runtest_logfinish_is_called(testdir):
@@ -2093,7 +2113,7 @@ def test_rerunnable_teardown_error_tears_down_module_fixture_once(testdir):
     )
 
     result = testdir.runpytest("-s")
-    assert_outcomes(result, passed=0, failed=1, error=3, rerun=2)
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=4)
     assert result.stdout.str().count("module teardown") == 1
 
 

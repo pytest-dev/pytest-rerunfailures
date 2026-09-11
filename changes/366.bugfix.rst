@@ -1,0 +1,1 @@
+Mark teardown failures from an attempt that is rerun as reruns, so a later successful attempt is not reported as an error.
