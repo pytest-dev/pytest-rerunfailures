@@ -1,4 +1,5 @@
 import random
+import re
 import time
 from textwrap import indent
 from types import SimpleNamespace
@@ -535,6 +536,33 @@ def test_extra_test_summary_for_reruns(testdir):
     result = testdir.runpytest("--reruns", "1", "-r", "R")
     result.stdout.fnmatch_lines_random(["RERUN test_*:*"])
     assert "1 rerun" in result.stdout.str()
+
+
+def test_rerun_summary_shows_each_attempt_outcome(testdir):
+    testdir.makepyfile(
+        """
+        attempts = 0
+
+        def test_eventually_passes():
+            global attempts
+            attempts += 1
+            assert attempts == 3
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "-r", "R", "--color", "yes")
+
+    stdout = result.stdout.str()
+    assert "\x1b[33mRERUN " in stdout
+    assert "\x1b[32mPASSED " in stdout
+    summary = re.sub(r"\x1b\[[0-9;]*m", "", stdout).split("rerun test summary info", 1)[
+        1
+    ]
+    statuses = [
+        line.split(maxsplit=1)[0]
+        for line in summary.splitlines()
+        if "::test_eventually_passes" in line
+    ]
+    assert statuses == ["RERUN", "RERUN", "PASSED"]
 
 
 def test_rerun_show_tracebacks_for_eventual_pass(testdir):

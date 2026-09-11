@@ -1,0 +1,1 @@
+Show each rerun attempt and its final outcome in the rerun test summary info section.
