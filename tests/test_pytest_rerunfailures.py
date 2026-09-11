@@ -883,8 +883,9 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
 
 def test_rerun_on_package_scope_fixture_with_reruns(testdir):
     """A package-scoped fixture that fails during setup is rerun."""
-    testdir.makepyfile(
-        """
+    testdir.makepyfile(**{
+        "pkg/__init__.py": "",
+        "pkg/test_foo.py": """
         import pytest
 
         attempts = 0
@@ -898,8 +899,8 @@ def test_rerun_on_package_scope_fixture_with_reruns(testdir):
 
         def test_pass():
             pass
-        """
-    )
+        """,
+    })
     result = testdir.runpytest("--reruns", "1")
     assert_outcomes(result, passed=1, rerun=1)
 
