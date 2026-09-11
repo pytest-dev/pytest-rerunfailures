@@ -1129,6 +1129,33 @@ def test_only_rerun_ini(testdir):
     assert_outcomes(result, passed=0, failed=2, rerun=1)
 
 
+def test_only_rerun_ini_multiple(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+
+        def test_key_error():
+            raise KeyError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun =
+            AssertionError
+            ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=3, rerun=2)
+
+
 @pytest.mark.parametrize(
     "only_rerun,should_rerun",
     [
