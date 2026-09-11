@@ -189,6 +189,11 @@ def pytest_addoption(parser):
         RERUNS_DELAY_BACKOFF_FACTOR_DESC,
         type=arg_type,
     )
+    parser.addini(
+        "only_rerun",
+        "only rerun errors matching the regex provided.",
+        type="linelist",
+    )
 
 
 def _get_global_reruns(config):
@@ -591,6 +596,8 @@ def _get_rerun_filter_regex(item, regex_name):
             regex = [regex]
     else:
         regex = getattr(item.session.config.option, regex_name)
+        if regex is None and regex_name == "only_rerun":
+            regex = item.session.config.getini("only_rerun")
 
     return regex
 

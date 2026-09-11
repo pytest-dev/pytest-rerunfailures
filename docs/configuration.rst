@@ -35,6 +35,21 @@ Below are the ``pytest.ini`` options supported by the plugin:
      [pytest]
      reruns_delay = 2.5
 
+``only_rerun``
+^^^^^^^^^^^^^^
+
+- **Description**: Sets regular expressions for errors that should be rerun. Add one expression per line.
+- **Type**: List of strings
+- **Default**: Not set (all errors are eligible for reruns).
+- **Example**:
+
+  .. code-block:: ini
+
+     [pytest]
+     only_rerun =
+         AssertionError
+         ValueError
+
 Example
 -------
 
@@ -45,6 +60,7 @@ To configure your test environment for consistent retries and delays, add the fo
    [pytest]
    reruns = 3
    reruns_delay = 2.0
+   only_rerun = AssertionError
 
 This setup ensures that:
 

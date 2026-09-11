@@ -1107,6 +1107,28 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     )
 
 
+def test_only_rerun_ini(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = AssertionError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
 @pytest.mark.parametrize(
     "only_rerun,should_rerun",
     [
