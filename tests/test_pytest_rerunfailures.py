@@ -22,6 +22,24 @@ has_xdist = HAS_PYTEST_HANDLECRASHITEM
 has_subtests = SubtestReport is not None
 
 
+@pytest.fixture
+def testdir(testdir):
+    """Keep nested pytester sessions free of pytest-randomly.
+
+    pytest-randomly is still auto-loaded in in-process ``runpytest`` sessions
+    even when the outer invocation used ``-p no:randomly`` (issue #218).
+    Several tests here assert fixture teardown relative to collection order,
+    which that shuffling breaks.
+    """
+    original = testdir.runpytest
+
+    def runpytest(*args, **kwargs):
+        return original("-p", "no:randomly", *args, **kwargs)
+
+    testdir.runpytest = runpytest
+    return testdir
+
+
 def temporary_failure(count=1):
     return f"""
             import py
