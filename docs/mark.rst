@@ -97,7 +97,8 @@ warning and does not re-run for that failure.
 ^^^^^^^^^^^^^^
 
 Re-run the test only for specific exception types or patterns.
-That overrides the :option:`--only-rerun` command-line option.
+That overrides the :option:`--only-rerun` command-line option and the
+``only_rerun`` ini setting.
 
 .. code-block:: python
 
@@ -109,7 +110,8 @@ That overrides the :option:`--only-rerun` command-line option.
 ^^^^^^^^^^^^^^^^
 
 Exclude specific exception types or patterns from triggering a re-run.
-That overrides the :option:`--rerun-except` command-line option.
+That overrides the :option:`--rerun-except` command-line option and the
+``rerun_except`` ini setting.
 
 .. code-block:: python
 

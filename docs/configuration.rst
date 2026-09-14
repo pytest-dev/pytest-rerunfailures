@@ -38,7 +38,7 @@ Below are the ``pytest.ini`` options supported by the plugin:
 ``only_rerun``
 ^^^^^^^^^^^^^^
 
-- **Description**: Sets regular expressions for errors that should be rerun. Add one expression per line.
+- **Description**: Sets regular expressions for errors that should be rerun. Add one expression per line. The ``--only-rerun`` command-line flag replaces this list rather than adding to it, and a project-wide ``only_rerun`` also applies to tests carrying a plain ``@pytest.mark.flaky(reruns=...)`` marker — a marked test raising a non-matching error stops rerunning.
 - **Type**: List of strings
 - **Default**: Not set (all errors are eligible for reruns).
 - **Example**:
@@ -47,6 +47,21 @@ Below are the ``pytest.ini`` options supported by the plugin:
 
      [pytest]
      only_rerun =
+         AssertionError
+         ValueError
+
+``rerun_except``
+^^^^^^^^^^^^^^^^
+
+- **Description**: Sets regular expressions for errors that should not be rerun. Add one expression per line. The ``--rerun-except`` command-line flag replaces this list rather than adding to it.
+- **Type**: List of strings
+- **Default**: Not set (all errors are eligible for reruns).
+- **Example**:
+
+  .. code-block:: ini
+
+     [pytest]
+     rerun_except =
          AssertionError
          ValueError
 
@@ -66,6 +81,7 @@ This setup ensures that:
 
 - Failed tests will be retried up to 3 times.
 - There will be a 2-second delay between each retry.
+- Only failures matching ``AssertionError`` are retried; other errors fail without rerunning.
 
 Overriding ``pytest.ini`` Options
 ---------------------------------
