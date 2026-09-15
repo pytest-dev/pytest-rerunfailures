@@ -12,6 +12,7 @@ import time
 import traceback
 import warnings
 from contextlib import suppress
+from itertools import chain
 from typing import Any
 
 import pytest
@@ -705,15 +706,6 @@ def is_master(config):
     return not (hasattr(config, "workerinput") or hasattr(config, "slaveinput"))
 
 
-class RerunSummary:
-    def __init__(self):
-        self.reports = []
-
-    def pytest_runtest_logreport(self, report):
-        if hasattr(report, "rerun"):
-            self.reports.append(report)
-
-
 def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
@@ -724,7 +716,6 @@ def pytest_configure(config):
         "after each attempt for an exponential backoff.",
     )
     check_options(config)
-    config.pluginmanager.register(RerunSummary(), "pytest-rerunfailures-summary")
 
     if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
         config.pluginmanager.register(XDistHooks())
@@ -803,6 +794,9 @@ class XDistHooks:
                     )
                     report.longrepr = error_msg
 
+        # The attempt index lets the rerun summary order this report
+        # relative to the rescheduled attempt's own reports.
+        report.rerun = db.get_test_failures(crashitem)
         db.add_test_failure(crashitem)
 
 
@@ -1348,71 +1342,58 @@ def pytest_terminal_summary(terminalreporter):
     lines = show_rerun(terminalreporter, show_tracebacks=show_tracebacks)
     if lines:
         tr.write_sep("=", "rerun test summary info", cyan=True, bold=True)
-        for line in lines:
-            status, _, _ = line.partition(" ")
-            markup = {
-                "RERUN": {"yellow": True},
-                "PASSED": {"green": True},
-                "FAILED": {"red": True},
-                "ERROR": {"red": True},
-                "SKIPPED": {"yellow": True},
-                "XFAIL": {"yellow": True},
-                "XPASS": {"yellow": True},
-            }.get(status, {})
-            tr.write_line(line, **markup)
+        for line, markup in lines:
+            tr.write_line(line, **(markup or {}))
 
 
 def show_rerun(terminalreporter, show_tracebacks=False):
-    lines = []
-    summary = terminalreporter.config.pluginmanager.get_plugin(
-        "pytest-rerunfailures-summary"
-    )
-    if summary is not None:
-        attempts = {}
-        rerun_nodeids = set()
-        for report in summary.reports:
-            if report.outcome == "rerun":
-                rerun_nodeids.add(report.nodeid)
-            if report.when not in ("setup", "call", "teardown"):
-                continue
-            key = (report.nodeid, report.rerun)
-            current = attempts.get(key)
-            if current is None or _rerun_summary_priority(
-                report
-            ) > _rerun_summary_priority(current):
-                attempts[key] = report
+    config = terminalreporter.config
+    attempts = {}
+    rerun_nodeids = set()
+    for report in chain.from_iterable(terminalreporter.stats.values()):
+        if not hasattr(report, "rerun"):
+            continue
+        if report.outcome == "rerun":
+            rerun_nodeids.add(report.nodeid)
+        attempts.setdefault(report.nodeid, []).append(report)
 
-        for report in attempts.values():
-            if report.nodeid not in rerun_nodeids:
+    lines = []
+    for nodeid, reports in attempts.items():
+        if nodeid not in rerun_nodeids:
+            continue
+        reports.sort(key=lambda report: (report.rerun, _phase_order(report.when)))
+        for report in reports:
+            # A passed setup/teardown report carries no information.
+            if report.passed and report.when in ("setup", "teardown"):
                 continue
-            status = _rerun_summary_status(report)
-            lines.append(f"{status} {report.nodeid}")
-            if show_tracebacks and status == "RERUN" and report.longrepr:
-                lines.extend(str(report.longrepr).splitlines())
-    else:
-        for rep in terminalreporter.stats.get("rerun", []):
-            lines.append(f"RERUN {rep.nodeid}")
-            if show_tracebacks and rep.longrepr:
-                lines.extend(str(rep.longrepr).splitlines())
+            _, _, word = config.hook.pytest_report_teststatus(
+                report=report, config=config
+            )
+            if isinstance(word, tuple):
+                word, markup = word
+            else:
+                markup = _outcome_markup(report)
+            lines.append((f"{word or report.outcome.upper()} {report.nodeid}", markup))
+            if show_tracebacks and report.outcome == "rerun" and report.longrepr:
+                for tb_line in str(report.longrepr).splitlines():
+                    lines.append((tb_line, None))
     return lines
 
 
-def _rerun_summary_priority(report):
-    return (report.outcome in ("failed", "rerun"), report.when == "call")
+def _phase_order(when):
+    return {"setup": 0, "call": 1}.get(when, 2)
 
 
-def _rerun_summary_status(report):
-    if report.outcome == "rerun":
-        return "RERUN"
-    if hasattr(report, "wasxfail"):
-        return "XFAIL" if report.skipped else "XPASS"
-    if report.passed:
-        return "PASSED"
-    if report.skipped:
-        return "SKIPPED"
-    if report.when in ("setup", "teardown"):
-        return "ERROR"
-    return "FAILED"
+def _outcome_markup(report):
+    # The default colouring used by pytest's terminal reporter for status
+    # words returned without explicit markup.
+    if report.passed and not hasattr(report, "wasxfail"):
+        return {"green": True}
+    if report.passed or report.skipped:
+        return {"yellow": True}
+    if report.failed:
+        return {"red": True}
+    return {}
 
 
 @pytest.hookimpl(trylast=True)
