@@ -1,0 +1,1 @@
+Allow configuring ``only_rerun`` regular expressions in ``pytest.ini`` files.
