@@ -1135,6 +1135,176 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     )
 
 
+def test_only_rerun_ini(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = AssertionError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+def test_only_rerun_ini_multiple(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+
+        def test_key_error():
+            raise KeyError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun =
+            AssertionError
+            ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=3, rerun=2)
+
+
+def test_only_rerun_ini_override(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = AssertionError
+        """
+    )
+
+    result = testdir.runpytest("--only-rerun", "ValueError")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+    # test_assertion_error fails outright; only test_value_error is rerun,
+    # so the progress line must read F-R-F in collection order.
+    result.stdout.fnmatch_lines(["test_only_rerun_ini_override.py FRF*"])
+
+
+def test_only_rerun_ini_marker_overrides(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, only_rerun="AssertionError")
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+
+
+def test_only_rerun_ini_with_rerun_except_flag(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+
+        def test_os_error():
+            raise OSError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun =
+            AssertionError
+            ValueError
+        """
+    )
+
+    result = testdir.runpytest("--rerun-except", "ValueError")
+    assert_outcomes(result, passed=0, failed=3, rerun=1)
+
+
+def test_rerun_except_ini(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        rerun_except = ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+@pytest.mark.parametrize("option_name", ["only_rerun", "rerun_except"])
+def test_rerun_filter_ini_invalid_regex(testdir, option_name):
+    testdir.makepyfile(
+        """
+        def test_foo():
+            raise AssertionError("ERR")
+        """
+    )
+    testdir.makeini(
+        f"""
+        [pytest]
+        reruns = 1
+        {option_name} = [unclosed
+        """
+    )
+
+    result = testdir.runpytest()
+    result.stderr.fnmatch_lines_random(
+        f"*invalid regular expression for {option_name}*"
+    )
+
+
 @pytest.mark.parametrize(
     "only_rerun,should_rerun",
     [

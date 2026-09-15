@@ -115,6 +115,19 @@ The same matching is applied to each exception in the ``__cause__`` /
 ``raise RuntimeError(...) from MemoryError(...)`` is still rerun by
 ``--only-rerun MemoryError``.
 
+The default list can also live in the ``pytest.ini`` (or ``pyproject.toml``)
+file, one expression per line:
+
+.. code-block:: ini
+
+   [pytest]
+   only_rerun =
+       AssertionError
+       ValueError
+
+A ``--only-rerun`` flag on the command line replaces the ini list rather than
+accumulating with it.
+
 Re-run all failures other than matching certain expressions
 -----------------------------------------------------------
 
@@ -138,6 +151,9 @@ Matching for ``--rerun-except`` follows explicit ``__cause__`` links
 is excluded by ``--rerun-except ValueError``. Implicit ``__context__`` from
 ``except`` / ``finally`` is not walked, so a ``ConnectionError`` raised inside
 ``except AssertionError`` is still rerun by ``--rerun-except AssertionError``.
+
+The exclusion list can also live in the ``pytest.ini`` (or
+``pyproject.toml``) file as ``rerun_except``, one expression per line.
 
 Exclude test paths from re-runs
 --------------------------------
@@ -345,6 +361,10 @@ which one takes priority?
 * Top priority is the marker, such as ``@pytest.mark.flaky(reruns=1)``
 * Second priority is what's specified on the command line, like ``--reruns=2``
 * Last priority is the ``pyproject.toml`` (or ``pytest.ini``) file setting, like ``reruns = 3``
+
+The same order applies to the rerun filters: a marker's ``only_rerun`` /
+``rerun_except`` beats ``--only-rerun`` / ``--rerun-except`` on the command
+line, which in turn beats the ``only_rerun`` / ``rerun_except`` ini settings.
 
 Additionally, all three can be overridden by passing ``--force-reruns`` argument
 on the command line. Passing ``--reruns-mode=append`` makes the marker count and

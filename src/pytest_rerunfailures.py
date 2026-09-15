@@ -78,6 +78,16 @@ RERUNS_DELAY_BACKOFF_FACTOR_DESC = (
     "exponential backoff (delay * factor ** (attempt - 1)). defaults to 1.0, "
     "i.e. a constant delay."
 )
+ONLY_RERUN_DESC = (
+    "If passed, only rerun errors matching the regex provided. "
+    "Pass this flag multiple times (or list one regex per line in the ini "
+    "file) to accumulate a list of regexes to match"
+)
+RERUN_EXCEPT_DESC = (
+    "If passed, only rerun errors other than matching the regex provided. "
+    "Pass this flag multiple times (or list one regex per line in the ini "
+    "file) to accumulate a list of regexes to match"
+)
 
 
 # command line options
@@ -99,9 +109,7 @@ def pytest_addoption(parser):
         dest="only_rerun",
         type=str,
         default=None,
-        help="If passed, only rerun errors matching the regex provided. "
-        "Pass this flag multiple times to accumulate a list of regexes "
-        "to match",
+        help=ONLY_RERUN_DESC,
     )
     group._addoption(
         "--reruns",
@@ -130,9 +138,7 @@ def pytest_addoption(parser):
         dest="rerun_except",
         type=str,
         default=None,
-        help="If passed, only rerun errors other than matching the "
-        "regex provided. Pass this flag multiple times to accumulate a list "
-        "of regexes to match",
+        help=RERUN_EXCEPT_DESC,
     )
     group._addoption(
         "--rerun-exclude-path",
@@ -189,6 +195,16 @@ def pytest_addoption(parser):
         RERUNS_DELAY_BACKOFF_FACTOR_DESC,
         type=arg_type,
     )
+    parser.addini(
+        "only_rerun",
+        ONLY_RERUN_DESC,
+        type="linelist",
+    )
+    parser.addini(
+        "rerun_except",
+        RERUN_EXCEPT_DESC,
+        type="linelist",
+    )
 
 
 def _get_global_reruns(config):
@@ -213,6 +229,15 @@ def check_options(config):
     if not config.getoption("collectonly") and reruns:
         if config.option.usepdb:  # a core option
             raise pytest.UsageError("--reruns incompatible with --pdb")
+
+    for name in ("only_rerun", "rerun_except"):
+        for pattern in getattr(config.option, name) or config.getini(name):
+            try:
+                re.compile(pattern)
+            except re.error as error:
+                raise pytest.UsageError(
+                    f"invalid regular expression for {name}: {pattern!r} ({error})"
+                ) from error
 
 
 def _get_marker(item):
@@ -591,6 +616,8 @@ def _get_rerun_filter_regex(item, regex_name):
             regex = [regex]
     else:
         regex = getattr(item.session.config.option, regex_name)
+        if regex is None:
+            regex = item.session.config.getini(regex_name)
 
     return regex
 
