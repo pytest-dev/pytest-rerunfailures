@@ -1,4 +1,5 @@
 import random
+import re
 import time
 from textwrap import indent
 from types import SimpleNamespace
@@ -338,6 +339,38 @@ def test_rerun_passes_after_temporary_test_crash(testdir):
     )
     result = testdir.runpytest("-p", "xdist", "-n", "1", "--reruns", "1", "-r", "R")
     assert_outcomes(result, passed=2, rerun=1)
+    stdout = result.stdout.str()
+    assert (
+        "RERUN test_rerun_passes_after_temporary_test_crash.py::test_crash"
+        in rerun_summary_section(stdout)
+    )
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
+def test_rerun_summary_groups_attempts_by_test(testdir):
+    testdir.makepyfile(
+        """
+        import py
+
+        def _flaky(name):
+            path = py.path.local(__file__).dirpath().ensure(name + '.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            assert count >= 1
+
+        def test_flaky_a():
+            _flaky('a')
+
+        def test_flaky_b():
+            _flaky('b')
+        """
+    )
+    result = testdir.runpytest("-p", "xdist", "-n", "2", "--reruns", "1", "-r", "R")
+    stdout = result.stdout.str()
+    # xdist interleaves the reports of both tests; each test's attempts must
+    # still form a contiguous, attempt-ordered group in the summary.
+    for name in ("test_flaky_a", "test_flaky_b"):
+        assert rerun_summary_statuses(stdout, name) == ["RERUN", "PASSED"]
 
 
 @pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
@@ -535,6 +568,129 @@ def test_extra_test_summary_for_reruns(testdir):
     result = testdir.runpytest("--reruns", "1", "-r", "R")
     result.stdout.fnmatch_lines_random(["RERUN test_*:*"])
     assert "1 rerun" in result.stdout.str()
+
+
+def rerun_summary_section(stdout, keep_colors=False):
+    """Return the rerun summary section of pytest output."""
+    if not keep_colors:
+        stdout = re.sub(r"\x1b\[[0-9;]*m", "", stdout)
+    rest = stdout.split("rerun test summary info", 1)[1]
+    # The section ends at the next separator line (e.g. "short test summary
+    # info" or the result footer).
+    lines = rest.splitlines()[1:]
+    sep = re.compile(r"^[\x1b\[0-9;*m]*=")
+    end = next((i for i, line in enumerate(lines) if sep.match(line)), len(lines))
+    return "\n".join(lines[:end])
+
+
+def rerun_summary_statuses(stdout, test_name):
+    section = rerun_summary_section(stdout)
+    return [
+        line.split(maxsplit=1)[0]
+        for line in section.splitlines()
+        if f"::{test_name}" in line
+    ]
+
+
+def test_rerun_summary_shows_each_attempt_outcome(testdir):
+    testdir.makepyfile(
+        """
+        attempts = 0
+
+        def test_eventually_passes():
+            global attempts
+            attempts += 1
+            assert attempts == 3
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "-r", "R", "--color", "yes")
+
+    stdout = result.stdout.str()
+    # Scope the colour assertions to the rerun summary section: with -v the
+    # progress line already contains a green PASSED.
+    section = rerun_summary_section(stdout, keep_colors=True)
+    assert "\x1b[33mRERUN " in section
+    assert "\x1b[32mPASSED " in section
+    assert rerun_summary_statuses(stdout, "test_eventually_passes") == [
+        "RERUN",
+        "RERUN",
+        "PASSED",
+    ]
+
+
+def test_rerun_summary_shows_call_and_teardown_failures(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def bad_teardown():
+            yield
+            raise RuntimeError("teardown exploded")
+
+        def test_fails(bad_teardown):
+            assert False, "call exploded"
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-show-tracebacks")
+
+    stdout = result.stdout.str()
+    assert rerun_summary_statuses(stdout, "test_fails") == [
+        "RERUN",
+        "RERUN",
+        "FAILED",
+        "ERROR",
+    ]
+    section = rerun_summary_section(stdout)
+    assert "call exploded" in section
+    # Both rerun reports carry their traceback, including the teardown one.
+    assert "teardown exploded" in section
+
+
+def test_rerun_summary_shows_setup_error(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def broken():
+            raise RuntimeError("setup exploded")
+
+        def test_needs_fixture(broken):
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "-r", "R")
+
+    # A failed setup produces no call report, so each attempt has one line.
+    assert rerun_summary_statuses(result.stdout.str(), "test_needs_fixture") == [
+        "RERUN",
+        "ERROR",
+    ]
+
+
+def test_rerun_summary_shows_skipped_call(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def bad_teardown():
+            yield
+            raise RuntimeError("teardown exploded")
+
+        def test_skips(bad_teardown):
+            pytest.skip("not today")
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "-r", "R")
+
+    assert rerun_summary_statuses(result.stdout.str(), "test_skips") == [
+        "SKIPPED",
+        "RERUN",
+        "SKIPPED",
+        "ERROR",
+    ]
 
 
 def test_rerun_show_tracebacks_for_eventual_pass(testdir):
@@ -1147,6 +1303,176 @@ def test_only_rerun_flag(testdir, only_rerun_texts, should_rerun):
     result = testdir.runpytest(*pytest_args)
     assert_outcomes(
         result, passed=num_passed, failed=num_failed, rerun=num_reruns_actual
+    )
+
+
+def test_only_rerun_ini(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = AssertionError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+def test_only_rerun_ini_multiple(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+
+        def test_key_error():
+            raise KeyError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun =
+            AssertionError
+            ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=3, rerun=2)
+
+
+def test_only_rerun_ini_override(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = AssertionError
+        """
+    )
+
+    result = testdir.runpytest("--only-rerun", "ValueError")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+    # test_assertion_error fails outright; only test_value_error is rerun,
+    # so the progress line must read F-R-F in collection order.
+    result.stdout.fnmatch_lines(["test_only_rerun_ini_override.py FRF*"])
+
+
+def test_only_rerun_ini_marker_overrides(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1, only_rerun="AssertionError")
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun = ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+
+
+def test_only_rerun_ini_with_rerun_except_flag(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+
+        def test_os_error():
+            raise OSError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        only_rerun =
+            AssertionError
+            ValueError
+        """
+    )
+
+    result = testdir.runpytest("--rerun-except", "ValueError")
+    assert_outcomes(result, passed=0, failed=3, rerun=1)
+
+
+def test_rerun_except_ini(testdir):
+    testdir.makepyfile(
+        """
+        def test_assertion_error():
+            raise AssertionError("ERR")
+
+        def test_value_error():
+            raise ValueError("ERR")
+        """
+    )
+    testdir.makeini(
+        """
+        [pytest]
+        reruns = 1
+        rerun_except = ValueError
+        """
+    )
+
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+@pytest.mark.parametrize("option_name", ["only_rerun", "rerun_except"])
+def test_rerun_filter_ini_invalid_regex(testdir, option_name):
+    testdir.makepyfile(
+        """
+        def test_foo():
+            raise AssertionError("ERR")
+        """
+    )
+    testdir.makeini(
+        f"""
+        [pytest]
+        reruns = 1
+        {option_name} = [unclosed
+        """
+    )
+
+    result = testdir.runpytest()
+    result.stderr.fnmatch_lines_random(
+        f"*invalid regular expression for {option_name}*"
     )
 
 
