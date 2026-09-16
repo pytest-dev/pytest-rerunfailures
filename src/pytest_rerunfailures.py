@@ -1048,7 +1048,7 @@ def _restore_suspended_finalizers(item):
 def _is_rerun_path_excluded(item):
     excluded_paths = item.config.getoption("rerun_exclude_path") or []
     return any(
-        item.path.is_relative_to(item.config.rootpath / excluded_path)
+        item.path.is_relative_to(os.path.normpath(item.config.rootpath / excluded_path))
         for excluded_path in excluded_paths
     )
 
