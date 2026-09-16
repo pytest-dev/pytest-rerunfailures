@@ -33,3 +33,7 @@ To re-run only specific types of failures, use the :option:`--only-rerun` option
    pytest --reruns 3 --only-rerun AssertionError
 
 This will re-run failed tests only if they match the error type ``AssertionError``.
+
+.. include:: ../README.rst
+   :start-after: .. START-FIXTURES
+   :end-before: .. END-FIXTURES

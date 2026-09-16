@@ -882,27 +882,46 @@ def test_rerun_on_session_fixture_with_reruns(testdir):
 
 
 def test_rerun_on_package_scope_fixture_with_reruns(testdir):
-    """A package-scoped fixture that fails during setup is rerun."""
+    """A package-scoped fixture that fails during setup is rerun.
+
+    The fixture is defined in the package's conftest and used by two test
+    modules. After the failed setup is rerun, the fixture stays cached at
+    package scope for the second module, so it is set up twice in total and
+    torn down once. With module scope it would be set up three times and torn
+    down twice instead.
+    """
     testdir.makepyfile(**{
         "pkg/__init__.py": "",
-        "pkg/test_foo.py": """
+        "pkg/conftest.py": """
+        from pathlib import Path
+
         import pytest
 
-        attempts = 0
+        log = Path(__file__).parent / "fixture.log"
 
-        @pytest.fixture(scope="package", autouse=True)
+        @pytest.fixture(scope="package")
         def package_fixture():
-            global attempts
-            attempts += 1
-            if attempts == 1:
-                assert False
-
-        def test_pass():
+            with log.open("a") as f:
+                f.write("setup\\n")
+            if log.read_text().splitlines().count("setup") == 1:
+                raise Exception("first setup attempt fails")
+            yield
+            with log.open("a") as f:
+                f.write("teardown\\n")
+        """,
+        "pkg/test_foo.py": """
+        def test_pass(package_fixture):
+            pass
+        """,
+        "pkg/test_bar.py": """
+        def test_pass(package_fixture):
             pass
         """,
     })
     result = testdir.runpytest("--reruns", "1")
-    assert_outcomes(result, passed=1, rerun=1)
+    assert_outcomes(result, passed=2, rerun=1)
+    events = testdir.tmpdir.join("pkg", "fixture.log").read().splitlines()
+    assert events == ["setup", "setup", "teardown"]
 
 
 def test_rerun_recreates_test_class_instance(testdir):
