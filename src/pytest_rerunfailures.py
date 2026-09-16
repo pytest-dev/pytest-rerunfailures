@@ -12,6 +12,7 @@ import time
 import traceback
 import warnings
 from contextlib import suppress
+from itertools import chain
 from typing import Any
 
 import pytest
@@ -793,6 +794,9 @@ class XDistHooks:
                     )
                     report.longrepr = error_msg
 
+        # The attempt index lets the rerun summary order this report
+        # relative to the rescheduled attempt's own reports.
+        report.rerun = db.get_test_failures(crashitem)
         db.add_test_failure(crashitem)
 
 
@@ -1337,18 +1341,59 @@ def pytest_terminal_summary(terminalreporter):
 
     lines = show_rerun(terminalreporter, show_tracebacks=show_tracebacks)
     if lines:
-        tr._tw.sep("=", "rerun test summary info")
-        for line in lines:
-            tr._tw.line(line)
+        tr.write_sep("=", "rerun test summary info", cyan=True, bold=True)
+        for line, markup in lines:
+            tr.write_line(line, **(markup or {}))
 
 
 def show_rerun(terminalreporter, show_tracebacks=False):
+    config = terminalreporter.config
+    attempts = {}
+    rerun_nodeids = set()
+    for report in chain.from_iterable(terminalreporter.stats.values()):
+        if not hasattr(report, "rerun"):
+            continue
+        if report.outcome == "rerun":
+            rerun_nodeids.add(report.nodeid)
+        attempts.setdefault(report.nodeid, []).append(report)
+
     lines = []
-    for rep in terminalreporter.stats.get("rerun", []):
-        lines.append(f"RERUN {rep.nodeid}")
-        if show_tracebacks and rep.longrepr:
-            lines.extend(str(rep.longrepr).splitlines())
+    for nodeid, reports in attempts.items():
+        if nodeid not in rerun_nodeids:
+            continue
+        reports.sort(key=lambda report: (report.rerun, _phase_order(report.when)))
+        for report in reports:
+            # A passed setup/teardown report carries no information.
+            if report.passed and report.when in ("setup", "teardown"):
+                continue
+            _, _, word = config.hook.pytest_report_teststatus(
+                report=report, config=config
+            )
+            if isinstance(word, tuple):
+                word, markup = word
+            else:
+                markup = _outcome_markup(report)
+            lines.append((f"{word or report.outcome.upper()} {report.nodeid}", markup))
+            if show_tracebacks and report.outcome == "rerun" and report.longrepr:
+                for tb_line in str(report.longrepr).splitlines():
+                    lines.append((tb_line, None))
     return lines
+
+
+def _phase_order(when):
+    return {"setup": 0, "call": 1}.get(when, 2)
+
+
+def _outcome_markup(report):
+    # The default colouring used by pytest's terminal reporter for status
+    # words returned without explicit markup.
+    if report.passed and not hasattr(report, "wasxfail"):
+        return {"green": True}
+    if report.passed or report.skipped:
+        return {"yellow": True}
+    if report.failed:
+        return {"red": True}
+    return {}
 
 
 @pytest.hookimpl(trylast=True)

@@ -329,6 +329,7 @@ Here's an example of the output provided by the plugin when run with
   ============================ rerun test summary info =========================
   RERUN test_report.py::test_fail
   RERUN test_report.py::test_fail
+  FAILED test_report.py::test_fail
   ============================ short test summary info =========================
   FAIL test_report.py::test_fail
   ======================= 1 failed, 2 rerun in 0.02 seconds ====================
