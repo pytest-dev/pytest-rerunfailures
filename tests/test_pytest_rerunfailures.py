@@ -548,6 +548,58 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_reruns_on_exitfirst_zero_disables_reruns(testdir):
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest("--reruns", "2", "-x", "--reruns-on-exitfirst", "0")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_reruns_on_exitfirst_overrides_flaky_marker(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=2)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("-x", "--reruns-on-exitfirst", "0")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_reruns_on_exitfirst_limits_reruns(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_fail():
+            {temporary_failure(3)}"""
+    )
+    result = testdir.runpytest("--reruns", "3", "-x", "--reruns-on-exitfirst", "1")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_reruns_on_exitfirst_applies_to_maxfail(testdir):
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest(
+        "--reruns", "2", "--maxfail", "2", "--reruns-on-exitfirst", "0"
+    )
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_exitfirst_without_reruns_on_exitfirst_still_reruns(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_fail():
+            {temporary_failure(2)}"""
+    )
+    result = testdir.runpytest("--reruns", "2", "-x")
+    assert_outcomes(result, passed=1, rerun=2)
+
+
+def test_reruns_on_exitfirst_negative_rejected(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("-x", "--reruns-on-exitfirst", "-1")
+    result.stderr.fnmatch_lines_random("ERROR: --reruns-on-exitfirst must be >= 0")
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""
