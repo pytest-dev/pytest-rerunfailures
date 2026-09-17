@@ -548,6 +548,42 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_flaky_marker_with_zero_reruns_disables_rerun(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=0)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "5")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_flaky_marker_with_zero_reruns_append_mode_still_reruns(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=0)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--reruns-mode", "append")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_flaky_marker_with_zero_reruns_does_not_disable_force_reruns(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=0)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--force-reruns", "1")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""
