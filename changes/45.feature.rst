@@ -1,0 +1,3 @@
+Include reruns in the summary when ``-ra``/``-rA`` ("all") is passed, so
+``pytest -ra`` now shows the ``rerun test summary info`` section without
+requiring ``-rR``.
