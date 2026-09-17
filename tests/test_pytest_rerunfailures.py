@@ -548,6 +548,29 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_reportlog_contains_rerun_reports(testdir):
+    pytest.importorskip("pytest_reportlog")
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--report-log=log.jsonl")
+    assert_outcomes(result, passed=1, rerun=1)
+
+    import json
+
+    reports = [
+        json.loads(line)
+        for line in testdir.tmpdir.join("log.jsonl").read().splitlines()
+        if line.strip()
+    ]
+    test_reports = [r for r in reports if r.get("$report_type") == "TestReport"]
+    call_reports = [r for r in test_reports if r.get("when") == "call"]
+    assert [r["outcome"] for r in call_reports] == ["rerun", "passed"]
+    assert [r["rerun"] for r in call_reports] == [0, 1]
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""

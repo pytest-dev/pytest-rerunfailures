@@ -1,0 +1,3 @@
+Add an integration test covering ``pytest-reportlog`` compatibility: each
+attempt is emitted as a ``TestReport``, with retried failures using the
+``"rerun"`` outcome.

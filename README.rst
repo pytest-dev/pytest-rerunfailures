@@ -352,6 +352,10 @@ be marked as failed.
 Compatibility
 -------------
 
+* This plugin is compatible with
+  `pytest-reportlog <https://pypi.org/project/pytest-reportlog/>`_: each
+  attempt is emitted as a ``TestReport``, with retried failures using the
+  ``"rerun"`` outcome.
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with the core --pdb flag.
 * This plugin is *not* compatible with the plugin
