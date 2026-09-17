@@ -693,6 +693,29 @@ def test_rerun_summary_shows_skipped_call(testdir):
     ]
 
 
+def test_rerun_warning_emitted(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-warning")
+    assert_outcomes(result, passed=1, rerun=1)
+    result.stdout.fnmatch_lines_random([
+        "*PytestWarning: *test_pass* failed on attempt 1 and will be rerun*"
+    ])
+
+
+def test_no_rerun_warning_by_default(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1")
+    assert "will be rerun" not in result.stdout.str()
+
+
 def test_rerun_show_tracebacks_for_eventual_pass(testdir):
     testdir.makepyfile(
         f"""
