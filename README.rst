@@ -304,6 +304,20 @@ This is useful in large test suites to bound resource usage when many tests
 are flaky at the same time. The cap applies after rerun selection, including
 tests configured with ``--force-reruns`` and ``@pytest.mark.flaky``.
 
+Mark exhausted flaky failures as xfail
+--------------------------------------
+
+To keep flaky failures from failing the test run, pass ``--xfail-flaky``.
+A test that still fails after all its re-runs is then reported as
+``xfailed`` instead of ``failed``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 2 --xfail-flaky
+
+Only tests that were actually re-run are affected. Failures excluded from
+re-running by ``--only-rerun``/``--rerun-except`` still report as failed.
+
 Show tracebacks for retried failures
 ------------------------------------
 

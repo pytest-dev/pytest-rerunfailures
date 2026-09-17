@@ -170,6 +170,14 @@ def pytest_addoption(parser):
         help="Fail the test run with exit code 7 if a flaky test passes on a rerun.",
     )
     group._addoption(
+        "--xfail-flaky",
+        action="store_true",
+        dest="xfail_flaky",
+        help="Mark tests that still fail after exhausting their reruns as "
+        "xfailed instead of failed. Only applies to tests that were actually "
+        "rerun, and not to failures excluded by --only-rerun/--rerun-except.",
+    )
+    group._addoption(
         "--rerun-show-tracebacks",
         action="store_true",
         dest="rerun_show_tracebacks",
@@ -1285,6 +1293,20 @@ def pytest_runtest_protocol(item, nextitem):
                 # nonmatching failure as a final result first.
                 continue
             elif _should_not_rerun(item, report, reruns, condition):
+                if (
+                    item.session.config.option.xfail_flaky
+                    and report.when == "call"
+                    and report.failed
+                    and item.execution_count > reruns
+                    and item.execution_count > 1
+                    and not any(item._terminal_errors.values())
+                ):
+                    # reruns are exhausted: report the final failure as xfail
+                    report.outcome = "skipped"
+                    report.wasxfail = (
+                        f"test failed after {item.execution_count - 1} "
+                        "rerun(s), marked as xfail"
+                    )
                 # no rerun needed or one already triggered, log normally
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
