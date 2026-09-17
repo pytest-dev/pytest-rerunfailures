@@ -1,0 +1,1 @@
+Fix ``--rerun-exclude-path`` not matching paths containing ``..`` segments.

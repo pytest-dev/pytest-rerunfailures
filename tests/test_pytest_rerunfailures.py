@@ -1635,7 +1635,8 @@ def test_rerun_except_flag(testdir, rerun_except_texts, should_rerun):
     )
 
 
-def test_rerun_exclude_path_prevents_reruns_in_directory(testdir):
+@pytest.mark.parametrize("exclude_path", ["excluded", "excluded/../excluded"])
+def test_rerun_exclude_path_prevents_reruns_in_directory(testdir, exclude_path):
     testdir.makeconftest(
         """
         from pathlib import Path
@@ -1659,7 +1660,7 @@ def test_excluded_failure():
 """
     )
 
-    result = testdir.runpytest("--reruns", "2", "--rerun-exclude-path", "excluded")
+    result = testdir.runpytest("--reruns", "2", "--rerun-exclude-path", exclude_path)
 
     assert_outcomes(result, passed=0, failed=2, rerun=2)
     executions = testdir.tmpdir.join("executions").read().splitlines()
