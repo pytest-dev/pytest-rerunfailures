@@ -353,7 +353,8 @@ Compatibility
 -------------
 
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
-* This plugin is *not* compatible with the core --pdb flag.
+* When the core --pdb flag is used, reruns are disabled (a warning is
+  emitted and tests are run once, as if ``--reruns 0`` was passed).
 * This plugin is *not* compatible with the plugin
   `flaky <https://pypi.org/project/flaky/>`_, you can only have
   ``pytest-rerunfailures`` or ``flaky`` but not both.
