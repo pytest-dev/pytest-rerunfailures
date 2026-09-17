@@ -1,0 +1,1 @@
+Clarify support for rerunning failures in class-, module-, package-, and session-scoped fixture setup.
