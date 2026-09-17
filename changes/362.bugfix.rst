@@ -1,1 +1,0 @@
-Fix ``INTERNALERROR`` when ``only_rerun`` or ``rerun_except`` is given a bare exception class instead of a list.

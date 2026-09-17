@@ -1,1 +1,0 @@
-Keep the test suite passing when pytest-randomly is installed, including when the outer pytest is started with ``-p no:randomly``.
