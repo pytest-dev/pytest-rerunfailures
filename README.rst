@@ -250,6 +250,27 @@ Exception classes are also accepted and match any subclass:
        raise AssertionError()
 
 
+To request a re-run from *inside* a test -- for example when generated data
+happens to hit a known-bad case, similar to ``hypothesis.assume()`` -- use
+``rerun_if``:
+
+.. code-block:: python
+
+  from pytest_rerunfailures import RerunRequest, rerun_if
+
+  @pytest.mark.flaky(reruns=2, only_rerun=[RerunRequest])
+  def test_something_with_different_people():
+      person1, person2 = PersonFactory.build_batch(2)
+      rerun_if(person1.name == person2.name)
+      ...
+
+``rerun_if`` aborts the current attempt by raising ``RerunRequest`` if the
+condition is true, and the test is re-run while it still has re-runs left
+(``@pytest.mark.flaky(reruns=...)`` or ``--reruns``). Without a re-run
+budget the request behaves like a regular test failure. Filtering with
+``only_rerun=[RerunRequest]`` ensures only the requested condition triggers
+a re-run, not other failures.
+
 You can use ``@pytest.mark.flaky(condition)`` similarly as ``@pytest.mark.skipif(condition)``, see `pytest-mark-skipif <https://docs.pytest.org/en/6.2.x/reference.html#pytest-mark-skipif>`_
 
 .. code-block:: python

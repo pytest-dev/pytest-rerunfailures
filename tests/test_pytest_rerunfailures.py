@@ -548,6 +548,55 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_rerun_if_requests_rerun_from_inside_test(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+        from pytest_rerunfailures import rerun_if
+
+        import py
+        path = py.path.local(__file__).dirpath().ensure('test.res')
+
+        @pytest.mark.flaky(reruns=1)
+        def test_pass():
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            rerun_if(count == 0, 'first attempt has bad data')
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_if_only_rerun_restricts_to_requested_reruns(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+        from pytest_rerunfailures import RerunRequest, rerun_if
+
+        @pytest.mark.flaky(reruns=2, only_rerun=[RerunRequest])
+        def test_fail():
+            rerun_if(False)
+            assert False
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_rerun_if_without_rerun_budget_fails_normally(testdir):
+    testdir.makepyfile(
+        """
+        from pytest_rerunfailures import rerun_if
+
+        def test_fail():
+            rerun_if(True)
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""
