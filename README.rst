@@ -320,6 +320,21 @@ Each retried attempt's traceback is appended to the ``rerun test summary
 info`` section. The section is emitted automatically when the flag is set,
 so ``-rR`` is not required.
 
+Warn when a test is rerun
+-------------------------
+
+To make reruns more visible on CI, pass ``--rerun-warning``. Each time a
+test is scheduled for rerun a ``PytestWarning`` is emitted, which tools
+like `pytest-github-actions-annotate-failures
+<https://pypi.org/project/pytest-github-actions-annotate-failures/>`_ can
+turn into annotations:
+
+.. code-block:: bash
+
+   $ pytest --reruns 2 --rerun-warning
+
+Note that ``filterwarnings = error`` turns these warnings into errors.
+
 Output
 ------
 
