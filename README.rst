@@ -304,6 +304,14 @@ This is useful in large test suites to bound resource usage when many tests
 are flaky at the same time. The cap applies after rerun selection, including
 tests configured with ``--force-reruns`` and ``@pytest.mark.flaky``.
 
+The same can be done per scope: ``--max-module-reruns`` caps the total
+number of re-runs within each module and ``--max-class-reruns`` within each
+test class:
+
+.. code-block:: bash
+
+   $ pytest --reruns 3 --max-module-reruns 2 --max-class-reruns 1
+
 Show tracebacks for retried failures
 ------------------------------------
 
