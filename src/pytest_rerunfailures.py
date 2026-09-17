@@ -14,6 +14,7 @@ import warnings
 from contextlib import suppress
 from itertools import chain
 from typing import Any
+from xml.etree import ElementTree
 
 import pytest
 from _pytest.outcomes import Exit, fail
@@ -45,6 +46,11 @@ except ImportError:
 
 failed_subtests_key = _failed_subtests_key
 SubtestReport = _SubtestReport
+
+try:
+    from _pytest.junitxml import bin_xml_escape
+except ImportError:
+    bin_xml_escape = None
 
 try:
     from xdist.newhooks import pytest_handlecrashitem
@@ -728,6 +734,79 @@ def pytest_configure(config):
             )
     else:
         config.failures_db = StatusDB()  # no-op db
+
+    config.pluginmanager.register(JunitXmlRerunReporter(config))
+
+
+def _get_junitxml_plugin(config):
+    """Return the registered LogXML plugin, or None if --junitxml is off."""
+    for plugin in config.pluginmanager.get_plugins():
+        if (
+            type(plugin).__module__ == "_pytest.junitxml"
+            and type(plugin).__name__ == "LogXML"
+        ):
+            return plugin
+    return None
+
+
+class JunitXmlRerunReporter:
+    """Record failed attempts as ``flakyFailure`` elements in JUnit XML.
+
+    pytest's junitxml plugin ignores reports with outcome "rerun" and
+    finalizes the ``<testcase>`` element after every attempt's teardown
+    report, so the failure information of retried attempts is lost. Stash the
+    rerun reports and append ``<flakyFailure>`` elements (the convention used
+    by Maven Surefire and the ``flaky`` plugin; ``flakyError`` for setup and
+    teardown failures) when the final ``call`` report arrives, so they land
+    in the last attempt's ``<testcase>``.
+    """
+
+    def __init__(self, config):
+        self.config = config
+        self.pending = {}
+
+    @staticmethod
+    def _key(report):
+        return (
+            report.nodeid,
+            getattr(report, "worker_id", None),
+            getattr(report, "item_index", None),
+            getattr(report, "node", None),
+        )
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_runtest_logreport(self, report):
+        if bin_xml_escape is None:
+            return
+        key = self._key(report)
+        if report.outcome == "rerun":
+            self.pending.setdefault(key, []).append(report)
+            return
+        if report.when != "call":
+            return
+        reruns = self.pending.pop(key, None)
+        if not reruns:
+            return
+        xml = _get_junitxml_plugin(self.config)
+        if xml is None:
+            return
+        reporter = xml.node_reporter(report)
+        reporter.record_testreport(report)
+        for rerun_report in reruns:
+            if rerun_report.longrepr is None:
+                continue
+            tag = "flakyFailure" if rerun_report.when == "call" else "flakyError"
+            reprcrash = getattr(rerun_report.longrepr, "reprcrash", None)
+            message = (
+                reprcrash.message
+                if reprcrash is not None
+                else str(rerun_report.longrepr)
+            )
+            node = ElementTree.Element(
+                tag, type="failure", message=bin_xml_escape(message)
+            )
+            node.text = bin_xml_escape(str(rerun_report.longrepr))
+            reporter.append(node)
 
 
 class XDistHooks:

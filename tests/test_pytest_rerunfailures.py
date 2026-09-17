@@ -548,6 +548,40 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def _junitxml_testcases(testdir, filename="result.xml"):
+    import xml.etree.ElementTree as ET
+
+    tree = ET.parse(str(testdir.tmpdir.join(filename)))  # noqa: S314
+    return tree.getroot().findall(".//testcase")
+
+
+def test_junitxml_records_rerun_failures_as_flaky_failure(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure(2)}"""
+    )
+    result = testdir.runpytest("--reruns", "2", "--junitxml=result.xml")
+    assert_outcomes(result, passed=1, rerun=2)
+
+    testcases = _junitxml_testcases(testdir)
+    flaky_failures = testcases[-1].findall("flakyFailure")
+    assert len(flaky_failures) == 2
+    assert testcases[-1].findall("failure") == []
+    assert "Failure: 1" in flaky_failures[0].get("message")
+    assert "Failure: 1" in flaky_failures[0].text
+
+
+def test_junitxml_rerun_failures_before_final_failure(testdir):
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest("--reruns", "1", "--junitxml=result.xml")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+    testcases = _junitxml_testcases(testdir)
+    assert len(testcases[-1].findall("flakyFailure")) == 1
+    assert len(testcases[-1].findall("failure")) == 1
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""

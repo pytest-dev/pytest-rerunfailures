@@ -352,6 +352,10 @@ be marked as failed.
 Compatibility
 -------------
 
+* When using ``--junitxml``, failed attempts that are re-run are recorded as
+  ``<flakyFailure>`` (or ``<flakyError>`` for setup/teardown failures)
+  elements in the test's final ``<testcase>``, following the convention used
+  by Maven Surefire.
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with the core --pdb flag.
 * This plugin is *not* compatible with the plugin

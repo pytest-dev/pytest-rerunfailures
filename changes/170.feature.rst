@@ -1,0 +1,3 @@
+Record failed attempts that are re-run as ``<flakyFailure>`` (and
+``<flakyError>`` for setup/teardown failures) elements in the test's final
+``<testcase>`` in JUnit XML output, instead of dropping them.
