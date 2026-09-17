@@ -6,6 +6,52 @@ Changelog
 
 .. towncrier release notes start
 
+16.7 (2026-09-17)
+-----------------
+
+Features
+++++++++
+
+- Allow configuring ``only_rerun`` regular expressions in ``pytest.ini`` files.
+  (`#165 <https://github.com/pytest-dev/pytest-rerunfailures/issues/165>`_)
+- Show each rerun attempt and its final outcome in the rerun test summary info
+  section. (`#191
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/191>`_)
+- Allow flaky marker conditions to inspect the exception that caused a failed
+  test phase, including when running with pytest-xdist. (`#230
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/230>`_)
+
+
+Bug Fixes
++++++++++
+
+- Match ``only_rerun`` against the full exception chain (``__cause__`` and
+  ``__context__``), not only the outermost exception. Match ``rerun_except``
+  against explicit ``__cause__`` links only, so implicit ``except`` /
+  ``finally`` context does not suppress reruns. (`#353
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/353>`_)
+- Fix ``INTERNALERROR`` when ``only_rerun`` or ``rerun_except`` is given a bare
+  exception class instead of a list. (`#362
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/362>`_)
+- Fix subtest reruns with newer pytest versions that use structured ``NodeId``
+  values internally. (`#363
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/363>`_)
+- Mark teardown failures from an attempt that is rerun as reruns, so a later
+  successful attempt is not reported as an error. (`#366
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/366>`_)
+
+
+Misc
+++++
+
+- Keep the test suite passing when pytest-randomly is installed, including when
+  the outer pytest is started with ``-p no:randomly``. (`#218
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/218>`_)
+- Test the free-threaded Python 3.14 build in CI, via a new ``py314t`` tox
+  environment and a matching workflow job. (`#361
+  <https://github.com/pytest-dev/pytest-rerunfailures/issues/361>`_)
+
+
 16.6.1 (2026-09-03)
 -------------------
 

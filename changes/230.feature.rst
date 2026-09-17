@@ -1,1 +1,0 @@
-Allow flaky marker conditions to inspect the exception that caused a failed test phase, including when running with pytest-xdist.
