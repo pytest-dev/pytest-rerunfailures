@@ -575,9 +575,7 @@ def test_pytest_timeout_does_not_fire_during_rerun_delay(testdir):
     )
     # The per-attempt timer must be cancelled before the rerun delay,
     # otherwise a delay longer than the timeout kills the next attempt.
-    result = testdir.runpytest(
-        "--reruns", "1", "--reruns-delay", "2", "--timeout", "1"
-    )
+    result = testdir.runpytest("--reruns", "1", "--reruns-delay", "2", "--timeout", "1")
     assert_outcomes(result, passed=1, rerun=1)
 
 

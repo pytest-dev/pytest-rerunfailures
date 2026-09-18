@@ -1295,9 +1295,7 @@ def pytest_runtest_protocol(item, nextitem):
             if timeout_settings is not None:
                 # the per-attempt timer must not stay armed while reports are
                 # processed or reruns_delay sleeps before the next attempt
-                item.config.pluginmanager.hook.pytest_timeout_cancel_timer(
-                    item=item
-                )
+                item.config.pluginmanager.hook.pytest_timeout_cancel_timer(item=item)
 
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         rerun_triggered = False
