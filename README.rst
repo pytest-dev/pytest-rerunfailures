@@ -353,6 +353,10 @@ Compatibility
 -------------
 
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
+* This plugin is *not* compatible with
+  `pytest-forked <https://pypi.org/project/pytest-forked/>`_: both plugins
+  override ``pytest_runtest_protocol``, and whichever runs first prevents
+  the other from working, so tests are not re-run.
 * When the core --pdb flag is used, reruns are disabled (a warning is
   emitted and tests are run once, as if ``--reruns 0`` was passed).
 * This plugin is *not* compatible with the plugin
