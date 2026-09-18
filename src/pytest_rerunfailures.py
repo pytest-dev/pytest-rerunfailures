@@ -1289,7 +1289,15 @@ def pytest_runtest_protocol(item, nextitem):
             hooks.pytest_timeout_cancel_timer(item=item)
             hooks.pytest_timeout_set_timer(item=item, settings=timeout_settings)
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
-        reports = runtestprotocol(item, nextitem=nextitem, log=False)
+        try:
+            reports = runtestprotocol(item, nextitem=nextitem, log=False)
+        finally:
+            if timeout_settings is not None:
+                # the per-attempt timer must not stay armed while reports are
+                # processed or reruns_delay sleeps before the next attempt
+                item.config.pluginmanager.hook.pytest_timeout_cancel_timer(
+                    item=item
+                )
 
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         rerun_triggered = False
