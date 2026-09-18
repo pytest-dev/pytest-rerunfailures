@@ -352,6 +352,11 @@ be marked as failed.
 Compatibility
 -------------
 
+* This plugin is compatible with
+  `pytest-timeout <https://pypi.org/project/pytest-timeout/>`_: each attempt
+  gets the full configured timeout. With ``timeout_func_only`` the timeout
+  covers the test function body only; otherwise it covers the whole
+  per-attempt protocol (setup, call and teardown).
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
 * This plugin is *not* compatible with
   `pytest-forked <https://pypi.org/project/pytest-forked/>`_: both plugins
