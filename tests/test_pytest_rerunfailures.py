@@ -548,6 +548,73 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_max_module_reruns_limits_reruns_per_module(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail_1(): assert False
+        def test_fail_2(): assert False
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-module-reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+def test_max_module_reruns_does_not_limit_other_modules(testdir):
+    testdir.makepyfile(
+        test_mod_a="def test_fail_a(): assert False",
+        test_mod_b="def test_fail_b(): assert False",
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-module-reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+
+
+def test_max_class_reruns_limits_reruns_per_class(testdir):
+    testdir.makepyfile(
+        """
+        class TestFoo:
+            def test_fail_1(self): assert False
+            def test_fail_2(self): assert False
+        class TestBar:
+            def test_fail_3(self): assert False
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-class-reruns", "1")
+    assert_outcomes(result, passed=0, failed=3, rerun=2)
+
+
+def test_max_class_reruns_does_not_apply_to_module_tests(testdir):
+    testdir.makepyfile(
+        """
+        def test_fail_1(): assert False
+        def test_fail_2(): assert False
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-class-reruns", "0")
+    assert_outcomes(result, passed=0, failed=2, rerun=2)
+
+
+def test_max_class_reruns_with_param_id_containing_colons(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        class TestFoo:
+            @pytest.mark.parametrize("value", ["a::b", "c::d"])
+            def test_fail(self, value): assert False
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-class-reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
+def test_max_scope_reruns_negative_rejected(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("--reruns", "1", "--max-module-reruns", "-1")
+    result.stderr.fnmatch_lines_random("ERROR: --max-module-reruns must be >= 0")
+    result = testdir.runpytest("--reruns", "1", "--max-class-reruns", "-1")
+    result.stderr.fnmatch_lines_random("ERROR: --max-class-reruns must be >= 0")
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""

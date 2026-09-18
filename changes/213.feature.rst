@@ -1,0 +1,3 @@
+Add ``--max-module-reruns`` and ``--max-class-reruns`` options to cap the
+total number of re-runs within each module or test class, similar to the
+existing suite-wide ``--max-suite-reruns`` cap.

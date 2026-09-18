@@ -187,6 +187,26 @@ def pytest_addoption(parser):
         help="Maximum total number of reruns across the entire test suite. "
         "Once this limit is reached, no further reruns will occur.",
     )
+    group.addoption(
+        "--max-module-reruns",
+        action="store",
+        dest="max_module_reruns",
+        type=int,
+        default=None,
+        help="Maximum total number of reruns within a single module. "
+        "Once this limit is reached for a module, its tests will not "
+        "be rerun anymore.",
+    )
+    group.addoption(
+        "--max-class-reruns",
+        action="store",
+        dest="max_class_reruns",
+        type=int,
+        default=None,
+        help="Maximum total number of reruns within a single test class. "
+        "Once this limit is reached for a class, its tests will not "
+        "be rerun anymore.",
+    )
 
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
@@ -226,6 +246,10 @@ def check_options(config):
         and config.option.max_suite_reruns < 0
     ):
         raise pytest.UsageError("--max-suite-reruns must be >= 0")
+    for name in ("max_module_reruns", "max_class_reruns"):
+        value = getattr(config.option, name)
+        if value is not None and value < 0:
+            raise pytest.UsageError(f"--{name.replace('_', '-')} must be >= 0")
     reruns = config.getoption("force_reruns") or _get_global_reruns(config)
     if not config.getoption("collectonly") and reruns:
         if config.option.usepdb:  # a core option
@@ -809,6 +833,7 @@ class StatusDB:
         self.delim: bytes = b"\n"
         self.hmap: dict[str, str] = {}
         self._suite_rerun_count: int = 0
+        self._scope_rerun_counts: dict[str, int] = {}
         self._suite_lock = threading.Lock()
 
     def increment_suite_reruns(self) -> int:
@@ -838,6 +863,32 @@ class StatusDB:
         """
         with self._suite_lock:
             return self._suite_rerun_count
+
+    def _scope_hash(self, scope: str) -> str:
+        return hashlib.sha1(f"scope:{scope}".encode()).hexdigest()[:10]  # noqa: S324
+
+    def try_increment_scope_reruns(self, scope: str, max_cap: int) -> bool:
+        """Increment a scope's rerun counter when it is below the cap."""
+        with self._suite_lock:
+            key = self._scope_hash(scope)
+            current = self._scope_rerun_counts.get(key, 0)
+            if current < max_cap:
+                self._scope_rerun_counts[key] = current + 1
+                return True
+            return False
+
+    def decrement_scope_reruns(self, scope: str) -> None:
+        """Release a scope slot when a scheduled rerun cannot be started."""
+        with self._suite_lock:
+            key = self._scope_hash(scope)
+            current = self._scope_rerun_counts.get(key, 0)
+            if current > 0:
+                self._scope_rerun_counts[key] = current - 1
+
+    def get_scope_reruns(self, scope: str) -> int:
+        """Return the current rerun count for a scope."""
+        with self._suite_lock:
+            return self._scope_rerun_counts.get(self._scope_hash(scope), 0)
 
     def _hash(self, crashitem: str) -> str:
         if crashitem not in self.hmap:
@@ -997,6 +1048,28 @@ class ServerStatusDB(SocketDB):
         """Return the current suite-wide rerun count."""
         return self._get("__suite__", "r")
 
+    def try_increment_scope_reruns(self, scope: str, max_cap: int) -> bool:
+        """Increment a scope's rerun counter when it is below the cap."""
+        with self._suite_lock:
+            key = self._scope_hash(scope)
+            current = self._get(key, "sr")
+            if current < max_cap:
+                self._set(key, "sr", current + 1)
+                return True
+            return False
+
+    def decrement_scope_reruns(self, scope: str) -> None:
+        """Release a scope slot when a scheduled rerun cannot be started."""
+        with self._suite_lock:
+            key = self._scope_hash(scope)
+            current = self._get(key, "sr")
+            if current > 0:
+                self._set(key, "sr", current - 1)
+
+    def get_scope_reruns(self, scope: str) -> int:
+        """Return the current rerun count for a scope."""
+        return self._get(self._scope_hash(scope), "sr")
+
 
 class ClientStatusDB(SocketDB):
     def __init__(self, sock_port, token):
@@ -1035,6 +1108,23 @@ class ClientStatusDB(SocketDB):
         """Return the current suite-wide rerun count."""
         return self._get("__suite__", "r")
 
+    def try_increment_scope_reruns(self, scope: str, max_cap: int) -> bool:
+        """Increment a scope's rerun counter when it is below the cap."""
+        self._sock_send(
+            self.sock,
+            "|".join(("try_inc", self._scope_hash(scope), "sr", str(max_cap))),
+        )
+        return self._sock_recv(self.sock) == "1"
+
+    def decrement_scope_reruns(self, scope: str) -> None:
+        """Release a scope slot when a scheduled rerun cannot be started."""
+        self._sock_send(self.sock, "|".join(("dec", self._scope_hash(scope), "sr", "")))
+        self._sock_recv(self.sock)
+
+    def get_scope_reruns(self, scope: str) -> int:
+        """Return the current rerun count for a scope."""
+        return self._get(self._scope_hash(scope), "sr")
+
 
 suspended_finalizers: dict[Any, Any] = {}
 
@@ -1043,6 +1133,61 @@ def _restore_suspended_finalizers(item):
     """Restore higher-scope finalizers after a rerun is not scheduled."""
     item.session._setupstate.stack.update(suspended_finalizers)
     suspended_finalizers.clear()
+
+
+def _rerun_scope_caps(item):
+    """Return (scope_key, cap) pairs for the scopes the item belongs to."""
+    config = item.session.config
+    # derive scope keys from the node hierarchy: parametrized IDs may
+    # themselves contain "::", so splitting the item's nodeid is unreliable
+    module_nodeid = class_nodeid = None
+    for node in item.listchain():
+        if isinstance(node, pytest.Module):
+            module_nodeid = node.nodeid
+        elif isinstance(node, pytest.Class):
+            class_nodeid = node.nodeid
+    caps = []
+    max_module_reruns = config.option.max_module_reruns
+    if max_module_reruns is not None and module_nodeid is not None:
+        caps.append((module_nodeid, max_module_reruns))
+    max_class_reruns = config.option.max_class_reruns
+    if max_class_reruns is not None and class_nodeid is not None:
+        caps.append((class_nodeid, max_class_reruns))
+    return caps
+
+
+def _rerun_cap_reached(item):
+    """Return True when a configured rerun cap forbids another rerun."""
+    config = item.session.config
+    db = config.failures_db
+    max_suite_reruns = config.option.max_suite_reruns
+    if max_suite_reruns is not None and db.get_suite_reruns() >= max_suite_reruns:
+        return True
+    return any(
+        db.get_scope_reruns(scope) >= cap for scope, cap in _rerun_scope_caps(item)
+    )
+
+
+def _reserve_rerun_slot(item):
+    """Reserve suite and scope slots for a rerun; return False if capped."""
+    db = item.session.config.failures_db
+    max_suite_reruns = item.session.config.option.max_suite_reruns
+    suite_reserved = False
+    if max_suite_reruns is not None:
+        suite_reserved = db.try_increment_suite_reruns(max_suite_reruns)
+        if not suite_reserved:
+            return False
+    reserved_scopes = []
+    for scope, cap in _rerun_scope_caps(item):
+        if db.try_increment_scope_reruns(scope, cap):
+            reserved_scopes.append(scope)
+        else:
+            for reserved in reserved_scopes:
+                db.decrement_scope_reruns(reserved)
+            if suite_reserved:
+                db.decrement_suite_reruns()
+            return False
+    return True
 
 
 def _is_rerun_path_excluded(item):
@@ -1145,11 +1290,7 @@ def pytest_runtest_teardown(item, nextitem):
         return
 
     _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
-    max_suite_reruns = item.session.config.option.max_suite_reruns
-    if (
-        max_suite_reruns is not None
-        and item.session.config.failures_db.get_suite_reruns() >= max_suite_reruns
-    ):
+    if _rerun_cap_reached(item):
         _restore_suspended_finalizers(item)
         return
 
@@ -1289,13 +1430,11 @@ def pytest_runtest_protocol(item, nextitem):
                 item.ihook.pytest_runtest_logreport(report=report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
-                max_suite_reruns = item.session.config.option.max_suite_reruns
-                if max_suite_reruns is not None:
-                    if not db.try_increment_suite_reruns(max_suite_reruns):
-                        # Suite-wide limit exhausted -- log as final failure.
-                        _restore_suspended_finalizers(item)
-                        item.ihook.pytest_runtest_logreport(report=report)
-                        continue
+                if not _reserve_rerun_slot(item):
+                    # suite/scope rerun limit exhausted -- log as final failure.
+                    _restore_suspended_finalizers(item)
+                    item.ihook.pytest_runtest_logreport(report=report)
+                    continue
 
                 report.outcome = "rerun"
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
