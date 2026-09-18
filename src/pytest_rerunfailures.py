@@ -178,6 +178,15 @@ def pytest_addoption(parser):
         "'rerun test summary info' section, which is emitted automatically "
         "when this flag is set.",
     )
+    group._addoption(
+        "--reruns-on-exitfirst",
+        action="store",
+        dest="reruns_on_exitfirst",
+        type=int,
+        help="Number of reruns to use when -x/--exitfirst or --maxfail is "
+        "given. Defaults to the regular rerun settings. Use "
+        "--reruns-on-exitfirst 0 to skip reruns entirely when exiting early.",
+    )
     group.addoption(
         "--max-suite-reruns",
         action="store",
@@ -226,7 +235,16 @@ def check_options(config):
         and config.option.max_suite_reruns < 0
     ):
         raise pytest.UsageError("--max-suite-reruns must be >= 0")
+    if (
+        config.option.reruns_on_exitfirst is not None
+        and config.option.reruns_on_exitfirst < 0
+    ):
+        raise pytest.UsageError("--reruns-on-exitfirst must be >= 0")
     reruns = config.getoption("force_reruns") or _get_global_reruns(config)
+    if not reruns and config.option.maxfail:
+        # --reruns-on-exitfirst takes effect under -x/--maxfail even when
+        # no other rerun count is configured
+        reruns = config.getoption("reruns_on_exitfirst")
     if not config.getoption("collectonly") and reruns:
         if config.option.usepdb:  # a core option
             raise pytest.UsageError("--reruns incompatible with --pdb")
@@ -249,6 +267,13 @@ def get_reruns_count(item):
     reruns = item.session.config.getoption("force_reruns")
     if reruns is not None:
         return reruns
+
+    if item.session.config.option.maxfail:
+        reruns = item.session.config.getoption("reruns_on_exitfirst")
+        if reruns is not None:
+            # -x/--exitfirst or --maxfail given: override marker and global
+            # rerun counts so the run can exit on the first real failure.
+            return reruns
 
     rerun_marker = _get_marker(item)
     # use the marker as a priority over the global setting.

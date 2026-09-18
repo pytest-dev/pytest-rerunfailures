@@ -1,0 +1,3 @@
+Add ``--reruns-on-exitfirst`` option to use a different rerun count when
+``-x``/``--exitfirst`` or ``--maxfail`` is given, e.g. ``--reruns-on-exitfirst
+0`` to skip reruns entirely when exiting on the first failure.

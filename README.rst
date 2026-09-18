@@ -304,6 +304,20 @@ This is useful in large test suites to bound resource usage when many tests
 are flaky at the same time. The cap applies after rerun selection, including
 tests configured with ``--force-reruns`` and ``@pytest.mark.flaky``.
 
+Limit reruns when exiting early
+-------------------------------
+
+By default reruns still happen when ``-x``/``--exitfirst`` or ``--maxfail``
+is used, which delays the early exit until a test's reruns are exhausted.
+To use a different rerun count in that case, pass ``--reruns-on-exitfirst``:
+
+.. code-block:: bash
+
+   $ pytest --reruns 2 -x --reruns-on-exitfirst 0
+
+The value overrides both the global ``--reruns`` setting and per-test
+``flaky`` markers, but not ``--force-reruns``.
+
 Show tracebacks for retried failures
 ------------------------------------
 
