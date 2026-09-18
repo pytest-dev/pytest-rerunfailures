@@ -593,6 +593,20 @@ def test_max_class_reruns_does_not_apply_to_module_tests(testdir):
     assert_outcomes(result, passed=0, failed=2, rerun=2)
 
 
+def test_max_class_reruns_with_param_id_containing_colons(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        class TestFoo:
+            @pytest.mark.parametrize("value", ["a::b", "c::d"])
+            def test_fail(self, value): assert False
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-class-reruns", "1")
+    assert_outcomes(result, passed=0, failed=2, rerun=1)
+
+
 def test_max_scope_reruns_negative_rejected(testdir):
     testdir.makepyfile("def test_pass(): pass")
     result = testdir.runpytest("--reruns", "1", "--max-module-reruns", "-1")

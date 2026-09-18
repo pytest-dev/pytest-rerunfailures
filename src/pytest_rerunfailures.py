@@ -1138,13 +1138,21 @@ def _restore_suspended_finalizers(item):
 def _rerun_scope_caps(item):
     """Return (scope_key, cap) pairs for the scopes the item belongs to."""
     config = item.session.config
+    # derive scope keys from the node hierarchy: parametrized IDs may
+    # themselves contain "::", so splitting the item's nodeid is unreliable
+    module_nodeid = class_nodeid = None
+    for node in item.listchain():
+        if isinstance(node, pytest.Module):
+            module_nodeid = node.nodeid
+        elif isinstance(node, pytest.Class):
+            class_nodeid = node.nodeid
     caps = []
     max_module_reruns = config.option.max_module_reruns
-    if max_module_reruns is not None:
-        caps.append((item.nodeid.split("::")[0], max_module_reruns))
+    if max_module_reruns is not None and module_nodeid is not None:
+        caps.append((module_nodeid, max_module_reruns))
     max_class_reruns = config.option.max_class_reruns
-    if max_class_reruns is not None and getattr(item, "cls", None) is not None:
-        caps.append((item.nodeid.rpartition("::")[0], max_class_reruns))
+    if max_class_reruns is not None and class_nodeid is not None:
+        caps.append((class_nodeid, max_class_reruns))
     return caps
 
 
