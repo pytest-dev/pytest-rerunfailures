@@ -582,6 +582,26 @@ def test_junitxml_rerun_failures_before_final_failure(testdir):
     assert len(testcases[-1].findall("failure")) == 1
 
 
+def test_junitxml_rerun_errors_before_final_setup_failure(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def broken_fixture():
+            raise ValueError("setup always fails")
+
+        def test_fail(broken_fixture): pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--junitxml=result.xml")
+    assert_outcomes(result, passed=0, failed=0, error=1, rerun=1)
+
+    testcases = _junitxml_testcases(testdir)
+    assert len(testcases[-1].findall("flakyError")) == 1
+    assert len(testcases[-1].findall("error")) == 1
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""

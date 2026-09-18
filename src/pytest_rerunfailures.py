@@ -782,8 +782,10 @@ class JunitXmlRerunReporter:
         if report.outcome == "rerun":
             self.pending.setdefault(key, []).append(report)
             return
-        if report.when != "call":
+        if report.when != "call" and not report.failed:
             return
+        # a failed setup or teardown report that is not a rerun means the
+        # attempts are exhausted in that phase and no call report follows
         reruns = self.pending.pop(key, None)
         if not reruns:
             return
