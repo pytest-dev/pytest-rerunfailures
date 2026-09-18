@@ -1295,7 +1295,6 @@ def pytest_runtest_protocol(item, nextitem):
             elif _should_not_rerun(item, report, reruns, condition):
                 if (
                     item.session.config.option.xfail_flaky
-                    and report.when == "call"
                     and report.failed
                     and item.execution_count > reruns
                     and item.execution_count > 1

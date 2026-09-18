@@ -593,6 +593,23 @@ def test_xfail_flaky_with_flaky_marker(testdir):
     assert_outcomes(result, passed=0, failed=0, xfailed=1, rerun=1)
 
 
+def test_xfail_flaky_marks_exhausted_setup_failures_as_xfail(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def broken_fixture():
+            raise ValueError("setup always fails")
+
+        def test_fail(broken_fixture): pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "--xfail-flaky")
+    assert result.ret == 0
+    assert_outcomes(result, passed=0, failed=0, xfailed=1, rerun=2)
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""
