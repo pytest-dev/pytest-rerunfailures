@@ -241,6 +241,10 @@ def check_options(config):
     ):
         raise pytest.UsageError("--reruns-on-exitfirst must be >= 0")
     reruns = config.getoption("force_reruns") or _get_global_reruns(config)
+    if not reruns and config.option.maxfail:
+        # --reruns-on-exitfirst takes effect under -x/--maxfail even when
+        # no other rerun count is configured
+        reruns = config.getoption("reruns_on_exitfirst")
     if not config.getoption("collectonly") and reruns:
         if config.option.usepdb:  # a core option
             raise pytest.UsageError("--reruns incompatible with --pdb")

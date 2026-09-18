@@ -600,6 +600,18 @@ def test_reruns_on_exitfirst_negative_rejected(testdir):
     result.stderr.fnmatch_lines_random("ERROR: --reruns-on-exitfirst must be >= 0")
 
 
+def test_error_when_run_with_pdb_and_reruns_on_exitfirst(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("-x", "--reruns-on-exitfirst", "1", "--pdb")
+    result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
+
+
+def test_no_error_when_run_with_pdb_and_zero_reruns_on_exitfirst(testdir):
+    testdir.makepyfile("def test_pass(): pass")
+    result = testdir.runpytest("-x", "--reruns-on-exitfirst", "0", "--pdb")
+    assert_outcomes(result)
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""
