@@ -548,6 +548,68 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_xfail_flaky_marks_exhausted_reruns_as_xfail(testdir):
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest("--reruns", "2", "--xfail-flaky")
+    assert result.ret == 0
+    assert_outcomes(result, passed=0, failed=0, xfailed=1, rerun=2)
+
+
+def test_xfail_flaky_does_not_affect_eventual_pass(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "2", "--xfail-flaky")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_xfail_flaky_does_not_affect_test_without_reruns(testdir):
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest("--xfail-flaky")
+    assert_outcomes(result, passed=0, failed=1, xfailed=0, rerun=0)
+
+
+def test_xfail_flaky_ignores_unmatched_only_rerun_error(testdir):
+    testdir.makepyfile("def test_fail(): raise ValueError('nope')")
+    result = testdir.runpytest(
+        "--reruns", "2", "--only-rerun", "AssertionError", "--xfail-flaky"
+    )
+    assert_outcomes(result, passed=0, failed=1, xfailed=0, rerun=0)
+
+
+def test_xfail_flaky_with_flaky_marker(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1)
+        def test_fail(): assert False
+        """
+    )
+    result = testdir.runpytest("--xfail-flaky")
+    assert result.ret == 0
+    assert_outcomes(result, passed=0, failed=0, xfailed=1, rerun=1)
+
+
+def test_xfail_flaky_marks_exhausted_setup_failures_as_xfail(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def broken_fixture():
+            raise ValueError("setup always fails")
+
+        def test_fail(broken_fixture): pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "--xfail-flaky")
+    assert result.ret == 0
+    assert_outcomes(result, passed=0, failed=0, xfailed=1, rerun=2)
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""
