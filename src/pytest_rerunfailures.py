@@ -250,7 +250,9 @@ def _warn_pdb_disables_reruns(config, item=None):
 
     Called at config time for command-line/ini reruns and per item for
     marker-requested reruns, so emit through the channel that pytest records
-    in each case.
+    in each case. ``-W error`` / ``filterwarnings = error`` must not escalate
+    the warning into an INTERNALERROR, so an escalated warning is re-emitted
+    under an "always" filter and recorded through pytest's warning hook.
     """
     if getattr(config, "_pdb_reruns_warning_issued", False):
         return
@@ -258,10 +260,24 @@ def _warn_pdb_disables_reruns(config, item=None):
     warning = pytest.PytestWarning(
         "--reruns incompatible with --pdb: reruns are disabled"
     )
-    if item is not None:
-        item.warn(warning)
-    else:
-        config.issue_config_time_warning(warning, stacklevel=2)
+    try:
+        if item is not None:
+            item.warn(warning)
+        else:
+            config.issue_config_time_warning(warning, stacklevel=3)
+    except Warning:
+        with warnings.catch_warnings(record=True) as records:
+            warnings.simplefilter("always", type(warning))
+            warnings.warn(warning, stacklevel=3)
+        for record in records:
+            config.hook.pytest_warning_recorded.call_historic(
+                kwargs=dict(
+                    warning_message=record,
+                    when="config" if item is None else "runtest",
+                    nodeid="" if item is None else item.nodeid,
+                    location=None,
+                )
+            )
 
 
 def get_reruns_count(item):

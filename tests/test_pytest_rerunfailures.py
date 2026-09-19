@@ -172,6 +172,38 @@ def test_pdb_disables_reruns_with_flaky_marker(testdir):
     )
 
 
+def test_pdb_disables_reruns_with_warnings_as_errors(testdir):
+    """`-W error` must not escalate the warning into an INTERNALERROR."""
+    make_dummy_pdb(testdir)
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest(
+        "-W", "error", "--reruns", "1", "--pdb", "--pdbcls=nopdb:DummyPdb"
+    )
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.no_fnmatch_line("INTERNALERROR*")
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
+
+
+def test_pdb_disables_reruns_marker_with_warnings_as_errors(testdir):
+    make_dummy_pdb(testdir)
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1)
+        def test_fail(): assert False
+        """
+    )
+    result = testdir.runpytest("-W", "error", "--pdb", "--pdbcls=nopdb:DummyPdb")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.no_fnmatch_line("INTERNALERROR*")
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
+
+
 def test_no_rerun_on_pass(testdir):
     testdir.makepyfile("def test_pass(): pass")
     result = testdir.runpytest("--reruns", "1")
