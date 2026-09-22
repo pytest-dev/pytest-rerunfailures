@@ -1,0 +1,2 @@
+Re-arm the ``pytest-timeout`` timer for each attempt so that the configured
+timeout also applies to re-runs, not only to the first attempt.

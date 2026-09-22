@@ -617,6 +617,37 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     assert_outcomes(result, passed=1, rerun=2)
 
 
+def test_pytest_timeout_applies_to_each_rerun(testdir):
+    pytest.importorskip("pytest_timeout")
+    testdir.makepyfile(
+        """
+        import time
+
+        def test_slow():
+            time.sleep(5)
+        """
+    )
+    start = time.time()
+    result = testdir.runpytest("--reruns", "1", "--timeout", "1")
+    elapsed = time.time() - start
+    # Both attempts must be timed out (~2s), not just the first one.
+    assert elapsed < 4.5
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_pytest_timeout_does_not_fire_during_rerun_delay(testdir):
+    pytest.importorskip("pytest_timeout")
+    testdir.makepyfile(
+        f"""
+        def test_fail():
+            {temporary_failure(1)}"""
+    )
+    # The per-attempt timer must be cancelled before the rerun delay,
+    # otherwise a delay longer than the timeout kills the next attempt.
+    result = testdir.runpytest("--reruns", "1", "--reruns-delay", "2", "--timeout", "1")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
     testdir.makepyfile(
         f"""

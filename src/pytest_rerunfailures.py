@@ -1090,6 +1090,25 @@ def _restore_suspended_finalizers(item):
     suspended_finalizers.clear()
 
 
+def _get_pytest_timeout_settings(item):
+    """Return pytest-timeout's settings when its whole-protocol timer applies.
+
+    The ``func_only`` mode hooks ``pytest_runtest_call`` and already works
+    per attempt; only the default mode needs the timer re-armed here.
+    """
+    pm = item.session.config.pluginmanager
+    if not (pm.hasplugin("timeout") or pm.hasplugin("pytest_timeout")):
+        return None
+    try:
+        from pytest_timeout import _get_item_settings
+    except ImportError:
+        return None
+    settings = _get_item_settings(item)
+    if settings.timeout and settings.timeout > 0 and settings.func_only is False:
+        return settings
+    return None
+
+
 def _is_rerun_path_excluded(item):
     excluded_paths = item.config.getoption("rerun_exclude_path") or []
     return any(
@@ -1297,11 +1316,25 @@ def pytest_runtest_protocol(item, nextitem):
     if item.execution_count > reruns and item.execution_count > 0:
         return True
 
+    timeout_settings = _get_pytest_timeout_settings(item)
     need_to_run = True
     while need_to_run:
         item.execution_count += 1
+        if timeout_settings is not None:
+            # pytest-timeout arms one timer around pytest_runtest_protocol, so
+            # without a re-arm the rerun would run unbounded after the first
+            # timeout fired. Re-arm the per-item timeout for each attempt.
+            hooks = item.config.pluginmanager.hook
+            hooks.pytest_timeout_cancel_timer(item=item)
+            hooks.pytest_timeout_set_timer(item=item, settings=timeout_settings)
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
-        reports = runtestprotocol(item, nextitem=nextitem, log=False)
+        try:
+            reports = runtestprotocol(item, nextitem=nextitem, log=False)
+        finally:
+            if timeout_settings is not None:
+                # the per-attempt timer must not stay armed while reports are
+                # processed or reruns_delay sleeps before the next attempt
+                item.config.pluginmanager.hook.pytest_timeout_cancel_timer(item=item)
 
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         rerun_triggered = False
