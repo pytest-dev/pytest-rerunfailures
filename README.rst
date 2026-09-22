@@ -357,7 +357,8 @@ Compatibility
   `pytest-forked <https://pypi.org/project/pytest-forked/>`_: both plugins
   override ``pytest_runtest_protocol``, and whichever runs first prevents
   the other from working, so tests are not re-run.
-* This plugin is *not* compatible with the core --pdb flag.
+* When the core --pdb flag is used, reruns are disabled (a warning is
+  emitted and tests are run once, as if ``--reruns 0`` was passed).
 * This plugin is *not* compatible with the plugin
   `flaky <https://pypi.org/project/flaky/>`_, you can only have
   ``pytest-rerunfailures`` or ``flaky`` but not both.
