@@ -91,10 +91,33 @@ def assert_outcomes(
     check_outcome_field(outcomes, "rerun", rerun)
 
 
-def test_error_when_run_with_pdb(testdir):
-    testdir.makepyfile("def test_pass(): pass")
-    result = testdir.runpytest("--reruns", "1", "--pdb")
-    result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
+def make_dummy_pdb(testdir):
+    """Create a pdb class that does not enter an interactive session."""
+    testdir.makepyfile(
+        nopdb="""
+        class DummyPdb:
+            quitting = False
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def reset(self):
+                pass
+
+            def interaction(self, *args, **kwargs):
+                pass
+        """
+    )
+
+
+def test_pdb_disables_reruns(testdir):
+    make_dummy_pdb(testdir)
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest("--reruns", "1", "--pdb", "--pdbcls=nopdb:DummyPdb")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
 
 
 def test_no_error_when_run_with_pdb_without_reruns(testdir):
@@ -109,30 +132,76 @@ def test_no_error_when_run_with_pdb_and_zero_reruns(testdir):
     assert_outcomes(result)
 
 
-def test_error_when_run_with_pdb_and_reruns_ini(testdir):
-    testdir.makepyfile("def test_pass(): pass")
+def test_pdb_disables_reruns_ini(testdir):
+    make_dummy_pdb(testdir)
+    testdir.makepyfile("def test_fail(): assert False")
     testdir.makeini("[pytest]\nreruns = 1\n")
-    result = testdir.runpytest("--pdb")
-    result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
+    result = testdir.runpytest("--pdb", "--pdbcls=nopdb:DummyPdb")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
 
 
-def test_error_when_run_with_pdb_and_force_reruns(testdir):
-    testdir.makepyfile("def test_pass(): pass")
-    result = testdir.runpytest("--force-reruns", "1", "--pdb")
-    result.stderr.fnmatch_lines_random("ERROR: --reruns incompatible with --pdb")
+def test_pdb_disables_force_reruns(testdir):
+    make_dummy_pdb(testdir)
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest(
+        "--force-reruns", "1", "--pdb", "--pdbcls=nopdb:DummyPdb"
+    )
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
 
 
-def test_error_when_run_with_pdb_and_flaky_marker(testdir):
+def test_pdb_disables_reruns_with_flaky_marker(testdir):
     testdir.makepyfile(
         """
         import pytest
 
         @pytest.mark.flaky(reruns=1)
-        def test_pass(): pass
+        def test_fail(): assert False
         """
     )
-    result = testdir.runpytest("--pdb")
-    result.stderr.fnmatch_lines_random("*--reruns incompatible with --pdb")
+    make_dummy_pdb(testdir)
+    result = testdir.runpytest("--pdb", "--pdbcls=nopdb:DummyPdb")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
+
+
+def test_pdb_disables_reruns_with_warnings_as_errors(testdir):
+    """`-W error` must not escalate the warning into an INTERNALERROR."""
+    make_dummy_pdb(testdir)
+    testdir.makepyfile("def test_fail(): assert False")
+    result = testdir.runpytest(
+        "-W", "error", "--reruns", "1", "--pdb", "--pdbcls=nopdb:DummyPdb"
+    )
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.no_fnmatch_line("INTERNALERROR*")
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
+
+
+def test_pdb_disables_reruns_marker_with_warnings_as_errors(testdir):
+    make_dummy_pdb(testdir)
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=1)
+        def test_fail(): assert False
+        """
+    )
+    result = testdir.runpytest("-W", "error", "--pdb", "--pdbcls=nopdb:DummyPdb")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+    result.stdout.no_fnmatch_line("INTERNALERROR*")
+    result.stdout.fnmatch_lines_random(
+        "*--reruns incompatible with --pdb: reruns are disabled"
+    )
 
 
 def test_no_rerun_on_pass(testdir):
@@ -546,6 +615,42 @@ def test_reruns_if_flaky_mark_is_called_with_positional_argument(testdir):
     )
     result = testdir.runpytest("-r", "R")
     assert_outcomes(result, passed=1, rerun=2)
+
+
+def test_flaky_marker_with_zero_reruns_disables_rerun(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=0)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "5")
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_flaky_marker_with_zero_reruns_append_mode_still_reruns(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=0)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--reruns-mode", "append")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_flaky_marker_with_zero_reruns_does_not_disable_force_reruns(testdir):
+    testdir.makepyfile(
+        f"""
+        import pytest
+        @pytest.mark.flaky(reruns=0)
+        def test_fail():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--force-reruns", "1")
+    assert_outcomes(result, passed=1, rerun=1)
 
 
 def test_no_extra_test_summary_for_reruns_by_default(testdir):
