@@ -798,6 +798,19 @@ def test_rerun_summary_shows_skipped_call(testdir):
     ]
 
 
+@pytest.mark.parametrize("report_flag", ["-ra", "-rA"])
+def test_extra_test_summary_for_reruns_with_reportchars_all(testdir, report_flag):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", report_flag)
+    result.stdout.fnmatch_lines_random(["RERUN test_*:*"])
+    assert "rerun test summary info" in result.stdout.str()
+    assert "1 rerun" in result.stdout.str()
+
+
 def test_rerun_show_tracebacks_for_eventual_pass(testdir):
     testdir.makepyfile(
         f"""
