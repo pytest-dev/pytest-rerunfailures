@@ -178,6 +178,15 @@ def pytest_addoption(parser):
         "'rerun test summary info' section, which is emitted automatically "
         "when this flag is set.",
     )
+    group._addoption(
+        "--rerun-warning",
+        action="store_true",
+        dest="rerun_warning",
+        help="Emit a PytestWarning each time a test is scheduled for rerun. "
+        "Useful to surface flaky tests in CI, e.g. via annotations from "
+        "pytest-github-actions-annotate-failures. Note that "
+        "filterwarnings=error turns these warnings into errors.",
+    )
     group.addoption(
         "--max-suite-reruns",
         action="store",
@@ -1337,6 +1346,13 @@ def pytest_runtest_protocol(item, nextitem):
                         continue
 
                 report.outcome = "rerun"
+                if item.session.config.option.rerun_warning:
+                    item.warn(
+                        pytest.PytestWarning(
+                            f"{item.nodeid} failed on attempt "
+                            f"{item.execution_count} and will be rerun"
+                        )
+                    )
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
 
                 if not parallel or works_with_current_xdist():
