@@ -192,6 +192,20 @@ test to run:
       import random
       assert random.choice([True, False])
 
+To disable re-runs for a single test while keeping global re-runs enabled,
+use ``reruns=0``. Since the marker takes priority over the global setting,
+this test will not be re-run even when ``--reruns`` is passed:
+
+.. code-block:: python
+
+  @pytest.mark.flaky(reruns=0)
+  def test_example():
+      assert foo() == bar()
+
+Note that ``--force-reruns`` still overrides the marker, and with
+``--reruns-mode=append`` the marker count is added to the global count, so
+``reruns=0`` does not opt the test out in that mode.
+
 Note that when teardown fails, two reports are generated for the case, one for
 the test case and the other for the teardown error.
 
@@ -357,7 +371,12 @@ Compatibility
   attempt is emitted as a ``TestReport``, with retried failures using the
   ``"rerun"`` outcome.
 * This plugin is *not* compatible with pytest-xdist's --looponfail flag.
-* This plugin is *not* compatible with the core --pdb flag.
+* This plugin is *not* compatible with
+  `pytest-forked <https://pypi.org/project/pytest-forked/>`_: both plugins
+  override ``pytest_runtest_protocol``, and whichever runs first prevents
+  the other from working, so tests are not re-run.
+* When the core --pdb flag is used, reruns are disabled (a warning is
+  emitted and tests are run once, as if ``--reruns 0`` was passed).
 * This plugin is *not* compatible with the plugin
   `flaky <https://pypi.org/project/flaky/>`_, you can only have
   ``pytest-rerunfailures`` or ``flaky`` but not both.
