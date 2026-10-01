@@ -1,0 +1,4 @@
+Add ``rerun_if()`` helper and ``RerunRequest`` exception to request a re-run
+from inside a test (similar to ``hypothesis.assume()``), e.g. combined with
+``@pytest.mark.flaky(reruns=N, only_rerun=[RerunRequest])`` to retry only on
+the requested condition.
