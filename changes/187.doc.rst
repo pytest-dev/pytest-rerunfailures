@@ -1,0 +1,3 @@
+Document that ``@pytest.mark.flaky(reruns=0)`` disables re-runs for a single
+test even when ``--reruns`` is set globally (the marker takes priority over
+the global setting).

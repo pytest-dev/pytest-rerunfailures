@@ -1,0 +1,3 @@
+Document the incompatibility with ``pytest-forked``: both plugins override
+``pytest_runtest_protocol`` and whichever runs first prevents the other
+from working.
