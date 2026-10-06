@@ -734,6 +734,10 @@ def _should_hard_fail_on_error(item, report, excinfo):
 def _should_not_rerun(item, report, reruns, condition):
     xfail = hasattr(report, "wasxfail")
     is_terminal_error = any(item._terminal_errors.values())
+    if report.when == "teardown":
+        is_terminal_error = item._terminal_errors.get(
+            "setup", False
+        ) or item._terminal_errors.get("teardown", False)
     has_failed_subtests = report.when == "call" and _get_num_failed_subtests(item) > 0
 
     if (
@@ -1116,8 +1120,11 @@ def _get_reruns_condition_failures(item):
     return failures
 
 
-def _reruns_condition_matches_phase(item, phase):
-    """Return whether a failed phase matched the attempt's condition."""
+def _rerun_matches_phase(item, phase):
+    """Return whether a failed phase can trigger a rerun."""
+    if item._terminal_errors.get(phase, False):
+        return False
+
     rerun_marker = _get_marker(item)
     if rerun_marker is None or "condition" not in rerun_marker.kwargs:
         return True
@@ -1126,6 +1133,17 @@ def _reruns_condition_matches_phase(item, phase):
         result
         for (result_phase, _), result in condition_results.items()
         if result_phase == phase
+    )
+
+
+def _rerun_matches_later_phase(item, phase):
+    """Return whether a later failed phase can trigger a rerun."""
+    phases = ("setup", "call", "teardown")
+    phase_index = phases.index(phase)
+    return any(
+        _rerun_matches_phase(item, failed_phase)
+        for failed_phase, _, _ in _get_reruns_condition_failures(item)
+        if phases.index(failed_phase) > phase_index
     )
 
 
@@ -1313,7 +1331,8 @@ def pytest_runtest_protocol(item, nextitem):
                 item.ihook.pytest_runtest_logreport(report=report)
             elif (
                 condition
-                and not _reruns_condition_matches_phase(item, report.when)
+                and not _rerun_matches_phase(item, report.when)
+                and _rerun_matches_later_phase(item, report.when)
                 and (
                     report.failed
                     or (report.when == "call" and _get_num_failed_subtests(item) > 0)

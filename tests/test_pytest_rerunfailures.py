@@ -2592,6 +2592,33 @@ def test_rerunnable_teardown_error_tears_down_module_fixture_once(testdir):
     assert result.stdout.str().count("module teardown") == 1
 
 
+def test_teardown_error_can_trigger_only_rerun(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        attempts = 0
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            if attempts == 1:
+                raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=1, only_rerun=["ValueError"])
+        def test_fail(broken_fixture):
+            global attempts
+            attempts += 1
+            if attempts == 1:
+                raise AssertionError("call error")
+        """
+    )
+
+    result = testdir.runpytest()
+
+    assert_outcomes(result, passed=1, rerun=1)
+
+
 @pytest.mark.parametrize(
     "outcome,skipped,xfailed",
     [("skip", 3, 0), ("xfail", 0, 3)],
