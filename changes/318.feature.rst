@@ -1,0 +1,3 @@
+Add ``--rerun-warning`` flag that emits a ``PytestWarning`` each time a test
+is scheduled for rerun, to surface flaky tests in CI (e.g. via
+pytest-github-actions-annotate-failures annotations).

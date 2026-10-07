@@ -798,6 +798,66 @@ def test_rerun_summary_shows_skipped_call(testdir):
     ]
 
 
+def test_rerun_warning_emitted(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1", "--rerun-warning")
+    assert_outcomes(result, passed=1, rerun=1)
+    result.stdout.fnmatch_lines_random([
+        "*PytestWarning: *test_pass* failed on attempt 1 and will be rerun*"
+    ])
+
+
+def test_rerun_warning_with_warnings_as_errors(testdir):
+    """`-W error` must not escalate the warning into an INTERNALERROR."""
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}
+
+        def test_other():
+            pass"""
+    )
+    result = testdir.runpytest("-W", "error", "--reruns", "1", "--rerun-warning")
+    assert_outcomes(result, passed=2, rerun=1)
+    result.stdout.no_fnmatch_line("INTERNALERROR*")
+    result.stdout.fnmatch_lines_random([
+        "*PytestWarning: *test_pass* failed on attempt 1 and will be rerun*"
+    ])
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
+def test_rerun_warning_emitted_for_temporary_test_crash(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_crash():
+            {temporary_crash()}
+
+        def test_pass():
+            pass"""
+    )
+    result = testdir.runpytest(
+        "-p", "xdist", "-n", "1", "--reruns", "1", "--rerun-warning"
+    )
+    assert_outcomes(result, passed=2, rerun=1)
+    result.stdout.fnmatch_lines_random([
+        "*PytestWarning: *test_crash failed on attempt 1 and will be rerun*"
+    ])
+
+
+def test_no_rerun_warning_by_default(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "1")
+    assert "will be rerun" not in result.stdout.str()
+
+
 @pytest.mark.parametrize("report_flag", ["-ra", "-rA"])
 def test_extra_test_summary_for_reruns_with_reportchars_all(testdir, report_flag):
     testdir.makepyfile(

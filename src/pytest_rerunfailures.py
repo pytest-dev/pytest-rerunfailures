@@ -178,6 +178,15 @@ def pytest_addoption(parser):
         "'rerun test summary info' section, which is emitted automatically "
         "when this flag is set.",
     )
+    group._addoption(
+        "--rerun-warning",
+        action="store_true",
+        dest="rerun_warning",
+        help="Emit a PytestWarning each time a test is scheduled for rerun. "
+        "Useful to surface flaky tests in CI, e.g. via annotations from "
+        "pytest-github-actions-annotate-failures. filterwarnings=error "
+        "does not turn these warnings into errors.",
+    )
     group.addoption(
         "--max-suite-reruns",
         action="store",
@@ -278,6 +287,37 @@ def _warn_pdb_disables_reruns(config, item=None):
                     location=None,
                 )
             )
+
+
+def _warn_rerun(config, nodeid, attempt, item=None):
+    """Warn that a test failed and will be rerun (``--rerun-warning``).
+
+    As in ``_warn_pdb_disables_reruns``, ``-W error`` must not escalate the
+    warning into an INTERNALERROR, so an escalated warning is recorded through
+    pytest's warning hook instead. Without an item (a crashed test rescheduled
+    by the xdist controller) the warning is always recorded that way.
+    """
+    warning = pytest.PytestWarning(
+        f"{nodeid} failed on attempt {attempt} and will be rerun"
+    )
+    if item is not None:
+        try:
+            item.warn(warning)
+            return
+        except Warning:
+            filename, lineno = str(item.path), (item.location[1] or 0) + 1
+    else:
+        filename, lineno = nodeid.split("::")[0], 0
+    config.hook.pytest_warning_recorded.call_historic(
+        kwargs=dict(
+            warning_message=warnings.WarningMessage(
+                warning, type(warning), filename, lineno
+            ),
+            when="runtest",
+            nodeid=nodeid,
+            location=None,
+        )
+    )
 
 
 def get_reruns_count(item):
@@ -821,6 +861,10 @@ class XDistHooks:
             try:
                 sched.mark_test_pending(crashitem)
                 report.outcome = "rerun"
+                if sched.config.option.rerun_warning:
+                    _warn_rerun(
+                        sched.config, crashitem, db.get_test_failures(crashitem) + 1
+                    )
             except NotImplementedError:
                 if reserved_suite_rerun:
                     db.decrement_suite_reruns()
@@ -1337,6 +1381,10 @@ def pytest_runtest_protocol(item, nextitem):
                         continue
 
                 report.outcome = "rerun"
+                if item.session.config.option.rerun_warning:
+                    _warn_rerun(
+                        item.config, item.nodeid, item.execution_count, item=item
+                    )
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
 
                 if not parallel or works_with_current_xdist():
