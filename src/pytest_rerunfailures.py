@@ -861,6 +861,10 @@ class XDistHooks:
             try:
                 sched.mark_test_pending(crashitem)
                 report.outcome = "rerun"
+                if sched.config.option.rerun_warning:
+                    _warn_rerun(
+                        sched.config, crashitem, db.get_test_failures(crashitem) + 1
+                    )
             except NotImplementedError:
                 if reserved_suite_rerun:
                     db.decrement_suite_reruns()

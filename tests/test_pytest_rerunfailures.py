@@ -829,6 +829,25 @@ def test_rerun_warning_with_warnings_as_errors(testdir):
     ])
 
 
+@pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
+def test_rerun_warning_emitted_for_temporary_test_crash(testdir):
+    testdir.makepyfile(
+        f"""
+        def test_crash():
+            {temporary_crash()}
+
+        def test_pass():
+            pass"""
+    )
+    result = testdir.runpytest(
+        "-p", "xdist", "-n", "1", "--reruns", "1", "--rerun-warning"
+    )
+    assert_outcomes(result, passed=2, rerun=1)
+    result.stdout.fnmatch_lines_random([
+        "*PytestWarning: *test_crash failed on attempt 1 and will be rerun*"
+    ])
+
+
 def test_no_rerun_warning_by_default(testdir):
     testdir.makepyfile(
         f"""
