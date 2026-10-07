@@ -347,7 +347,8 @@ turn into annotations:
 
    $ pytest --reruns 2 --rerun-warning
 
-Note that ``filterwarnings = error`` turns these warnings into errors.
+``filterwarnings = error`` does not turn these warnings into errors, so they
+never fail a test or abort the run.
 
 Output
 ------

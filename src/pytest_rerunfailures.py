@@ -184,8 +184,8 @@ def pytest_addoption(parser):
         dest="rerun_warning",
         help="Emit a PytestWarning each time a test is scheduled for rerun. "
         "Useful to surface flaky tests in CI, e.g. via annotations from "
-        "pytest-github-actions-annotate-failures. Note that "
-        "filterwarnings=error turns these warnings into errors.",
+        "pytest-github-actions-annotate-failures. filterwarnings=error "
+        "does not turn these warnings into errors.",
     )
     group.addoption(
         "--max-suite-reruns",
@@ -287,6 +287,37 @@ def _warn_pdb_disables_reruns(config, item=None):
                     location=None,
                 )
             )
+
+
+def _warn_rerun(config, nodeid, attempt, item=None):
+    """Warn that a test failed and will be rerun (``--rerun-warning``).
+
+    As in ``_warn_pdb_disables_reruns``, ``-W error`` must not escalate the
+    warning into an INTERNALERROR, so an escalated warning is recorded through
+    pytest's warning hook instead. Without an item (a crashed test rescheduled
+    by the xdist controller) the warning is always recorded that way.
+    """
+    warning = pytest.PytestWarning(
+        f"{nodeid} failed on attempt {attempt} and will be rerun"
+    )
+    if item is not None:
+        try:
+            item.warn(warning)
+            return
+        except Warning:
+            filename, lineno = str(item.path), (item.location[1] or 0) + 1
+    else:
+        filename, lineno = nodeid.split("::")[0], 0
+    config.hook.pytest_warning_recorded.call_historic(
+        kwargs=dict(
+            warning_message=warnings.WarningMessage(
+                warning, type(warning), filename, lineno
+            ),
+            when="runtest",
+            nodeid=nodeid,
+            location=None,
+        )
+    )
 
 
 def get_reruns_count(item):
@@ -1347,11 +1378,8 @@ def pytest_runtest_protocol(item, nextitem):
 
                 report.outcome = "rerun"
                 if item.session.config.option.rerun_warning:
-                    item.warn(
-                        pytest.PytestWarning(
-                            f"{item.nodeid} failed on attempt "
-                            f"{item.execution_count} and will be rerun"
-                        )
+                    _warn_rerun(
+                        item.config, item.nodeid, item.execution_count, item=item
                     )
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
 

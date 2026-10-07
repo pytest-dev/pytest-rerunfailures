@@ -811,6 +811,24 @@ def test_rerun_warning_emitted(testdir):
     ])
 
 
+def test_rerun_warning_with_warnings_as_errors(testdir):
+    """`-W error` must not escalate the warning into an INTERNALERROR."""
+    testdir.makepyfile(
+        f"""
+        def test_pass():
+            {temporary_failure()}
+
+        def test_other():
+            pass"""
+    )
+    result = testdir.runpytest("-W", "error", "--reruns", "1", "--rerun-warning")
+    assert_outcomes(result, passed=2, rerun=1)
+    result.stdout.no_fnmatch_line("INTERNALERROR*")
+    result.stdout.fnmatch_lines_random([
+        "*PytestWarning: *test_pass* failed on attempt 1 and will be rerun*"
+    ])
+
+
 def test_no_rerun_warning_by_default(testdir):
     testdir.makepyfile(
         f"""
