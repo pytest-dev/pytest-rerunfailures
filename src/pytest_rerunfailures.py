@@ -731,26 +731,6 @@ def _should_hard_fail_on_error(item, report, excinfo):
         return (not matches_rerun_only) or matches_rerun_except
 
 
-def _should_not_rerun(item, report, reruns, condition):
-    xfail = hasattr(report, "wasxfail")
-    is_terminal_error = any(item._terminal_errors.values())
-    if report.when == "teardown":
-        is_terminal_error = item._terminal_errors.get(
-            "setup", False
-        ) or item._terminal_errors.get("teardown", False)
-    has_failed_subtests = report.when == "call" and _get_num_failed_subtests(item) > 0
-
-    if (
-        item.execution_count > reruns
-        or (not report.failed and not has_failed_subtests)
-        or xfail
-        or is_terminal_error
-    ):
-        return True
-
-    return not condition
-
-
 def is_master(config):
     return not (hasattr(config, "workerinput") or hasattr(config, "slaveinput"))
 
@@ -1136,14 +1116,33 @@ def _rerun_matches_phase(item, phase):
     )
 
 
-def _rerun_matches_later_phase(item, phase):
-    """Return whether a later failed phase can trigger a rerun."""
-    phases = ("setup", "call", "teardown")
-    phase_index = phases.index(phase)
+def _has_rerun_except_terminal_error(item):
+    """Return whether an exception explicitly excluded reruns this attempt."""
+    rerun_except_errors = _get_rerun_filter_regex(item, "rerun_except")
+    if not rerun_except_errors:
+        return False
+
     return any(
-        _rerun_matches_phase(item, failed_phase)
-        for failed_phase, _, _ in _get_reruns_condition_failures(item)
-        if phases.index(failed_phase) > phase_index
+        _matches_any_rerun_except_error(rerun_except_errors, excinfo)
+        for phase_excinfos in item._rerun_condition_excinfos.values()
+        for excinfo in phase_excinfos
+    )
+
+
+def _should_rerun(item, reruns, condition):
+    """Return whether this attempt should be rerun as a whole."""
+    if (
+        not condition
+        or item.execution_count > reruns
+        or _has_rerun_except_terminal_error(item)
+        or item._test_xfailed.get("setup", False)
+        or item._test_xfailed.get("call", False)
+    ):
+        return False
+
+    return any(
+        _rerun_matches_phase(item, phase)
+        for phase, _, _ in _get_reruns_condition_failures(item)
     )
 
 
@@ -1321,57 +1320,51 @@ def pytest_runtest_protocol(item, nextitem):
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
-        condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
-        rerun_triggered = False
+        condition_failures = _get_reruns_condition_failures(item)
+        condition = get_reruns_condition(item, condition_failures)
+        rerun_triggered = _should_rerun(item, reruns, condition)
+
+        if rerun_triggered:
+            max_suite_reruns = item.session.config.option.max_suite_reruns
+            if max_suite_reruns is not None and not db.try_increment_suite_reruns(
+                max_suite_reruns
+            ):
+                # Suite-wide limit exhausted -- log all reports as final results.
+                _restore_suspended_finalizers(item)
+                rerun_triggered = False
+
+        rerun_report = next(
+            (
+                report
+                for report in reports
+                if report.when == "call" and _get_num_failed_subtests(item) > 0
+            ),
+            next((report for report in reports if report.failed), None),
+        )
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
-            if rerun_triggered:
-                if report.failed:
-                    report.outcome = "rerun"
-                item.ihook.pytest_runtest_logreport(report=report)
-            elif (
-                condition
-                and not _rerun_matches_phase(item, report.when)
-                and _rerun_matches_later_phase(item, report.when)
-                and (
-                    report.failed
-                    or (report.when == "call" and _get_num_failed_subtests(item) > 0)
-                )
+            if rerun_triggered and (
+                report.failed
+                or (report.when == "call" and _get_num_failed_subtests(item) > 0)
             ):
-                # Another failed phase matched the condition and will carry
-                # this intermediate attempt's rerun report. Do not publish a
-                # nonmatching failure as a final result first.
-                continue
-            elif _should_not_rerun(item, report, reruns, condition):
-                # no rerun needed or one already triggered, log normally
-                item.ihook.pytest_runtest_logreport(report=report)
-            else:
-                # failure detected and reruns not exhausted, since i < reruns
-                max_suite_reruns = item.session.config.option.max_suite_reruns
-                if max_suite_reruns is not None:
-                    if not db.try_increment_suite_reruns(max_suite_reruns):
-                        # Suite-wide limit exhausted -- log as final failure.
-                        _restore_suspended_finalizers(item)
-                        item.ihook.pytest_runtest_logreport(report=report)
-                        continue
-
                 report.outcome = "rerun"
-                time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
-
                 if not parallel or works_with_current_xdist():
-                    # will rerun test, log intermediate result
                     item.ihook.pytest_runtest_logreport(report=report)
+            else:
+                item.ihook.pytest_runtest_logreport(report=report)
 
-                # cleanin item's cashed results from any level of setups
-                _remove_cached_results_from_failed_fixtures(item)
-                _remove_failed_setup_state_from_session(item)
-                _discard_test_class_instance(item)
-                _remove_failed_subtests_from_report(item, report)
-                _remove_failed_subtest_reports_from_stats(
-                    item.config, item.session, item.nodeid
-                )
+        if rerun_triggered:
+            time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
 
-                rerun_triggered = True
+            # Clean cached results from any level of setups.
+            _remove_cached_results_from_failed_fixtures(item)
+            _remove_failed_setup_state_from_session(item)
+            _discard_test_class_instance(item)
+            if rerun_report is not None:
+                _remove_failed_subtests_from_report(item, rerun_report)
+            _remove_failed_subtest_reports_from_stats(
+                item.config, item.session, item.nodeid
+            )
 
         # Do not retain ExceptionInfo tracebacks and their frame locals for the
         # lifetime of the collected item/session.
