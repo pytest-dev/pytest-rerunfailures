@@ -1394,7 +1394,12 @@ def pytest_terminal_summary(terminalreporter):
     # Adapted from https://pytest.org/latest/_modules/_pytest/skipping.html
     tr = terminalreporter
     show_tracebacks = tr.config.getoption("rerun_show_tracebacks", False)
-    if not show_tracebacks and not any(c in "rR" for c in tr.reportchars):
+    # -rR selects reruns explicitly; -ra/-rA ("all") should include them too,
+    # but pytest expands those flags before tr.reportchars is set, so check the
+    # raw option as well. "N" resets the list, so only honour what follows the
+    # last reset.
+    requested = tr.reportchars + tr.config.option.reportchars.rsplit("N", 1)[-1]
+    if not show_tracebacks and not any(c in "rRaA" for c in requested):
         return
 
     lines = show_rerun(terminalreporter, show_tracebacks=show_tracebacks)
