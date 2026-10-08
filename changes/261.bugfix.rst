@@ -1,0 +1,1 @@
+Report a test as rerun when a teardown exception matches the rerun filter after an earlier test-phase failure.

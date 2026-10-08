@@ -2313,7 +2313,7 @@ def test_condition_uses_one_decision_for_call_and_teardown_failures(testdir):
 
     result = testdir.runpytest()
     assert result.ret == 0
-    assert_outcomes(result, passed=1, rerun=1)
+    assert_outcomes(result, passed=1, rerun=2)
 
 
 def test_condition_exception_state_is_released_after_attempt(testdir):
@@ -2614,6 +2614,33 @@ def test_rerunnable_teardown_error_tears_down_module_fixture_once(testdir):
     result = testdir.runpytest("-s")
     assert_outcomes(result, passed=0, failed=1, error=1, rerun=4)
     assert result.stdout.str().count("module teardown") == 1
+
+
+def test_teardown_error_can_trigger_only_rerun(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        attempts = 0
+
+        @pytest.fixture
+        def broken_fixture():
+            yield
+            if attempts == 1:
+                raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=1, only_rerun=["ValueError"])
+        def test_fail(broken_fixture):
+            global attempts
+            attempts += 1
+            if attempts == 1:
+                raise AssertionError("call error")
+        """
+    )
+
+    result = testdir.runpytest()
+
+    assert_outcomes(result, passed=1, rerun=2)
 
 
 @pytest.mark.parametrize(
@@ -3890,3 +3917,70 @@ def test_max_suite_reruns_preserves_fixture_teardown_when_exhausted(testdir):
     )
     result = testdir.runpytest("-s", "--reruns", "1", "--max-suite-reruns", "0")
     result.stdout.fnmatch_lines("*module teardown*")
+
+
+def test_nonmatching_call_failure_is_preserved_on_last_rerun(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def teardown_error():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.mark.flaky(reruns=1, only_rerun=["ValueError"])
+        def test_fail(teardown_error):
+            raise AssertionError("call error")
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=2)
+    assert "AssertionError: call error" in result.stdout.str()
+    assert "ValueError: teardown error" in result.stdout.str()
+
+
+def test_nonmatching_setup_failure_is_preserved(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(autouse=True)
+        def teardown_error():
+            yield
+            raise ValueError("teardown error")
+
+        @pytest.fixture
+        def setup_error():
+            raise AssertionError("setup error")
+
+        @pytest.mark.flaky(reruns=1, only_rerun=["ValueError"])
+        def test_fail(setup_error):
+            pass
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, error=2, rerun=2)
+    assert "AssertionError: setup error" in result.stdout.str()
+    assert "ValueError: teardown error" in result.stdout.str()
+
+
+def test_rerun_except_preserves_terminal_call_failure(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture
+        def teardown_error():
+            yield
+            raise RuntimeError("teardown error")
+
+        @pytest.mark.flaky(reruns=1, rerun_except=["AssertionError"])
+        def test_fail(teardown_error):
+            assert False, "call error"
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1, error=1, rerun=0)
+    assert "AssertionError: call error" in result.stdout.str()
+    assert "RuntimeError: teardown error" in result.stdout.str()
