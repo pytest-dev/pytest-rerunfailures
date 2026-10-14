@@ -12,6 +12,7 @@ import time
 import traceback
 import warnings
 from contextlib import suppress
+from dataclasses import dataclass
 from itertools import chain
 from typing import Any
 
@@ -89,6 +90,32 @@ RERUN_EXCEPT_DESC = (
     "Pass this flag multiple times (or list one regex per line in the ini "
     "file) to accumulate a list of regexes to match"
 )
+
+
+@dataclass(frozen=True)
+class RerunPolicy:
+    """Per-failure rerun policy returned by ``pytest_rerunfailures_rerun_policy``.
+
+    Any field left ``None`` keeps the plugin's default for that item.
+
+    Attributes:
+        reruns: Rerun count for this failure (overrides ``--reruns`` / the marker).
+        all_reruns_need_to_pass: Override all-reruns-need-to-pass for this failure.
+    """
+
+    reruns: int | None = None
+    all_reruns_need_to_pass: bool | None = None
+
+
+def pytest_addhooks(pluginmanager):
+    """Register this plugin's own hookspecs (see ``pytest_rerunfailures_newhooks``).
+
+    The specs live in a dedicated module so ``add_hookspecs`` sees only them, not this
+    module's own hook implementations.
+    """
+    import pytest_rerunfailures_newhooks
+
+    pluginmanager.add_hookspecs(pytest_rerunfailures_newhooks)
 
 
 # command line options
@@ -170,6 +197,16 @@ def pytest_addoption(parser):
         help="Fail the test run with exit code 7 if a flaky test passes on a rerun.",
     )
     group._addoption(
+        "--all-reruns-need-to-pass",
+        action="store_true",
+        dest="all_reruns_need_to_pass",
+        default=False,
+        help=(
+            "If enabled, after an initial failure, all reruns must pass "
+            "for the test to succeed."
+        ),
+    )
+    group._addoption(
         "--rerun-show-tracebacks",
         action="store_true",
         dest="rerun_show_tracebacks",
@@ -191,6 +228,11 @@ def pytest_addoption(parser):
     arg_type = "string"
     parser.addini("reruns", RERUNS_DESC, type=arg_type)
     parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
+    parser.addini(
+        "all_reruns_need_to_pass",
+        "If enabled, all reruns must pass after initial failure",
+        type=arg_type,
+    )
     parser.addini(
         "reruns_delay_backoff_factor",
         RERUNS_DELAY_BACKOFF_FACTOR_DESC,
@@ -342,6 +384,33 @@ def get_reruns_delay(item):
         )
 
     return delay
+
+
+def get_all_reruns_need_to_pass(item):
+    """Get whether all reruns need to pass from marker, config, or ini."""
+    rerun_marker = _get_marker(item)
+
+    # Check marker kwargs first
+    if rerun_marker is not None and "all_reruns_need_to_pass" in rerun_marker.kwargs:
+        return rerun_marker.kwargs["all_reruns_need_to_pass"]
+
+    # Check command-line option
+    all_need_pass = item.session.config.getvalue("all_reruns_need_to_pass")
+    if all_need_pass is not None:
+        return all_need_pass
+
+    # Check ini value
+    try:
+        all_need_pass = item.session.config.getini("all_reruns_need_to_pass")
+        if all_need_pass:
+            # Parse string values like "True", "true", "1", etc.
+            if isinstance(all_need_pass, str):
+                return all_need_pass.lower() in ("true", "1", "yes", "on")
+            return bool(all_need_pass)
+    except (TypeError, ValueError):
+        pass
+
+    return False
 
 
 def get_reruns_delay_backoff_factor(item):
@@ -747,6 +816,71 @@ def _should_not_rerun(item, report, reruns, condition):
     return not condition
 
 
+def _get_rerun_settings(item):
+    """Return the (reruns, all_reruns_need_to_pass) in force for item.
+
+    The configured values, overridden by the item's per-failure rerun policy once it
+    has one.
+    """
+    reruns = get_reruns_count(item)
+    all_reruns_need_to_pass = get_all_reruns_need_to_pass(item)
+    policy = getattr(item, "_rerunfailures_policy", None)
+    if policy is not None:
+        if policy.reruns is not None:
+            reruns = policy.reruns
+        if policy.all_reruns_need_to_pass is not None:
+            all_reruns_need_to_pass = policy.all_reruns_need_to_pass
+    return reruns, all_reruns_need_to_pass
+
+
+def _in_all_reruns_sequence(item):
+    """Return whether item is in an all-reruns-need-to-pass sequence.
+
+    A failing call on the first attempt starts one when all-reruns-need-to-pass is in
+    force for item.
+    """
+    _, all_reruns_need_to_pass = _get_rerun_settings(item)
+    return all_reruns_need_to_pass and getattr(item, "_initial_call_failed", False)
+
+
+def _will_rerun(item):
+    """Return whether another attempt of item may follow the one in progress.
+
+    pytest_runtest_teardown asks this to keep higher-scoped fixtures alive for that
+    attempt, and the all-reruns-need-to-pass branch of the protocol loop to find the
+    last attempt. The teardown runs before the loop decides, so the answer comes from
+    the attempt's setup and call phases. An all-reruns-need-to-pass sequence reruns
+    after a passing attempt too; otherwise only a failure reruns, as in
+    _should_not_rerun, which the loop uses for those items.
+    """
+    reruns, _ = _get_rerun_settings(item)
+    _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
+    if _in_all_reruns_sequence(item):
+        # every attempt that reaches its call phase is followed by a rerun until the
+        # reruns are used up, whatever its outcome
+        return item.execution_count <= reruns and "call" in _test_failed_statuses
+    # Exceeding re-run limits, being free of failue statuses, encountering
+    # allowable exceptions indicate that the test is not to be re-run. The
+    # final condition decision is made after teardown, when every failed phase
+    # is known. A failure can also be carried by failed subtests alone, which
+    # leaves the call phase itself passing.
+    return (
+        item.execution_count <= reruns
+        and (any(_test_failed_statuses.values()) or _get_num_failed_subtests(item) > 0)
+        and not any(item._test_xfailed.values())
+        and not any(item._terminal_errors.values())
+    )
+
+
+def _clean_up_for_rerun(item, report):
+    """Clean item's cached results from any level of setups before a rerun."""
+    _remove_cached_results_from_failed_fixtures(item)
+    _remove_failed_setup_state_from_session(item)
+    _discard_test_class_instance(item)
+    _remove_failed_subtests_from_report(item, report)
+    _remove_failed_subtest_reports_from_stats(item.config, item.session, item.nodeid)
+
+
 def is_master(config):
     return not (hasattr(config, "workerinput") or hasattr(config, "slaveinput"))
 
@@ -755,10 +889,12 @@ def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
         "markers",
-        "flaky(reruns=1, reruns_delay=0, reruns_delay_backoff_factor=1.0): mark "
-        "test to re-run up to 'reruns' times. Add a delay of 'reruns_delay' "
-        "seconds between re-runs, multiplied by 'reruns_delay_backoff_factor' "
-        "after each attempt for an exponential backoff.",
+        "flaky(reruns=1, reruns_delay=0, reruns_delay_backoff_factor=1.0, "
+        "all_reruns_need_to_pass=False): mark test to re-run up to 'reruns' "
+        "times. Add a delay of 'reruns_delay' seconds between re-runs, "
+        "multiplied by 'reruns_delay_backoff_factor' after each attempt for an "
+        "exponential backoff. If 'all_reruns_need_to_pass' is True, all reruns "
+        "must pass.",
     )
     check_options(config)
 
@@ -1189,7 +1325,6 @@ def pytest_runtest_teardown(item, nextitem):
         # -> teardown needs to be skipped as well
         return
 
-    _test_failed_statuses = getattr(item, "_test_failed_statuses", {})
     max_suite_reruns = item.session.config.option.max_suite_reruns
     if (
         max_suite_reruns is not None
@@ -1198,18 +1333,9 @@ def pytest_runtest_teardown(item, nextitem):
         _restore_suspended_finalizers(item)
         return
 
-    # Only remove non-function level actions from the stack if the test is to be re-run
-    # Exceeding re-run limits, being free of failue statuses, encountering
-    # allowable exceptions indicate that the test may need to be re-run. The
-    # final condition decision is made after teardown, when every failed phase
-    # is known. A failure can also be carried by failed subtests alone, which
-    # leaves the call phase itself passing.
-    if (
-        item.execution_count <= reruns
-        and (any(_test_failed_statuses.values()) or _get_num_failed_subtests(item) > 0)
-        and not any(item._test_xfailed.values())
-        and not any(item._terminal_errors.values())
-    ):
+    # Only remove non-function level actions from the stack if the test may be
+    # re-run (see _will_rerun for what that takes).
+    if _will_rerun(item):
         # clean cached results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
 
@@ -1262,7 +1388,28 @@ def pytest_runtest_makereport(item, call):
         result.when, False
     ) or hasattr(result, "wasxfail")
 
-    if result.when == "teardown" and getattr(item, "_finalizers_suspended", False):
+    # A failing call on the first attempt starts an all-reruns-need-to-pass sequence.
+    # Recorded here because the teardown that follows needs it before the protocol
+    # loop sees this report.
+    if (
+        result.when == "call"
+        and result.failed
+        and getattr(item, "execution_count", None) == 1
+    ):
+        item._initial_call_failed = True
+
+    # On the first failure, ask plugins for a per-failure rerun policy so the protocol
+    # can give this failure class its own rerun count / semantics.
+    if result.failed and not hasattr(item, "_rerunfailures_policy"):
+        item._rerunfailures_policy = item.ihook.pytest_rerunfailures_rerun_policy(
+            item=item, report=result, call=call
+        )
+
+    if (
+        result.when == "teardown"
+        and getattr(item, "_finalizers_suspended", False)
+        and not _in_all_reruns_sequence(item)
+    ):
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         if item._terminal_errors["teardown"] or not condition:
             result = _teardown_suspended_finalizers(item, call, result)
@@ -1288,14 +1435,20 @@ def pytest_runtest_protocol(item, nextitem):
 
     delay = get_reruns_delay(item)
     delay_backoff_factor = get_reruns_delay_backoff_factor(item)
+    all_reruns_need_to_pass = get_all_reruns_need_to_pass(item)
     parallel = not is_master(item.config)
     db = item.session.config.failures_db
     item.execution_count = db.get_test_failures(item.nodeid)
+    item._initial_call_failed = False
     db.set_test_reruns(item.nodeid, reruns)
 
     # A rerun count limits extra attempts, not the initial test execution.
     if item.execution_count > reruns and item.execution_count > 0:
         return True
+
+    # Track rerun results when all reruns need to pass
+    rerun_results = []  # Track result of each rerun (True=passed, False=failed)
+    policy_applied = False
 
     need_to_run = True
     while need_to_run:
@@ -1303,56 +1456,100 @@ def pytest_runtest_protocol(item, nextitem):
         item.ihook.pytest_runtest_logstart(nodeid=item.nodeid, location=item.location)
         reports = runtestprotocol(item, nextitem=nextitem, log=False)
 
-        condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
+        # Apply a per-failure rerun policy (pytest_rerunfailures_rerun_policy) once the
+        # first attempt has run and makereport has classified its failure. Lets a plugin
+        # override the rerun count / all-reruns mode for THIS item, without changing how
+        # other failures are rerun.
+        if not policy_applied:
+            policy = getattr(item, "_rerunfailures_policy", None)
+            if policy is not None:
+                policy_applied = True
+                reruns, all_reruns_need_to_pass = _get_rerun_settings(item)
+                db.set_test_reruns(item.nodeid, reruns)
+
+        max_suite_reruns = item.session.config.option.max_suite_reruns
         rerun_triggered = False
-        for report in reports:  # 3 reports: setup, call, teardown
-            report.rerun = item.execution_count - 1
-            if rerun_triggered:
-                if report.failed:
+        if all_reruns_need_to_pass and item._initial_call_failed:
+            # The initial run (execution_count==1) failed and every rerun after it
+            # must run. A rerun that never reaches its call phase ends it too.
+            will_rerun = _will_rerun(item)
+            if (
+                will_rerun
+                and max_suite_reruns is not None
+                and not db.try_increment_suite_reruns(max_suite_reruns)
+            ):
+                # Suite-wide limit exhausted -- this attempt is the last one.
+                will_rerun = False
+                _restore_suspended_finalizers(item)
+
+            for report in reports:  # 3 reports: setup, call, teardown
+                report.rerun = item.execution_count - 1
+                if report.when == "call":
+                    if item.execution_count > 1:
+                        # True if the rerun passed, False if it failed
+                        rerun_results.append(not report.failed)
+                    if will_rerun:
+                        report.outcome = "rerun"
+                        time.sleep(
+                            delay * delay_backoff_factor ** (item.execution_count - 1)
+                        )
+                        if not parallel or works_with_current_xdist():
+                            # will rerun test, log intermediate result
+                            item.ihook.pytest_runtest_logreport(report=report)
+                        _clean_up_for_rerun(item, report)
+                        rerun_triggered = True
+                        continue
+                    if not all(rerun_results):
+                        # At least one rerun failed, mark final outcome as failed
+                        report.outcome = "failed"
+                elif rerun_triggered and report.failed:
                     report.outcome = "rerun"
                 item.ihook.pytest_runtest_logreport(report=report)
-            elif (
-                condition
-                and not _reruns_condition_matches_phase(item, report.when)
-                and (
-                    report.failed
-                    or (report.when == "call" and _get_num_failed_subtests(item) > 0)
-                )
-            ):
-                # Another failed phase matched the condition and will carry
-                # this intermediate attempt's rerun report. Do not publish a
-                # nonmatching failure as a final result first.
-                continue
-            elif _should_not_rerun(item, report, reruns, condition):
-                # no rerun needed or one already triggered, log normally
-                item.ihook.pytest_runtest_logreport(report=report)
-            else:
-                # failure detected and reruns not exhausted, since i < reruns
-                max_suite_reruns = item.session.config.option.max_suite_reruns
-                if max_suite_reruns is not None:
-                    if not db.try_increment_suite_reruns(max_suite_reruns):
-                        # Suite-wide limit exhausted -- log as final failure.
-                        _restore_suspended_finalizers(item)
-                        item.ihook.pytest_runtest_logreport(report=report)
-                        continue
-
-                report.outcome = "rerun"
-                time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
-
-                if not parallel or works_with_current_xdist():
-                    # will rerun test, log intermediate result
+        else:
+            condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
+            for report in reports:  # 3 reports: setup, call, teardown
+                report.rerun = item.execution_count - 1
+                if rerun_triggered:
+                    if report.failed:
+                        report.outcome = "rerun"
                     item.ihook.pytest_runtest_logreport(report=report)
+                elif (
+                    condition
+                    and not _reruns_condition_matches_phase(item, report.when)
+                    and (
+                        report.failed
+                        or (
+                            report.when == "call" and _get_num_failed_subtests(item) > 0
+                        )
+                    )
+                ):
+                    # Another failed phase matched the condition and will carry
+                    # this intermediate attempt's rerun report. Do not publish a
+                    # nonmatching failure as a final result first.
+                    continue
+                elif _should_not_rerun(item, report, reruns, condition):
+                    # no rerun needed or one already triggered, log normally
+                    item.ihook.pytest_runtest_logreport(report=report)
+                else:
+                    # failure detected and reruns not exhausted, since i < reruns
+                    if max_suite_reruns is not None:
+                        if not db.try_increment_suite_reruns(max_suite_reruns):
+                            # Suite-wide limit exhausted -- log as final failure.
+                            _restore_suspended_finalizers(item)
+                            item.ihook.pytest_runtest_logreport(report=report)
+                            continue
 
-                # cleanin item's cashed results from any level of setups
-                _remove_cached_results_from_failed_fixtures(item)
-                _remove_failed_setup_state_from_session(item)
-                _discard_test_class_instance(item)
-                _remove_failed_subtests_from_report(item, report)
-                _remove_failed_subtest_reports_from_stats(
-                    item.config, item.session, item.nodeid
-                )
+                    report.outcome = "rerun"
+                    time.sleep(
+                        delay * delay_backoff_factor ** (item.execution_count - 1)
+                    )
 
-                rerun_triggered = True
+                    if not parallel or works_with_current_xdist():
+                        # will rerun test, log intermediate result
+                        item.ihook.pytest_runtest_logreport(report=report)
+
+                    _clean_up_for_rerun(item, report)
+                    rerun_triggered = True
 
         # Do not retain ExceptionInfo tracebacks and their frame locals for the
         # lifetime of the collected item/session.

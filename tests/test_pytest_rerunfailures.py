@@ -62,6 +62,24 @@ def temporary_crash(count=1):
                 os._exit(1)"""
 
 
+def events_fixture(scope="session"):
+    """Source of an autouse fixture logging its setup/teardown to events.txt."""
+    return f"""
+        import py
+        import pytest
+
+        @pytest.fixture(scope="{scope}", autouse=True)
+        def {scope}_events():
+            path = py.path.local(__file__).dirpath().ensure("events.txt")
+            path.write(path.read() + "setup\\n")
+            yield
+            path.write(path.read() + "teardown\\n")"""
+
+
+def read_events(testdir):
+    return testdir.tmpdir.join("events.txt").read().split()
+
+
 def check_outcome_field(outcomes, field_name, expected_value):
     field_value = outcomes.get(field_name, 0)
     assert field_value == expected_value, (
@@ -3341,6 +3359,472 @@ def test_exception_match_only_rerun_in_dual_query(testdir):
     result.stdout.fnmatch_lines("session teardown")
 
 
+def test_all_reruns_need_to_pass_disabled_by_default(testdir):
+    """Test that default behavior is unchanged (flag disabled by default)."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_default_behavior():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on second attempt
+        """
+    )
+    result = testdir.runpytest("--reruns", "3")
+    # Should pass because one successful rerun is enough (default behavior)
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_all_reruns_need_to_pass_all_pass(testdir):
+    """Test that when all reruns pass, test passes."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_all_pass():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on all subsequent attempts
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should pass because all 3 reruns pass
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_some_fail(testdir):
+    """Test that when some reruns fail, test fails."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_some_fail():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            # Fail on attempt 0 (initial) and attempt 2 (second rerun)
+            if count == 0 or count == 2:
+                raise Exception(f'Fail on attempt {count}')
+            # Pass on attempts 1 and 3
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should fail because rerun 2 fails
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_all_fail(testdir):
+    """Test that when all reruns fail, test fails."""
+    testdir.makepyfile(
+        """
+        def test_all_fail():
+            raise Exception('Always fail')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should fail because all reruns fail
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_marker_override(testdir):
+    """Test that marker can override command-line flag."""
+    testdir.makepyfile(
+        """
+        import pytest
+        import py
+
+        @pytest.mark.flaky(reruns=3, all_reruns_need_to_pass=True)
+        def test_marker_override():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on all subsequent attempts
+        """
+    )
+    # Not passing --all-reruns-need-to-pass on command line, but marker enables it
+    result = testdir.runpytest("--verbose")
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_marker_can_disable(testdir):
+    """Test that marker can disable flag even when set on command line."""
+    testdir.makepyfile(
+        """
+        import pytest
+        import py
+
+        @pytest.mark.flaky(reruns=3, all_reruns_need_to_pass=False)
+        def test_marker_disables():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on second attempt
+        """
+    )
+    # Passing --all-reruns-need-to-pass, but marker disables it
+    result = testdir.runpytest("--all-reruns-need-to-pass", "--verbose")
+    # Should pass with just one successful rerun (default behavior)
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_all_reruns_need_to_pass_with_only_rerun(testdir):
+    """Test interaction with --only-rerun flag."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_with_only_rerun():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise ValueError('Fail on first attempt')
+            # Pass on subsequent attempts
+        """
+    )
+    result = testdir.runpytest(
+        "--reruns", "3", "--all-reruns-need-to-pass", "--only-rerun", "ValueError"
+    )
+    # Should pass because all reruns pass
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+def test_all_reruns_need_to_pass_initial_pass(testdir):
+    """Test that flag has no effect if test passes on first attempt."""
+    testdir.makepyfile(
+        """
+        def test_initial_pass():
+            pass  # Always passes
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should pass without any reruns
+    assert_outcomes(result, passed=1, rerun=0)
+
+
+def test_all_reruns_need_to_pass_zero_reruns(testdir):
+    """Test that flag has no effect with reruns=0."""
+    testdir.makepyfile(
+        """
+        def test_zero_reruns():
+            raise Exception('Fail')
+        """
+    )
+    result = testdir.runpytest("--reruns", "0", "--all-reruns-need-to-pass")
+    # Should fail without any reruns
+    assert_outcomes(result, passed=0, failed=1, rerun=0)
+
+
+def test_all_reruns_need_to_pass_setup_failure(testdir):
+    """Test behavior when setup fails - only call phase is tracked."""
+    testdir.makepyfile(
+        """
+        import pytest
+        import py
+
+        @pytest.fixture
+        def failing_fixture():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count < 2:
+                raise Exception(f'Fixture fails on attempt {count}')
+            return "ok"
+
+        def test_setup_failure(failing_fixture):
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Note: all_reruns_need_to_pass only tracks call phase failures, not setup/teardown
+    # Setup eventually passes, so test passes
+    assert_outcomes(result, passed=1, rerun=2)
+
+
+def test_all_reruns_need_to_pass_command_line(testdir):
+    """Test that command line flag works as expected."""
+    testdir.makepyfile(
+        """
+        import py
+        def test_cli_flag():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Fail on first attempt')
+            # Pass on all subsequent attempts
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Should pass because all reruns pass
+    assert_outcomes(result, passed=1, rerun=3)
+
+
+@pytest.mark.parametrize(
+    "xdist_args",
+    [
+        [],
+        pytest.param(
+            ["-n", "1"],
+            marks=pytest.mark.skipif(not has_xdist, reason="requires pytest-xdist"),
+        ),
+    ],
+)
+def test_all_reruns_need_to_pass_keeps_session_fixture_across_passing_reruns(
+    testdir, xdist_args
+):
+    """A passing rerun of the last test must not tear the session fixture down.
+
+    The last test has no next item, so pytest tears every scope down after each
+    attempt unless the plugin keeps the fixtures alive for the coming rerun.
+    """
+    testdir.makeconftest(events_fixture())
+    testdir.makepyfile(
+        f"""
+        def test_flaky():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest(
+        *xdist_args, "--reruns", "3", "--all-reruns-need-to-pass"
+    )
+    assert_outcomes(result, passed=1, rerun=3)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+@pytest.mark.parametrize("lowered", [0, 1])
+def test_all_reruns_need_to_pass_policy_lowered_budget_tears_fixtures_down_once(
+    testdir, lowered
+):
+    """The attempt the policy's budget makes final is the one that tears down.
+
+    The policy applies after the first failure's call phase, before that attempt's
+    teardown: with a budget of 0 the first attempt is already the final one.
+    """
+    testdir.makeconftest(
+        events_fixture()
+        + f"""
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns={lowered})"""
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=0, failed=1, rerun=lowered)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+def test_all_reruns_need_to_pass_zero_reruns_tears_fixtures_down_once(testdir):
+    testdir.makeconftest(events_fixture())
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "0", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=0, failed=1)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+def test_all_reruns_need_to_pass_setup_failure_on_rerun_tears_fixtures_down_once(
+    testdir,
+):
+    """A rerun that fails in setup ends the sequence, so the fixtures go down then."""
+    testdir.makeconftest(events_fixture())
+    testdir.makepyfile(
+        """
+        import py
+        import pytest
+
+        @pytest.fixture
+        def fails_on_second_setup():
+            path = py.path.local(__file__).dirpath().ensure('setup.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 1:
+                raise Exception('Setup fails on the first rerun')
+
+        def test_fail(fails_on_second_setup):
+            raise Exception('Fail on the first attempt')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=0, error=1, rerun=1)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+def test_all_reruns_need_to_pass_session_fixture_with_following_test(testdir):
+    """With a test after the flaky one the session fixture is never at risk."""
+    testdir.makeconftest(events_fixture())
+    testdir.makepyfile(
+        f"""
+        def test_flaky():
+            {temporary_failure()}
+
+        def test_after():
+            pass"""
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=2, rerun=3)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+def test_all_reruns_need_to_pass_module_fixture_across_module_boundary(testdir):
+    """A module fixture survives the reruns of the last test of its module."""
+    testdir.makeconftest(events_fixture(scope="module"))
+    testdir.makepyfile(
+        test_a=f"""
+        def test_flaky():
+            {temporary_failure()}""",
+        test_b="def test_after(): pass",
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=2, rerun=3)
+    # One setup/teardown pair per module.
+    assert read_events(testdir) == ["setup", "teardown"] * 2
+
+
+def test_all_reruns_need_to_pass_disabled_by_policy_tears_fixtures_down_once(
+    testdir,
+):
+    """A policy that turns the mode off makes the first passing rerun the last."""
+    testdir.makeconftest(
+        events_fixture()
+        + """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=3, all_reruns_need_to_pass=False)"""
+    )
+    testdir.makepyfile(
+        f"""
+        def test_flaky():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=1, rerun=1)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+def test_all_reruns_need_to_pass_only_started_by_a_failing_first_call(testdir):
+    """A failing call after the first attempt does not start the sequence.
+
+    The first call passes and its teardown fails, which reruns the test the plain
+    way; the second call then fails, but the passing third attempt is the last one.
+    """
+    testdir.makeconftest(events_fixture())
+    testdir.makepyfile(
+        """
+        import py
+        import pytest
+
+        @pytest.fixture
+        def fails_on_first_teardown():
+            yield
+            path = py.path.local(__file__).dirpath().ensure('teardown.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('Teardown fails on the first attempt')
+
+        def test_flaky(fails_on_first_teardown):
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 1:
+                raise Exception('Fail on the second attempt')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=2, rerun=2)
+    # The first attempt's teardown cannot tell that its own teardown is about to fail,
+    # so that attempt tears the session down once; the passing third attempt ends it.
+    assert read_events(testdir) == ["setup", "teardown", "setup", "teardown"]
+
+
+def test_all_reruns_need_to_pass_item_run_twice_starts_a_fresh_sequence(testdir):
+    """A failing first attempt of one run does not arm the next run of the same item."""
+    testdir.makeconftest(
+        """
+        def pytest_collection_modifyitems(items):
+            items[:] = [items[0], items[1], items[0]]"""
+    )
+    testdir.makepyfile(
+        """
+        import py
+
+        def test_a():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            # First run: fail, pass, pass. Second run: the fourth call passes, and
+            # a fifth would fail if that run were a rerun sequence.
+            if count in (0, 4):
+                raise Exception(f'Fail on call {count}')
+
+        def test_b():
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=3, rerun=2)
+
+
+def test_rerun_policy_lowered_budget_tears_fixtures_down_once(testdir):
+    """Without all-reruns-need-to-pass the policy's budget still ends the lifetime."""
+    testdir.makeconftest(
+        events_fixture()
+        + """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1)"""
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "3")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+@pytest.mark.parametrize(
+    "policy_args", ["reruns=1", "reruns=1, all_reruns_need_to_pass=False"]
+)
+def test_rerun_policy_raised_from_zero_tears_fixtures_down_once(testdir, policy_args):
+    """A policy can raise a zero rerun count, and the fixtures stay for that rerun."""
+    testdir.makeconftest(
+        events_fixture()
+        + f"""
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy({policy_args})"""
+    )
+    testdir.makepyfile(
+        f"""
+        def test_flaky():
+            {temporary_failure()}"""
+    )
+    result = testdir.runpytest("--reruns", "0", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=1, rerun=1)
+    assert read_events(testdir) == ["setup", "teardown"]
+
+
+def test_rerun_flaky_condition_false_tears_fixtures_down(testdir):
+    """A false condition ends the sequence at the first failure: fixtures go down."""
+    testdir.makeconftest(events_fixture() + events_fixture(scope="module"))
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.mark.flaky(reruns=2, condition=False)
+        def test_fail():
+            raise Exception('boom')
+        """
+    )
+    result = testdir.runpytest()
+    assert_outcomes(result, passed=0, failed=1)
+    assert read_events(testdir) == ["setup", "setup", "teardown", "teardown"]
+
+
 @pytest.mark.parametrize("mark_params", ["", "reruns=1"])
 def test_force_reruns(testdir, mark_params):
     testdir.makepyfile(
@@ -3457,6 +3941,253 @@ def test_reruns_mode_invalid_choice_errors(testdir):
 
     result = testdir.runpytest("--reruns-mode", "bogus")
     assert result.ret != 0
+
+
+# --- pytest_rerunfailures_rerun_policy: per-failure rerun policy hook ---
+
+
+def test_rerun_policy_none_keeps_global_behavior(testdir):
+    """A policy hook that returns None does not change the global rerun behavior."""
+    testdir.makeconftest(
+        """
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return None
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "2")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_rerun_policy_overrides_rerun_count(testdir):
+    """A policy can cap the rerun count for its failure below the global --reruns."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    # Global --reruns is 5, but the policy caps this failure at a single rerun.
+    result = testdir.runpytest("--reruns", "5")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_rerun_policy_recovers_on_single_rerun(testdir):
+    """A failure that recovers on its one rerun passes under all-reruns mode."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        def test_transient():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('transient failure')
+        """
+    )
+    # Global mode is all-reruns-need-to-pass with 3 reruns; the policy overrides it
+    # to "1 rerun, pass on recovery" for this failure.
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_policy_overrides_all_reruns_need_to_pass(testdir):
+    """A policy can disable all-reruns-need-to-pass for its failure (sustained fail)."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('always down')")
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # One rerun (not three), and it fails -> a single failure.
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_rerun_policy_only_applies_to_matching_failures(testdir):
+    """The policy can target one failure class; others keep default behavior."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            if call.excinfo is not None and call.excinfo.typename == "InfraError":
+                return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+            return None
+        """
+    )
+    testdir.makepyfile(
+        """
+        class InfraError(Exception):
+            pass
+
+        def test_infra():
+            raise InfraError('provider down')
+
+        def test_behavioral():
+            raise AssertionError('real bug')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # test_infra: policy -> 1 rerun; test_behavioral: default -> 3. Both fail.
+    assert_outcomes(result, passed=0, failed=2, rerun=4)
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires pytest-xdist")
+def test_rerun_policy_under_xdist(testdir):
+    """The policy override + recovery work under xdist (policy per-item)."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        def test_transient():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                raise Exception('transient failure')
+        """
+    )
+    result = testdir.runpytest("-n", "1", "--reruns", "3", "--all-reruns-need-to-pass")
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_policy_no_hook_impl_keeps_global_behavior(testdir):
+    """With NO policy hook implemented at all, global rerun behavior is unchanged.
+
+    Guards the additive contract: suites that never implement the hook must behave
+    exactly as before (this is the common case).
+    """
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    result = testdir.runpytest("--reruns", "2")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+def test_rerun_policy_can_increase_rerun_count(testdir):
+    """A policy can RAISE the rerun count for its failure above the global --reruns."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=3)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    # Global --reruns is 1, but the policy raises this failure's count to 3.
+    result = testdir.runpytest("--reruns", "1")
+    assert_outcomes(result, passed=0, failed=1, rerun=3)
+
+
+def test_rerun_policy_firstresult_first_non_none_wins(testdir):
+    """firstresult=True: the first non-None policy wins over a later implementation."""
+    testdir.makepyfile(
+        plugin_first="""
+        import pytest
+        from pytest_rerunfailures import RerunPolicy
+        @pytest.hookimpl(tryfirst=True)
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=1)
+        """
+    )
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=5)
+        """
+    )
+    testdir.makepyfile("def test_fail(): raise Exception('boom')")
+    testdir.syspathinsert()  # make plugin_first importable for `-p`
+    # plugin_first is consulted first (tryfirst) and returns non-None, so its reruns=1
+    # wins over the conftest's reruns=5 (which would give rerun=5 if it won).
+    result = testdir.runpytest("-p", "plugin_first", "--reruns", "3")
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
+
+
+def test_rerun_policy_disables_all_reruns_stops_on_first_pass(testdir):
+    """Overriding all_reruns_need_to_pass=False takes effect with reruns>=2.
+
+    Distinguishes the two modes (which are indistinguishable at reruns=1): a
+    fail/pass/fail sequence stops on the first passing rerun under the override
+    (passed), whereas global all-reruns-need-to-pass would run every rerun and fail
+    because a later rerun failed.
+    """
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            return RerunPolicy(reruns=2, all_reruns_need_to_pass=False)
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        def test_flaky():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count != 1:  # fail (0), pass (1), fail (2)
+                raise Exception('flaky failure')
+        """
+    )
+    result = testdir.runpytest("--reruns", "2", "--all-reruns-need-to-pass")
+    # Override -> normal mode: stops on the first passing rerun. Without the override
+    # (all-reruns-need-to-pass) it would be passed=0, failed=1, rerun=2.
+    assert_outcomes(result, passed=1, rerun=1)
+
+
+def test_rerun_policy_locked_at_first_failure(testdir):
+    """The policy is fixed at the first failure; a differently-classed rerun failure
+    inherits it and is NOT recomputed."""
+    testdir.makeconftest(
+        """
+        from pytest_rerunfailures import RerunPolicy
+        def pytest_rerunfailures_rerun_policy(item, report, call):
+            # Only the first failure (InfraError) ever reaches this hook;
+            # give it 1 rerun.
+            if call.excinfo is not None and call.excinfo.typename == "InfraError":
+                return RerunPolicy(reruns=1, all_reruns_need_to_pass=False)
+            # would apply if (wrongly) recomputed on the rerun
+            return RerunPolicy(reruns=3)
+        """
+    )
+    testdir.makepyfile(
+        """
+        import py
+        class InfraError(Exception):
+            pass
+
+        def test_mixed():
+            path = py.path.local(__file__).dirpath().ensure('test.res')
+            count = int(path.read() or 0)
+            path.write(count + 1)
+            if count == 0:
+                # first failure -> policy reruns=1
+                raise InfraError('provider blip')
+            # different class on the rerun
+            raise AssertionError('real bug on the rerun')
+        """
+    )
+    result = testdir.runpytest("--reruns", "3", "--all-reruns-need-to-pass")
+    # Locked to the infra policy (1 rerun), NOT recomputed to reruns=3 for the
+    # behavioral failure that surfaces on the rerun.
+    assert_outcomes(result, passed=0, failed=1, rerun=1)
 
 
 def test_max_suite_reruns_caps_total_reruns(testdir):

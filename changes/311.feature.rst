@@ -1,0 +1,8 @@
+Add the ``--all-reruns-need-to-pass`` option (also available as an ini setting
+and as the ``all_reruns_need_to_pass`` argument of the ``flaky`` marker): after
+an initial failure, every rerun must pass for the test to succeed. Higher-scoped
+fixtures stay alive across the attempts of such a sequence.
+
+Add the ``pytest_rerunfailures_rerun_policy`` hook: plugins can return a
+``RerunPolicy`` to give a specific failure class its own rerun count /
+all-reruns-need-to-pass mode, without changing how other failures are rerun.

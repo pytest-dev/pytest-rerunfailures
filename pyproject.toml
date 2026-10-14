@@ -57,6 +57,10 @@ release = [
   "zestreleaser-towncrier>=2",
 ]
 
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = [ "pytest_rerunfailures", "pytest_rerunfailures_newhooks" ]
+
 [tool.setuptools.dynamic]
 readme = { file = [ "HEADER.rst", "README.rst", "CHANGES.rst" ] }
 
