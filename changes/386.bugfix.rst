@@ -1,0 +1,1 @@
+Honor ``--fail-on-flaky`` when tests are rerun with pytest-xdist, while preserving ordinary failure exit codes.

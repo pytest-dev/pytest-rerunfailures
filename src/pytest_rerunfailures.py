@@ -780,7 +780,10 @@ class XDistHooks:
         self.session = session
 
     def pytest_runtest_logreport(self, report):
-        """Clean up subtest reports superseded by a worker rerun."""
+        """Track worker reruns and clean up superseded subtest reports."""
+        if report.outcome == "rerun":
+            self.session._rerunfailures_has_rerun = True
+
         worker_id = getattr(report, "worker_id", None)
         item_index = getattr(report, "item_index", None)
         # xdist adds worker_id and item_index when forwarding a report to the
@@ -1446,6 +1449,10 @@ def pytest_sessionfinish(session, exitstatus):
         return
 
     if session.config.option.fail_on_flaky:
+        if getattr(session, "_rerunfailures_has_rerun", False):
+            session.exitstatus = 7
+            return
+
         for item in session.items:
             if not hasattr(item, "execution_count"):
                 # no rerun requested

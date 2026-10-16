@@ -316,28 +316,35 @@ def test_rerun_passes_after_temporary_test_failure(testdir):
 
 def test_run_with_fail_on_flaky_fails_with_custom_error_code_after_pass_on_rerun(
     testdir,
+    fail_on_flaky_xdist_args,
 ):
     testdir.makepyfile(
         f"""
         def test_pass():
             {temporary_failure()}"""
     )
-    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    result = testdir.runpytest(
+        "--reruns", "1", "--fail-on-flaky", *fail_on_flaky_xdist_args
+    )
     assert_outcomes(result, passed=1, rerun=1)
     assert result.ret == 7
 
 
 def test_run_fails_with_code_1_after_consistent_test_failure_even_with_fail_on_flaky(
     testdir,
+    fail_on_flaky_xdist_args,
 ):
     testdir.makepyfile("def test_fail(): assert False")
-    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    result = testdir.runpytest(
+        "--reruns", "1", "--fail-on-flaky", *fail_on_flaky_xdist_args
+    )
     assert_outcomes(result, passed=0, failed=1, rerun=1)
     assert result.ret == 1
 
 
 def test_run_mark_and_fail_on_flaky_fails_with_custom_error_code_after_pass_on_rerun(
     testdir,
+    fail_on_flaky_xdist_args,
 ):
     testdir.makepyfile(f"""
         import pytest
@@ -346,13 +353,14 @@ def test_run_mark_and_fail_on_flaky_fails_with_custom_error_code_after_pass_on_r
         def test_fail():
             {temporary_failure()}
     """)
-    result = testdir.runpytest("--fail-on-flaky")
+    result = testdir.runpytest("--fail-on-flaky", *fail_on_flaky_xdist_args)
     assert_outcomes(result, passed=1, rerun=1)
     assert result.ret == 7
 
 
 def test_run_fails_with_code_1_after_test_failure_with_fail_on_flaky_and_mark(
     testdir,
+    fail_on_flaky_xdist_args,
 ):
     testdir.makepyfile("""
         import pytest
@@ -361,13 +369,14 @@ def test_run_fails_with_code_1_after_test_failure_with_fail_on_flaky_and_mark(
         def test_fail():
             assert False
     """)
-    result = testdir.runpytest("--fail-on-flaky")
+    result = testdir.runpytest("--fail-on-flaky", *fail_on_flaky_xdist_args)
     assert_outcomes(result, passed=0, failed=1, rerun=2)
     assert result.ret == 1
 
 
 def test_run_with_mark_and_fail_on_flaky_succeeds_if_all_tests_pass_without_reruns(
     testdir,
+    fail_on_flaky_xdist_args,
 ):
     testdir.makepyfile("""
         import pytest
@@ -379,18 +388,44 @@ def test_run_with_mark_and_fail_on_flaky_succeeds_if_all_tests_pass_without_reru
         def test_unmarked_pass():
             assert True
     """)
-    result = testdir.runpytest("--fail-on-flaky")
+    result = testdir.runpytest("--fail-on-flaky", *fail_on_flaky_xdist_args)
     assert_outcomes(result, passed=2, rerun=0)
     assert result.ret == pytest.ExitCode.OK
 
 
 def test_run_with_fail_on_flaky_succeeds_if_all_tests_pass_without_reruns(
     testdir,
+    fail_on_flaky_xdist_args,
 ):
     testdir.makepyfile("def test_pass(): assert True")
-    result = testdir.runpytest("--reruns", "1", "--fail-on-flaky")
+    result = testdir.runpytest(
+        "--reruns", "1", "--fail-on-flaky", *fail_on_flaky_xdist_args
+    )
     assert_outcomes(result, passed=1, rerun=0)
     assert result.ret == pytest.ExitCode.OK
+
+
+@pytest.fixture(params=[0, 1, 2])
+def fail_on_flaky_xdist_args(request):
+    if request.param and not has_xdist:
+        pytest.skip("requires xdist")
+    return ["-n", str(request.param)] if request.param else []
+
+
+def test_fail_on_flaky_after_skip_on_rerun(testdir, fail_on_flaky_xdist_args):
+    testdir.makepyfile("""
+        import pytest
+
+        def test_flaky(request):
+            if request.node.execution_count == 1:
+                assert False
+            pytest.skip("skipped on rerun")
+    """)
+    result = testdir.runpytest(
+        "--reruns", "1", "--fail-on-flaky", *fail_on_flaky_xdist_args
+    )
+    assert_outcomes(result, passed=0, skipped=1, rerun=1)
+    assert result.ret == 7
 
 
 @pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
