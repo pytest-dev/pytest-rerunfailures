@@ -1337,7 +1337,12 @@ def pytest_runtest_protocol(item, nextitem):
                         continue
 
                 report.outcome = "rerun"
-                time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
+                rerun_delay = (
+                    0
+                    if delay == 0
+                    else delay * delay_backoff_factor ** (item.execution_count - 1)
+                )
+                time.sleep(rerun_delay)
 
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result
