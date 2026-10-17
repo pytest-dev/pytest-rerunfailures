@@ -1,0 +1,1 @@
+Keep zero-delay reruns running when a large backoff factor would overflow before multiplication by zero.

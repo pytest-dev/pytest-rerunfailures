@@ -979,6 +979,34 @@ def test_reruns_with_delay_backoff_factor(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=3)
 
 
+def test_reruns_with_zero_delay_and_large_backoff_factor(testdir):
+    testdir.makepyfile(
+        """
+        from pathlib import Path
+
+        def test_recovers_on_fourth_attempt():
+            count_file = Path(__file__).with_suffix('.count')
+            count = int(count_file.read_text()) + 1 if count_file.exists() else 1
+            count_file.write_text(str(count))
+            assert count == 4
+        """
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest(
+        "--reruns",
+        "3",
+        "--reruns-delay",
+        "0",
+        "--reruns-delay-backoff-factor",
+        "1e308",
+    )
+
+    assert time.sleep.call_args_list == [mock.call(0)] * 3
+    assert_outcomes(result, passed=1, rerun=3)
+
+
 def test_reruns_with_delay_backoff_factor_marker(testdir):
     testdir.makepyfile(
         """
