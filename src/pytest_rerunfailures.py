@@ -1,6 +1,7 @@
 import hashlib
 import importlib.metadata
 import inspect
+import math
 import os
 import platform
 import re
@@ -340,6 +341,11 @@ def get_reruns_delay(item):
         warnings.warn(
             "Delay time between re-runs cannot be < 0. Using default value: 0"
         )
+    elif not math.isfinite(delay):
+        delay = 0
+        warnings.warn(
+            "Delay time between re-runs must be finite. Using default value: 0"
+        )
 
     return delay
 
@@ -369,6 +375,11 @@ def get_reruns_delay_backoff_factor(item):
         factor = 1.0
         warnings.warn(
             "Rerun delay backoff factor cannot be < 0. Using default value: 1.0"
+        )
+    elif not math.isfinite(factor):
+        factor = 1.0
+        warnings.warn(
+            "Rerun delay backoff factor must be finite. Using default value: 1.0"
         )
 
     return factor

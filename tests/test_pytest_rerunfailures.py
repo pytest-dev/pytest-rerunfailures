@@ -955,6 +955,52 @@ def test_reruns_with_delay_marker(testdir, delay_time):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
+@pytest.mark.parametrize("value", ["nan", "inf"])
+@pytest.mark.parametrize("source", ["cli", "ini", "marker", "positional_marker"])
+@pytest.mark.parametrize(
+    ("setting", "warning"),
+    [
+        (
+            "reruns_delay",
+            "Delay time between re-runs must be finite. Using default value: 0",
+        ),
+        (
+            "reruns_delay_backoff_factor",
+            "Rerun delay backoff factor must be finite. Using default value: 1.0",
+        ),
+    ],
+)
+def test_reruns_with_nonfinite_delay(testdir, setting, warning, source, value):
+    args = ["--reruns", "2"]
+    marker = ""
+    if source == "cli":
+        args.append(f"--{setting.replace('_', '-')}={value}")
+    elif source == "ini":
+        testdir.makeini(f"[pytest]\n{setting} = {value}")
+    elif source == "marker":
+        marker = f"@pytest.mark.flaky(reruns=2, {setting}=float({value!r}))"
+    elif setting == "reruns_delay":
+        marker = f"@pytest.mark.flaky(2, float({value!r}))"
+    else:
+        marker = f"@pytest.mark.flaky(2, 0, float({value!r}))"
+
+    testdir.makepyfile(
+        f"""
+        import pytest
+
+        {marker}
+        def test_recovery(request):
+            assert request.node.execution_count == 3
+        """
+    )
+
+    result = testdir.runpytest(*args)
+
+    assert result.ret == pytest.ExitCode.OK
+    assert_outcomes(result, passed=1, rerun=2)
+    result.stdout.fnmatch_lines(f"*UserWarning: {warning}")
+
+
 def test_reruns_with_delay_backoff_factor(testdir):
     testdir.makepyfile(
         """
