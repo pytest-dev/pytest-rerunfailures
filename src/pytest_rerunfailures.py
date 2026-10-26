@@ -79,6 +79,25 @@ RERUNS_DELAY_BACKOFF_FACTOR_DESC = (
     "exponential backoff (delay * factor ** (attempt - 1)). defaults to 1.0, "
     "i.e. a constant delay."
 )
+
+
+class RerunRequest(Exception):
+    """Raised by :func:`rerun_if` to discard an attempt and request a rerun."""
+
+
+def rerun_if(condition, reason=None):
+    """Request a rerun from inside a test when ``condition`` is true.
+
+    The current attempt is aborted and reported as a failure that can be
+    retried if the test still has reruns left (via ``@pytest.mark.flaky`` or
+    ``--reruns``). Without a rerun budget it behaves like a regular test
+    failure. Combine with ``only_rerun=[RerunRequest]`` to rerun *only* on
+    this condition and not on other failures.
+    """
+    if condition:
+        raise RerunRequest(reason or "rerun requested from test")
+
+
 ONLY_RERUN_DESC = (
     "If passed, only rerun errors matching the regex provided. "
     "Pass this flag multiple times (or list one regex per line in the ini "
