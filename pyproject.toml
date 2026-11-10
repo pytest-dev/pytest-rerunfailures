@@ -49,7 +49,7 @@ entry-points.pytest11.rerunfailures = "pytest_rerunfailures"
 
 [dependency-groups]
 dev = [
-  "mypy>=2.4.1",
+  "mypy>=2.1",
   "towncrier>=25.8",
 ]
 release = [
