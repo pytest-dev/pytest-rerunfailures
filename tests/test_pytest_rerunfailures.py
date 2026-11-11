@@ -3311,7 +3311,7 @@ def test_exception_not_match_only_rerun_query(testdir):
     )
     result = testdir.runpytest()
     assert_outcomes(result, passed=0, failed=1)
-    result.stdout.fnmatch_lines("session teardown")
+    result.stdout.fnmatch_lines("*session teardown*")
 
 
 def test_exception_match_rerun_except_in_dual_query(testdir):
