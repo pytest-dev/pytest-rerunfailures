@@ -1129,7 +1129,7 @@ def _has_rerun_except_terminal_error(item):
     )
 
 
-def _should_rerun(item, reruns, condition):
+def _should_rerun(item, reruns, condition, condition_failures):
     """Return whether this attempt should be rerun as a whole."""
     if (
         not condition
@@ -1142,7 +1142,7 @@ def _should_rerun(item, reruns, condition):
 
     return any(
         _rerun_matches_phase(item, phase)
-        for phase, _, _ in _get_reruns_condition_failures(item)
+        for phase, _, _ in condition_failures
     )
 
 
@@ -1225,7 +1225,10 @@ def pytest_runtest_teardown(item, nextitem):
         item.execution_count <= reruns
         and (any(_test_failed_statuses.values()) or _get_num_failed_subtests(item) > 0)
         and not any(item._test_xfailed.values())
-        and not any(item._terminal_errors.values())
+        # A non-matching setup/call failure can still be followed by a
+        # matching teardown failure that triggers a rerun. Keep higher-scope
+        # fixtures alive in that case, but honor explicit rerun_except vetoes.
+        and not _has_rerun_except_terminal_error(item)
     ):
         # clean cached results from any level of setups
         _remove_cached_results_from_failed_fixtures(item)
@@ -1280,8 +1283,10 @@ def pytest_runtest_makereport(item, call):
     ) or hasattr(result, "wasxfail")
 
     if result.when == "teardown" and getattr(item, "_finalizers_suspended", False):
-        condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
-        if item._terminal_errors["teardown"] or not condition:
+        condition_failures = _get_reruns_condition_failures(item)
+        condition = get_reruns_condition(item, condition_failures)
+        reruns = get_reruns_count(item)
+        if not _should_rerun(item, reruns, condition, condition_failures):
             result = _teardown_suspended_finalizers(item, call, result)
 
     return result
@@ -1322,7 +1327,7 @@ def pytest_runtest_protocol(item, nextitem):
 
         condition_failures = _get_reruns_condition_failures(item)
         condition = get_reruns_condition(item, condition_failures)
-        rerun_triggered = _should_rerun(item, reruns, condition)
+        rerun_triggered = _should_rerun(item, reruns, condition, condition_failures)
 
         if rerun_triggered:
             max_suite_reruns = item.session.config.option.max_suite_reruns

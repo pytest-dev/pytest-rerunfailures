@@ -3924,6 +3924,12 @@ def test_nonmatching_call_failure_is_preserved_on_last_rerun(testdir):
         """
         import pytest
 
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            print("module setup")
+            yield
+            print("module teardown")
+
         @pytest.fixture
         def teardown_error():
             yield
@@ -3934,10 +3940,12 @@ def test_nonmatching_call_failure_is_preserved_on_last_rerun(testdir):
             raise AssertionError("call error")
         """
     )
-    result = testdir.runpytest()
+    result = testdir.runpytest("-s")
     assert_outcomes(result, passed=0, failed=1, error=1, rerun=2)
     assert "AssertionError: call error" in result.stdout.str()
     assert "ValueError: teardown error" in result.stdout.str()
+    assert result.stdout.str().count("module setup") == 1
+    assert result.stdout.str().count("module teardown") == 1
 
 
 def test_nonmatching_setup_failure_is_preserved(testdir):
