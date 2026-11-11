@@ -1,0 +1,1 @@
+Preserve all failed test phases when a later teardown failure triggers a rerun.
