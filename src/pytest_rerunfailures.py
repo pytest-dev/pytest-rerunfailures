@@ -16,6 +16,7 @@ from itertools import chain
 from typing import Any
 
 import pytest
+from _pytest.junitxml import xml_key
 from _pytest.outcomes import Exit, fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
@@ -773,6 +774,85 @@ def pytest_configure(config):
             )
     else:
         config.failures_db = StatusDB()  # no-op db
+
+    if config.getoption("xmlpath", None) and is_master(config):
+        config.pluginmanager.register(_JUnitXMLHooks(config))
+
+
+class _JUnitXMLAttempt:
+    def __init__(self, rerun_duration=0.0):
+        self.reporters = set()
+        self.stats = {}
+        self.double_fail_tests = 0
+        self.rerun = False
+        self.duration = 0.0
+        self.rerun_duration = rerun_duration
+
+
+class _JUnitXMLHooks:
+    """Remove intermediate attempts from JUnit XML without hiding their reports."""
+
+    def __init__(self, config):
+        self.config = config
+        self.attempts = {}
+        self.rerun_reporters = set()
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_logreport(self, report):
+        xml = self.config.stash.get(xml_key, None)
+        if xml is None:
+            return (yield)
+
+        # Match LogXML's key so interleaved workers with the same nodeid stay separate.
+        key = report.nodeid, getattr(report, "node", None)
+        attempt = self.attempts.setdefault(key, _JUnitXMLAttempt())
+        attempt.rerun |= report.outcome == "rerun"
+        if xml.report_duration in ("total", report.when):
+            attempt.duration += getattr(report, "duration", 0.0)
+
+        if report.when == "teardown" and not attempt.rerun and attempt.rerun_duration:
+            xml.node_reporter(report).duration += attempt.rerun_duration
+
+        stats_before = xml.stats.copy()
+        double_fail_tests_before = xml.cnt_double_fail_tests
+        reporters_before = len(xml.node_reporters_ordered)
+        result = yield
+        attempt.reporters.update(xml.node_reporters_ordered[reporters_before:])
+        for name, value in xml.stats.items():
+            attempt.stats[name] = (
+                attempt.stats.get(name, 0) + value - stats_before[name]
+            )
+        attempt.double_fail_tests += (
+            xml.cnt_double_fail_tests - double_fail_tests_before
+        )
+
+        if report.when == "teardown":
+            del self.attempts[key]
+            if attempt.rerun:
+                # LogXML finalizes every teardown, including a rerun's successful
+                # teardown. Drop that attempt's reporters and undo only its counts.
+                self.rerun_reporters.update(attempt.reporters)
+                for name, value in attempt.stats.items():
+                    xml.stats[name] -= value
+                xml.cnt_double_fail_tests -= attempt.double_fail_tests
+                self.attempts[key] = _JUnitXMLAttempt(
+                    attempt.rerun_duration + attempt.duration
+                )
+
+        return result
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_sessionfinish(self):
+        xml = self.config.stash.get(xml_key, None)
+        if xml is not None:
+            # Prune once before LogXML writes the file, rather than scanning
+            # every completed testcase after each attempt that is re-run.
+            xml.node_reporters_ordered[:] = [
+                reporter
+                for reporter in xml.node_reporters_ordered
+                if reporter not in self.rerun_reporters
+            ]
+        self.rerun_reporters.clear()
 
 
 class XDistHooks:
