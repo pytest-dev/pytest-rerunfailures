@@ -30,6 +30,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
   "Topic :: Software Development :: Quality Assurance",
@@ -44,7 +45,6 @@ dependencies = [
   "pytest!=8.2.2,>=8.2",
 ]
 urls = { Homepage = "https://github.com/pytest-dev/pytest-rerunfailures" }
-
 entry-points.pytest11.rerunfailures = "pytest_rerunfailures"
 
 [dependency-groups]
@@ -57,8 +57,8 @@ release = [
   "zestreleaser-towncrier>=2",
 ]
 
-[tool.setuptools.dynamic]
-readme = { file = [ "HEADER.rst", "README.rst", "CHANGES.rst" ] }
+[tool.setuptools]
+dynamic.readme = { file = [ "HEADER.rst", "README.rst", "CHANGES.rst" ] }
 
 [tool.ruff]
 target-version = "py310"
@@ -72,7 +72,6 @@ lint.select = [
   "UP", # https://pypi.org/project/upgrade-checker/
   "W",  # https://pypi.org/project/pycodestyle/
 ]
-
 lint.per-file-ignores."test_*.py" = [ "S101", "S311" ]
 lint.isort.known-first-party = [ "pytest_rerunfailures" ]
 # Unlike Flake8, default to a complexity level of 10.
@@ -82,6 +81,12 @@ lint.pydocstyle.convention = "google"
 
 [tool.check-manifest]
 ignore = [ ".pre-commit-config.yaml" ]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+overrides = [ { module = [ "xdist.newhooks" ], ignore_missing_imports = true } ]
 
 [tool.towncrier]
 directory = "changes"
@@ -95,7 +100,7 @@ underlines = [
 ]
 wrap = true
 # An empty ignore list turns on strict validation of news fragment file names.
-ignore = [  ]
+ignore = []
 type = [
   { directory = "breaking", name = "Breaking Changes", showcontent = true },
   { directory = "removal", name = "Deprecations and Removals", showcontent = true },
@@ -104,12 +109,3 @@ type = [
   { directory = "doc", name = "Documentation", showcontent = true },
   { directory = "misc", name = "Misc", showcontent = true },
 ]
-
-[tool.mypy]
-python_version = "3.10"
-warn_return_any = true
-warn_unused_configs = true
-
-[[tool.mypy.overrides]]
-module = [ "xdist.newhooks" ]
-ignore_missing_imports = true
