@@ -1,0 +1,1 @@
+Remove extra JUnit XML testcases and result counts from attempts that are re-run, while preserving their duration and teardown reports to other plugins.
