@@ -2853,6 +2853,70 @@ def test_ini_file_parameters_override(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=4)
 
 
+@pytest.mark.skipif(
+    pytest.version_tuple < (9, 2), reason="Native TOML numbers need pytest 9.2+"
+)
+def test_native_toml_number_parameters(testdir, monkeypatch):
+    testdir.makepyfile("def test_foo(): assert False")
+    testdir.makefile(
+        ".toml",
+        pytest="""
+        [pytest]
+        reruns = 2
+        reruns_delay = 3
+        reruns_delay_backoff_factor = 2.0
+        """,
+    )
+    sleep = mock.MagicMock()
+    monkeypatch.setattr(time, "sleep", sleep)
+    result = testdir.runpytest()
+
+    assert sleep.call_args_list == [mock.call(3), mock.call(6)]
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+@pytest.mark.skipif(
+    pytest.version_tuple < (9, 0), reason="pytest.toml needs pytest 9.0+"
+)
+def test_native_toml_string_parameters(testdir, monkeypatch):
+    testdir.makepyfile("def test_foo(): assert False")
+    testdir.makefile(
+        ".toml",
+        pytest="""
+        [pytest]
+        reruns = "2"
+        reruns_delay = "3"
+        reruns_delay_backoff_factor = "2.0"
+        """,
+    )
+    sleep = mock.MagicMock()
+    monkeypatch.setattr(time, "sleep", sleep)
+    result = testdir.runpytest()
+
+    assert sleep.call_args_list == [mock.call(3), mock.call(6)]
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+
+@pytest.mark.skipif(
+    not (9, 0) <= pytest.version_tuple < (9, 2),
+    reason="pytest.toml needs pytest 9.0+, and 9.2+ accepts numbers",
+)
+@pytest.mark.parametrize(
+    "option", ["reruns", "reruns_delay", "reruns_delay_backoff_factor"]
+)
+def test_native_toml_number_parameters_before_pytest_9_2(testdir, option):
+    testdir.makepyfile("def test_foo(): assert False")
+    settings = {"reruns": '"1"', option: "2"}
+    config = "".join(f"{name} = {value}\n" for name, value in settings.items())
+    testdir.makefile(".toml", pytest=f"[pytest]\n{config}")
+    result = testdir.runpytest()
+
+    assert result.ret == pytest.ExitCode.USAGE_ERROR
+    result.stderr.fnmatch_lines([
+        f"*config option '{option}' expects a string, got int: 2*quote the value*"
+    ])
+
+
 def test_run_session_teardown_once_after_reruns(testdir):
     testdir.makepyfile(
         """

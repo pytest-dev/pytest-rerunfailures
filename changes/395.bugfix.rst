@@ -1,0 +1,1 @@
+Accept numbers for ``reruns``, ``reruns_delay`` and ``reruns_delay_backoff_factor`` in a native TOML configuration (``pytest.toml`` or ``[tool.pytest]``) with pytest 9.2 or newer, and report a usage error with older pytest versions instead of silently ignoring them.

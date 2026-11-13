@@ -46,6 +46,11 @@ except ImportError:
 failed_subtests_key = _failed_subtests_key
 SubtestReport = _SubtestReport
 
+# pytest 9.2 accepts a union of types for an ini option. A native TOML config
+# (``pytest.toml`` or ``[tool.pytest]``) can then give numbers, while ini files
+# and ``-o`` overrides still give strings.
+HAS_PYTEST_INI_UNION_TYPES = pytest.version_tuple >= (9, 2)
+
 try:
     from xdist.newhooks import pytest_handlecrashitem
 
@@ -188,13 +193,17 @@ def pytest_addoption(parser):
         "Once this limit is reached, no further reruns will occur.",
     )
 
-    arg_type = "string"
-    parser.addini("reruns", RERUNS_DESC, type=arg_type)
-    parser.addini("reruns_delay", RERUNS_DELAY_DESC, type=arg_type)
+    if HAS_PYTEST_INI_UNION_TYPES:
+        int_type = {"type": str | int, "default": ""}
+        float_type = {"type": str | float, "default": ""}
+    else:
+        int_type = float_type = {"type": "string"}
+    parser.addini("reruns", RERUNS_DESC, **int_type)
+    parser.addini("reruns_delay", RERUNS_DELAY_DESC, **float_type)
     parser.addini(
         "reruns_delay_backoff_factor",
         RERUNS_DELAY_BACKOFF_FACTOR_DESC,
-        type=arg_type,
+        **float_type,
     )
     parser.addini(
         "only_rerun",
@@ -208,13 +217,26 @@ def pytest_addoption(parser):
     )
 
 
+def _getini_number(config, name):
+    """Return the value of a numeric ini option, as a string or a number."""
+    try:
+        return config.getini(name)
+    except TypeError as error:
+        # Before pytest 9.2 the option is registered as a string, and a native
+        # TOML number raises a TypeError, which must not be silently ignored.
+        raise pytest.UsageError(
+            f"{error} (quote the value, or use pytest 9.2 or newer to write a number)"
+        ) from error
+
+
 def _get_global_reruns(config):
     reruns = config.getoption("reruns")
     if reruns is not None:
         return reruns
 
+    value = _getini_number(config, "reruns")
     with suppress(TypeError, ValueError):
-        reruns = int(config.getini("reruns"))
+        reruns = int(value)
     return reruns
 
 
@@ -330,8 +352,9 @@ def get_reruns_delay(item):
     else:
         delay = item.session.config.getoption("reruns_delay")
         if delay is None:
+            value = _getini_number(item.session.config, "reruns_delay")
             try:
-                delay = float(item.session.config.getini("reruns_delay"))
+                delay = float(value)
             except (TypeError, ValueError):
                 delay = 0
 
@@ -358,10 +381,9 @@ def get_reruns_delay_backoff_factor(item):
     else:
         factor = item.session.config.getoption("reruns_delay_backoff_factor")
         if factor is None:
+            value = _getini_number(item.session.config, "reruns_delay_backoff_factor")
             try:
-                factor = float(
-                    item.session.config.getini("reruns_delay_backoff_factor")
-                )
+                factor = float(value)
             except (TypeError, ValueError):
                 factor = 1.0
 
