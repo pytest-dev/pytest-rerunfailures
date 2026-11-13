@@ -9,6 +9,13 @@ Available ``pytest.ini`` Options
 
 Below are the ``pytest.ini`` options supported by the plugin:
 
+.. note::
+
+   In a native TOML configuration (``pytest.toml`` or ``[tool.pytest]`` in
+   ``pyproject.toml``), ``reruns`` and ``reruns_delay`` can be written as
+   numbers with pytest 9.2 or newer, for example ``reruns = 3``. With older
+   pytest versions, quote them: ``reruns = "3"``.
+
 ``reruns``
 ^^^^^^^^^^
 
