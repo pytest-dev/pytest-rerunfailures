@@ -1129,7 +1129,7 @@ def _reruns_condition_matches_phase(item, phase):
     )
 
 
-def _teardown_suspended_finalizers(item, call, report):
+def _teardown_suspended_finalizers(item, excinfo, report):
     """Tear down the scopes held back for a re-run that will not happen.
 
     pytest_runtest_teardown takes the module, class and session finalizers off
@@ -1153,12 +1153,12 @@ def _teardown_suspended_finalizers(item, call, report):
             # A fixture that ends the session has to keep ending it.
             raise
         except BaseException as exc:
-            if call.excinfo is None:
+            if excinfo is None:
                 raise
             # Both errors come from the teardown of this item, so report them
             # together, the way pytest reports several failing finalizers.
             raise BaseExceptionGroup(
-                "errors during test teardown", [exc, call.excinfo.value]
+                "errors during test teardown", [exc, excinfo.value]
             ) from None
 
     teardown_call = pytest.CallInfo.from_call(
@@ -1265,7 +1265,7 @@ def pytest_runtest_makereport(item, call):
     if result.when == "teardown" and getattr(item, "_finalizers_suspended", False):
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         if item._terminal_errors["teardown"] or not condition:
-            result = _teardown_suspended_finalizers(item, call, result)
+            result = _teardown_suspended_finalizers(item, call.excinfo, result)
 
     return result
 
@@ -1305,10 +1305,11 @@ def pytest_runtest_protocol(item, nextitem):
 
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         rerun_triggered = False
-        for report in reports:  # 3 reports: setup, call, teardown
+        rerun_denied = False
+        for report_index, report in enumerate(reports):  # setup, call, teardown
             report.rerun = item.execution_count - 1
-            if rerun_triggered:
-                if report.failed:
+            if rerun_triggered or rerun_denied:
+                if rerun_triggered and report.failed:
                     report.outcome = "rerun"
                 item.ihook.pytest_runtest_logreport(report=report)
             elif (
@@ -1332,7 +1333,19 @@ def pytest_runtest_protocol(item, nextitem):
                 if max_suite_reruns is not None:
                     if not db.try_increment_suite_reruns(max_suite_reruns):
                         # Suite-wide limit exhausted -- log as final failure.
-                        _restore_suspended_finalizers(item)
+                        rerun_denied = True
+                        # Another worker may have exhausted the cap after
+                        # teardown suspended this item's higher-scope fixtures.
+                        teardown_excinfos = item._rerun_condition_excinfos.get(
+                            "teardown", ()
+                        )
+                        reports[-1] = _teardown_suspended_finalizers(
+                            item,
+                            teardown_excinfos[-1] if teardown_excinfos else None,
+                            reports[-1],
+                        )
+                        report = reports[report_index]
+                        report.rerun = item.execution_count - 1
                         item.ihook.pytest_runtest_logreport(report=report)
                         continue
 
