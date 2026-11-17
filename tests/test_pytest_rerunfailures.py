@@ -3874,6 +3874,88 @@ def test_max_suite_reruns_rejects_negative_without_reruns(testdir):
     collect_result.stderr.fnmatch_lines("*--max-suite-reruns must be >= 0*")
 
 
+@pytest.mark.parametrize(
+    ("function_error", "module_error", "teardown_condition"),
+    [
+        (False, False, False),
+        (False, True, False),
+        (True, False, False),
+        (True, True, False),
+        (True, True, True),
+    ],
+)
+def test_max_suite_reruns_exhausted_after_teardown(
+    testdir, function_error, module_error, teardown_condition
+):
+    condition = "isinstance(error, RuntimeError)" if teardown_condition else "True"
+    function_teardown = (
+        "raise RuntimeError('function teardown error')" if function_error else "pass"
+    )
+    module_teardown = (
+        "raise ValueError('module teardown error')" if module_error else "pass"
+    )
+    testdir.makeconftest(
+        """
+        import pytest
+
+        @pytest.hookimpl(wrapper=True, tryfirst=True)
+        def pytest_runtest_teardown(item, nextitem):
+            try:
+                return (yield)
+            finally:
+                if item.name == "test_fail":
+                    # Another worker can reserve the last slot after this
+                    # worker checked the cap and suspended its finalizers.
+                    assert item.config.failures_db.try_increment_suite_reruns(1)
+
+        def pytest_runtest_logreport(report):
+            if report.when == "teardown" and report.failed:
+                assert report.rerun == 0
+        """
+    )
+    testdir.makepyfile(
+        test_first=f"""
+        from pathlib import Path
+        import pytest
+
+        @pytest.fixture(scope="module", autouse=True)
+        def module_fixture():
+            yield
+            Path("torn-down").touch()
+            {module_teardown}
+
+        @pytest.fixture(autouse=True)
+        def function_fixture():
+            yield
+            {function_teardown}
+
+        @pytest.mark.flaky(condition=lambda error: {condition})
+        def test_fail():
+            assert False
+        """,
+        test_second="""
+        from pathlib import Path
+
+        def test_pass():
+            assert Path("torn-down").exists()
+        """,
+    )
+    result = testdir.runpytest("--reruns", "1", "--max-suite-reruns", "1")
+    if teardown_condition:
+        # The selected teardown report must include the later cleanup error.
+        outcomes = result.parseoutcomes()
+        assert outcomes["passed"] == 1
+        assert outcomes["errors"] == 1
+    else:
+        assert_outcomes(
+            result, passed=1, failed=1, error=int(function_error or module_error)
+        )
+    if function_error:
+        result.stdout.fnmatch_lines("*RuntimeError: function teardown error*")
+    if module_error:
+        result.stdout.fnmatch_lines("*ValueError: module teardown error*")
+
+
 def test_max_suite_reruns_preserves_fixture_teardown_when_exhausted(testdir):
     testdir.makepyfile(
         """
