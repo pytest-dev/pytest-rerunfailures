@@ -1,0 +1,1 @@
+Finish suspended fixture teardown when another worker exhausts the suite rerun limit, avoiding errors in subsequent test modules.
