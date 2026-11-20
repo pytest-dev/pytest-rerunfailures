@@ -775,6 +775,12 @@ def pytest_configure(config):
         config.failures_db = StatusDB()  # no-op db
 
 
+def pytest_unconfigure(config):
+    failures_db = getattr(config, "failures_db", None)
+    if failures_db is not None:
+        failures_db.close()
+
+
 class XDistHooks:
     def pytest_sessionstart(self, session):
         self.session = session
@@ -917,6 +923,9 @@ class StatusDB:
     def _get(self, i: str, k: str) -> int:
         return 0
 
+    def close(self) -> None:
+        pass
+
 
 class SocketDB(StatusDB):
     def __init__(self):
@@ -1051,6 +1060,9 @@ class ClientStatusDB(SocketDB):
         if self._sock_recv(self.sock) != "1":
             self.sock.close()
             raise ConnectionError("StatusDB authentication failed")
+
+    def close(self) -> None:
+        self.sock.close()
 
     def _set(self, i: str, k: str, v: int):
         self._sock_send(self.sock, "|".join(("set", i, k, str(v))))
