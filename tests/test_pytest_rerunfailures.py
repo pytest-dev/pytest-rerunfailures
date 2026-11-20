@@ -581,6 +581,18 @@ def test_xdist_configure_node_passes_statusdb_connection_details():
     }
 
 
+@pytest.mark.skipif(not has_xdist, reason="requires xdist with crashitem")
+def test_xdist_workers_close_statusdb_connection(testdir, monkeypatch):
+    testdir.makepyfile("def test_pass(): pass")
+    # The workers report unclosed sockets when they exit
+    monkeypatch.setenv("PYTHONWARNINGS", "default::ResourceWarning")
+    # --reruns makes this fail if the plugin isn't loaded in the subprocess
+    result = testdir.runpytest_subprocess("-p", "xdist", "-n", "2", "--reruns", "1")
+    assert_outcomes(result, passed=1)
+    assert "unclosed <socket" not in result.stdout.str()
+    assert "unclosed <socket" not in result.stderr.str()
+
+
 def test_rerun_passes_after_temporary_test_failure_with_flaky_mark(testdir):
     testdir.makepyfile(
         f"""

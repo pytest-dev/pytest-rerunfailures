@@ -1,0 +1,1 @@
+Close the StatusDB connection of ``pytest-xdist`` workers at the end of the session, so they no longer emit a ``ResourceWarning`` about an unclosed socket.
