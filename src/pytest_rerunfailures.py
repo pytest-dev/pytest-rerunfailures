@@ -16,6 +16,7 @@ from itertools import chain
 from typing import Any
 
 import pytest
+from _pytest.junitxml import xml_key
 from _pytest.outcomes import Exit, fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
@@ -751,6 +752,29 @@ def is_master(config):
     return not (hasattr(config, "workerinput") or hasattr(config, "slaveinput"))
 
 
+def _filter_junit_reports(config):
+    xml = config.stash.get(xml_key, None)
+    if xml is None:
+        return
+    manager = config.pluginmanager
+    name = manager.get_name(xml)
+    if name is None:
+        return
+
+    logreport = xml.pytest_runtest_logreport
+
+    def pytest_runtest_logreport(report):
+        if not getattr(report, "_rerunfailures_intermediate", False):
+            logreport(report)
+
+    # Pluggy caches the bound hook at registration. Refresh it on the same
+    # reporter instance so pytest keeps ownership of the rest of its lifecycle.
+    manager.unregister(xml)
+    xml.pytest_runtest_logreport = pytest_runtest_logreport
+    manager.register(xml, name)
+
+
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config):
     # add flaky marker
     config.addinivalue_line(
@@ -761,6 +785,7 @@ def pytest_configure(config):
         "after each attempt for an exponential backoff.",
     )
     check_options(config)
+    _filter_junit_reports(config)
 
     if config.pluginmanager.hasplugin("xdist") and HAS_PYTEST_HANDLECRASHITEM:
         config.pluginmanager.register(XDistHooks())
@@ -1305,6 +1330,8 @@ def pytest_runtest_protocol(item, nextitem):
 
         condition = get_reruns_condition(item, _get_reruns_condition_failures(item))
         rerun_triggered = False
+        # Hold earlier phases until we know whether this attempt will be retried.
+        pending_reports = []
         for report in reports:  # 3 reports: setup, call, teardown
             report.rerun = item.execution_count - 1
             if rerun_triggered:
@@ -1324,8 +1351,7 @@ def pytest_runtest_protocol(item, nextitem):
                 # nonmatching failure as a final result first.
                 continue
             elif _should_not_rerun(item, report, reruns, condition):
-                # no rerun needed or one already triggered, log normally
-                item.ihook.pytest_runtest_logreport(report=report)
+                pending_reports.append(report)
             else:
                 # failure detected and reruns not exhausted, since i < reruns
                 max_suite_reruns = item.session.config.option.max_suite_reruns
@@ -1333,8 +1359,14 @@ def pytest_runtest_protocol(item, nextitem):
                     if not db.try_increment_suite_reruns(max_suite_reruns):
                         # Suite-wide limit exhausted -- log as final failure.
                         _restore_suspended_finalizers(item)
-                        item.ihook.pytest_runtest_logreport(report=report)
+                        pending_reports.append(report)
                         continue
+
+                for attempt_report in reports:
+                    attempt_report._rerunfailures_intermediate = True
+                for pending_report in pending_reports:
+                    item.ihook.pytest_runtest_logreport(report=pending_report)
+                pending_reports.clear()
 
                 report.outcome = "rerun"
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
@@ -1353,6 +1385,9 @@ def pytest_runtest_protocol(item, nextitem):
                 )
 
                 rerun_triggered = True
+
+        for pending_report in pending_reports:
+            item.ihook.pytest_runtest_logreport(report=pending_report)
 
         # Do not retain ExceptionInfo tracebacks and their frame locals for the
         # lifetime of the collected item/session.

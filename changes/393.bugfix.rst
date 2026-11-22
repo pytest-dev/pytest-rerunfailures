@@ -1,0 +1,1 @@
+Prevent duplicate JUnit XML testcases for retried tests in serial and xdist runs.
