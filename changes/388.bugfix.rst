@@ -1,0 +1,1 @@
+Skip backoff exponentiation when the rerun delay is zero, so a huge finite factor does not raise ``OverflowError``.

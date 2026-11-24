@@ -1046,6 +1046,29 @@ def test_reruns_with_negative_delay_backoff_factor(testdir):
     assert_outcomes(result, passed=0, failed=1, rerun=2)
 
 
+def test_zero_delay_with_huge_backoff_factor(testdir):
+    testdir.makepyfile(
+        """
+        def test_eventual_success(request):
+            assert request.node.execution_count == 4
+        """
+    )
+
+    time.sleep = mock.MagicMock()
+
+    result = testdir.runpytest(
+        "--reruns",
+        "3",
+        "--reruns-delay",
+        "0",
+        "--reruns-delay-backoff-factor",
+        "1e308",
+    )
+
+    assert time.sleep.call_args_list == [mock.call(0), mock.call(0), mock.call(0)]
+    assert_outcomes(result, passed=1, rerun=3)
+
+
 def test_rerun_on_setup_class_with_error_with_reruns(testdir):
     """
     Case: setup_class throwing error on the first execution for parametrized test
