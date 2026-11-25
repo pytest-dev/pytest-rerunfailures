@@ -1,0 +1,2 @@
+Add ``--xfail-flaky`` flag that reports a test as ``xfailed`` instead of
+``failed`` when it still fails after all its re-runs are exhausted.
