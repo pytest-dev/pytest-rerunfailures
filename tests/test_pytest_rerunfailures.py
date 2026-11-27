@@ -1,6 +1,7 @@
 import random
 import re
 import time
+import xml.etree.ElementTree as ET
 from textwrap import indent
 from types import SimpleNamespace
 from unittest import mock
@@ -68,6 +69,12 @@ def check_outcome_field(outcomes, field_name, expected_value):
         f"outcomes.{field_name} has unexpected value. "
         f"Expected '{expected_value}' but got '{field_value}'"
     )
+
+
+def junitxml_suite(testdir, name="report.xml"):
+    root = ET.parse(str(testdir.tmpdir.join(name))).getroot()  # noqa: S314
+    suite = root.find("testsuite")
+    return suite, suite.findall("testcase")
 
 
 def assert_outcomes(
@@ -1326,6 +1333,97 @@ def test_rerun_report_includes_teardown_from_each_attempt(testdir):
         "('call', 'failed', 1), ('teardown', 'passed', 1)]"
     )
     assert expected_reports in result.stdout.str()
+
+
+def test_junitxml_rerun_does_not_add_a_testcase(testdir):
+    testdir.makepyfile(
+        """
+        calls = 0
+
+        def test_solid():
+            assert True
+
+        def test_flaky():
+            global calls
+            calls += 1
+            assert calls > 1
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--junitxml=report.xml")
+    assert_outcomes(result, passed=2, rerun=1)
+
+    suite, cases = junitxml_suite(testdir)
+    names = [case.get("name") for case in cases]
+    assert names.count("test_flaky") == 1
+    assert names.count("test_solid") == 1
+    assert len(cases) == int(suite.get("tests")) == 2
+    assert suite.get("failures") == "0"
+    assert all(
+        case.find("failure") is None and case.find("error") is None for case in cases
+    )
+
+
+def test_junitxml_failed_reruns_stay_one_testcase(testdir):
+    testdir.makepyfile("def test_fails(): assert False")
+    result = testdir.runpytest("--reruns", "2", "--junitxml=report.xml")
+    assert_outcomes(result, passed=0, failed=1, rerun=2)
+
+    suite, cases = junitxml_suite(testdir)
+    assert len(cases) == int(suite.get("tests")) == 1
+    assert suite.get("failures") == "1"
+    assert suite.get("errors") == "0"
+    assert len(cases[0].findall("failure")) == 1
+    assert cases[0].find("error") is None
+
+
+@pytest.mark.skipif(not has_xdist, reason="requires xdist")
+def test_junitxml_rerun_does_not_add_a_testcase_with_xdist(testdir):
+    testdir.makepyfile(
+        """
+        calls = 0
+
+        def test_flaky():
+            global calls
+            calls += 1
+            assert calls > 1
+        """
+    )
+    result = testdir.runpytest(
+        "-p", "xdist", "-n", "1", "--reruns", "1", "--junitxml=report.xml"
+    )
+    assert_outcomes(result, passed=1, rerun=1)
+
+    suite, cases = junitxml_suite(testdir)
+    assert [case.get("name") for case in cases] == ["test_flaky"]
+    assert len(cases) == int(suite.get("tests")) == 1
+    assert suite.get("failures") == "0"
+    assert cases[0].find("failure") is None
+
+
+def test_junitxml_teardown_rerun_stays_one_testcase(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(autouse=True)
+        def fixture():
+            yield
+            assert False
+
+        def test_example():
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--junitxml=report.xml")
+    assert_outcomes(result, passed=2, error=1, rerun=1)
+
+    suite, cases = junitxml_suite(testdir)
+    assert [case.get("name") for case in cases] == ["test_example"]
+    assert len(cases) == int(suite.get("tests")) == 1
+    assert suite.get("errors") == "1"
+    assert suite.get("failures") == "0"
+    assert len(cases[0].findall("error")) == 1
+    assert cases[0].find("failure") is None
 
 
 def test_single_attempt_triggers_at_most_one_rerun(testdir):

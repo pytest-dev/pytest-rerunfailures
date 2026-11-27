@@ -16,6 +16,7 @@ from itertools import chain
 from typing import Any
 
 import pytest
+from _pytest.junitxml import xml_key
 from _pytest.outcomes import Exit, fail
 from _pytest.runner import runtestprotocol
 from packaging.version import parse as parse_version
@@ -774,6 +775,8 @@ def pytest_configure(config):
     else:
         config.failures_db = StatusDB()  # no-op db
 
+    config.pluginmanager.register(_JUnitXmlRerunHooks(config))
+
 
 class XDistHooks:
     def pytest_sessionstart(self, session):
@@ -1081,6 +1084,58 @@ class ClientStatusDB(SocketDB):
         return self._get("__suite__", "r")
 
 
+def _junitxml_case_key(report):
+    return (
+        report.nodeid,
+        getattr(report, "worker_id", None),
+        getattr(report, "item_index", None),
+        getattr(report, "node", None),
+    )
+
+
+class _JUnitXmlRerunHooks:
+    """Stop a rerun attempt's teardown from closing the junit testcase."""
+
+    def __init__(self, config):
+        self.config = config
+        self._passed_calls = {}
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_runtest_logreport(self, report):
+        xml = self.config.stash.get(xml_key, None)
+        key = _junitxml_case_key(report)
+        if xml is not None and report.when == "call" and report.passed:
+            self._passed_calls[key] = self._passed_calls.get(key, 0) + 1
+
+        passed_calls = 0
+        if xml is not None and report.when == "teardown":
+            passed_calls = self._passed_calls.pop(key, 0)
+
+        if (
+            xml is None
+            or report.when != "teardown"
+            or not getattr(report, "rerun_teardown", False)
+        ):
+            result = yield
+            return result
+
+        if passed_calls:
+            xml.stats["passed"] -= passed_calls
+
+        original = xml.finalize
+
+        def keep_testcase_open(rerun_report):
+            if not getattr(rerun_report, "rerun_teardown", False):
+                original(rerun_report)
+
+        xml.finalize = keep_testcase_open
+        try:
+            result = yield
+        finally:
+            del xml.finalize
+        return result
+
+
 suspended_finalizers: dict[Any, Any] = {}
 
 
@@ -1310,6 +1365,9 @@ def pytest_runtest_protocol(item, nextitem):
             if rerun_triggered:
                 if report.failed:
                     report.outcome = "rerun"
+                if report.when == "teardown":
+                    # LogXML finalizes on teardown; this attempt is not done.
+                    report.rerun_teardown = True
                 item.ihook.pytest_runtest_logreport(report=report)
             elif (
                 condition
@@ -1338,6 +1396,8 @@ def pytest_runtest_protocol(item, nextitem):
 
                 report.outcome = "rerun"
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
+                if report.when == "teardown":
+                    report.rerun_teardown = True
 
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result
