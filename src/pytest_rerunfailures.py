@@ -1084,15 +1084,33 @@ class ClientStatusDB(SocketDB):
         return self._get("__suite__", "r")
 
 
+def _junitxml_case_key(report):
+    return (
+        report.nodeid,
+        getattr(report, "worker_id", None),
+        getattr(report, "item_index", None),
+        getattr(report, "node", None),
+    )
+
+
 class _JUnitXmlRerunHooks:
     """Stop a rerun attempt's teardown from closing the junit testcase."""
 
     def __init__(self, config):
         self.config = config
+        self._passed_calls = {}
 
     @pytest.hookimpl(wrapper=True)
     def pytest_runtest_logreport(self, report):
         xml = self.config.stash.get(xml_key, None)
+        key = _junitxml_case_key(report)
+        if xml is not None and report.when == "call" and report.passed:
+            self._passed_calls[key] = self._passed_calls.get(key, 0) + 1
+
+        passed_calls = 0
+        if xml is not None and report.when == "teardown":
+            passed_calls = self._passed_calls.pop(key, 0)
+
         if (
             xml is None
             or report.when != "teardown"
@@ -1100,6 +1118,9 @@ class _JUnitXmlRerunHooks:
         ):
             result = yield
             return result
+
+        if passed_calls:
+            xml.stats["passed"] -= passed_calls
 
         original = xml.finalize
 
@@ -1375,6 +1396,8 @@ def pytest_runtest_protocol(item, nextitem):
 
                 report.outcome = "rerun"
                 time.sleep(delay * delay_backoff_factor ** (item.execution_count - 1))
+                if report.when == "teardown":
+                    report.rerun_teardown = True
 
                 if not parallel or works_with_current_xdist():
                     # will rerun test, log intermediate result

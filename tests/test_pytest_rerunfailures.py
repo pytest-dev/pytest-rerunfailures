@@ -1400,6 +1400,32 @@ def test_junitxml_rerun_does_not_add_a_testcase_with_xdist(testdir):
     assert cases[0].find("failure") is None
 
 
+def test_junitxml_teardown_rerun_stays_one_testcase(testdir):
+    testdir.makepyfile(
+        """
+        import pytest
+
+        @pytest.fixture(autouse=True)
+        def fixture():
+            yield
+            assert False
+
+        def test_example():
+            pass
+        """
+    )
+    result = testdir.runpytest("--reruns", "1", "--junitxml=report.xml")
+    assert_outcomes(result, passed=2, error=1, rerun=1)
+
+    suite, cases = junitxml_suite(testdir)
+    assert [case.get("name") for case in cases] == ["test_example"]
+    assert len(cases) == int(suite.get("tests")) == 1
+    assert suite.get("errors") == "1"
+    assert suite.get("failures") == "0"
+    assert len(cases[0].findall("error")) == 1
+    assert cases[0].find("failure") is None
+
+
 def test_single_attempt_triggers_at_most_one_rerun(testdir):
     testdir.makepyfile("def test_fail(failing_teardown): assert False")
     testdir.makeconftest(
